@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 const hooksDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '..', '.githooks');
 
 try {
+  // Inside a git hook, GIT_DIR is set and skews paths; the hook running proves it's wired.
+  if (process.env.GIT_DIR) process.exit(0);
   const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
   const want = relative(top, hooksDir);
   let current = '';
@@ -21,7 +23,7 @@ try {
   }
   if (current === '') {
     execFileSync('git', ['config', 'core.hooksPath', want]);
-  } else if (current !== want) {
+  } else if (resolve(top, current) !== hooksDir) {
     // Someone already chose their own hooks; never silently replace them.
     console.warn(`workbench: core.hooksPath is "${current}", so the pre-push check in ${want} is not active. ` +
       `Call ${want}/pre-push from your own hook to enable it.`);
