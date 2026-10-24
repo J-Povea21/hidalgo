@@ -1,0 +1,52 @@
+/**
+ * Applying a recorded page event to a run. Used when the event arrives and
+ * when logged events are replayed after a crash, so both paths agree.
+ */
+import type { RecordedEvent, RunState } from '../../shared/contract.ts';
+import { addMessage, applyAnswers, applyEdit, applyVerdict, rememberEventThread, threadOfItem } from './run.ts';
+
+/** The thread an event belongs to, or undefined for events that have none (a diagram failure). */
+export function threadOfEvent(run: RunState, ev: Pick<RecordedEvent, 'type'> & Partial<{ itemId: string; threadId: string }>): string | undefined {
+  if (ev.type === 'message') return ev.threadId;
+  if (ev.itemId) return threadOfItem(run, ev.itemId);
+  return undefined;
+}
+
+/** Throws a WorkbenchError when the event can't apply (stale revision, open questions, unknown thread). */
+export function applyEvent(run: RunState, ev: RecordedEvent): RunState {
+  let next: RunState;
+  switch (ev.type) {
+    case 'answers':
+      next = applyAnswers(run, ev.itemId, ev.answers, ev.at);
+      break;
+    case 'verdict':
+      next = applyVerdict(run, ev.itemId, ev.rev, ev.value, ev.at);
+      break;
+    case 'edit':
+      next = applyEdit(run, ev.itemId, ev.path, ev.text);
+      break;
+    case 'message':
+      next = addMessage(run, { text: ev.text, from: 'user', now: ev.at, id: `u${ev.seq}`, threadId: ev.threadId, images: ev.images });
+      break;
+    case 'diagram-failed':
+      next = run;
+      break;
+  }
+  const thread = threadOfEvent(run, ev as never);
+  if (thread) next = rememberEventThread(next, ev.seq, thread);
+  return { ...next, appliedSeq: Math.max(next.appliedSeq, ev.seq) };
+}
+
+/** Replays logged events the saved state hasn't absorbed yet; skips ones that no longer apply. */
+export function replay(run: RunState, events: RecordedEvent[]): RunState {
+  let next = run;
+  for (const ev of events) {
+    if (ev.seq <= next.appliedSeq) continue;
+    try {
+      next = applyEvent(next, ev);
+    } catch {
+      next = { ...next, appliedSeq: ev.seq };
+    }
+  }
+  return next;
+}

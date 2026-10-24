@@ -1,0 +1,37 @@
+{
+  "name": "workbench",
+  "private": true,
+  "description": "Local MCP server and page every planeacion-tools skill uses to work with the developer in the browser.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "hooks": "node scripts/setup-hooks.mjs",
+    "build": "node scripts/setup-hooks.mjs && node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node scripts/setup-hooks.mjs && vitest run",
+    "deps": "depcruise --config .dependency-cruiser.cjs server client shared",
+    "check": "node scripts/setup-hooks.mjs && node scripts/check.mjs",
+    "demo": "node scripts/demo.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "hono": "4.13.13",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@testing-library/preact": "3.2.6",
+    "@types/node": "26.6.5",
+    "dependency-cruiser": "18.7.0",
+    "dompurify": "3.4.17",
+    "esbuild": "0.28.2",
+    "happy-dom": "21.0.4",
+    "marked": "18.1.1",
+    "mermaid": "12.2.0",
+    "preact": "11.0.2",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  }
+}
