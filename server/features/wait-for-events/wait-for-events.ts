@@ -62,7 +62,9 @@ export async function takeEvents(deps: WaitDeps, runId: string): Promise<Deliver
           thread: ev.threadId,
           ...(owner?.type === 'item' ? { item: owner.itemId } : {}),
           text: ev.text,
-          ...(ev.images.length ? { images: ev.images.map((n) => deps.images.path(runId, n)) } : {}),
+          // The same image pasted twice is one file; hand Claude each once, so it isn't read twice.
+          // The stored message and the page keep the attachments exactly as sent.
+          ...(ev.images.length ? { images: [...new Set(ev.images)].map((n) => deps.images.path(runId, n)) } : {}),
         };
       }
       case 'diagram-failed':

@@ -53,6 +53,16 @@ describe('wait-for-events', () => {
     expect(w.page.last!.turn).toBe('claude');
   });
 
+  it('hands Claude a repeated image once, while the message keeps both attachments', async () => {
+    const { w, thread } = await setup();
+    // The fake store names files by order; make it name by content, like the real one.
+    w.images.save = async (_runId, url) => `${url.length}.webp`;
+    const png = 'data:image/png;base64,AAAA';
+    await recordPageEvent(w, 'r1', { type: 'message', threadId: thread, text: 'twice', images: [png, png] });
+    expect((await takeEvents(w, 'r1'))[0]!.images).toEqual(['/data/runs/r1/images/26.webp']);
+    expect((await w.store.load('r1'))!.messages[0]!.images).toEqual(['26.webp', '26.webp']);
+  });
+
   it('gives images as paths Claude can open', async () => {
     const { w, thread } = await setup();
     await recordPageEvent(w, 'r1', { type: 'message', threadId: thread, text: 'x', images: ['data:image/png;base64,AAAA'] });

@@ -4,7 +4,7 @@
  */
 import { createHmac } from 'node:crypto';
 import { request } from 'node:http';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -135,6 +135,18 @@ describe('workbench end to end', () => {
     const reply = await call('send_message', { runId, text: 'got it', replyTo: next.events[0].seq });
     expect(reply.threadId).toBe(thread);
     expect(added).toHaveLength(1);
+  });
+
+  it('the same image pasted twice is one file on disk and one path for Claude', async () => {
+    const { call, opened, root } = await boot();
+    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
+    const thread = (await http(port, `/api/state?run=${runId}`, { token })).json.state.threads[0].id;
+    const png = `data:image/png;base64,${Buffer.from('same image bytes').toString('base64')}`;
+    await http(port, `/api/event?run=${runId}`, { method: 'POST', token, body: { type: 'message', threadId: thread, text: 'twice', images: [png, png] } });
+    const { events } = await call('wait_for_events', { runId });
+    expect(events[0].images).toHaveLength(1);
+    expect(readdirSync(join(root, 'runs', 'miplan', runId, 'images'))).toHaveLength(1);
   });
 
   it('the approval gate holds over HTTP: stale revisions and open questions are refused', async () => {
