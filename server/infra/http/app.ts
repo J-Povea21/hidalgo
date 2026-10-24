@@ -2,12 +2,13 @@
  * The page's HTTP surface, on 127.0.0.1 only.
  *
  * Static files (the page itself) need no token: the token travels after the
- * `#` in the page address and the page sends it in a header. Every /api call
- * then passes three checks: Host must be this server (blocks DNS rebinding),
+ * `#` in the page address and the page sends it in a header, but only after
+ * /api/hello has proven this server holds it. Every other /api call passes
+ * three checks: Host must be this server (blocks DNS rebinding),
  * Origin must be this server on anything that writes (blocks other websites),
  * and the run's token must match, compared in constant time.
  */
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { Hono } from 'hono';
@@ -52,6 +53,17 @@ export function createApp(deps: HttpDeps): Hono {
     await next();
   });
 
+  // Identity check the page runs on every (re)connect, BEFORE it sends its token anywhere:
+  // the page sends a random nonce, we answer HMAC(token, nonce), and it checks that with the
+  // token it already holds. A server that isn't ours can't answer, and never sees the token.
+  app.get('/api/hello', async (c) => {
+    const runId = c.req.query('run') ?? '';
+    const nonce = c.req.query('nonce') ?? '';
+    const token = runId ? await deps.token(runId) : undefined;
+    if (!token || !/^[0-9a-f]{32,128}$/.test(nonce)) return c.json({ error: 'unknown run or bad nonce' }, 404);
+    return c.json({ server: 'workbench', run: runId, proof: createHmac('sha256', token).update(nonce).digest('hex') });
+  });
+
   app.use('/api/*', async (c, next) => {
     const origin = c.req.header('origin');
     if (c.req.method !== 'GET' && !(origin && own().some((h) => origin === `http://${h}`))) return c.json({ error: 'foreign origin' }, 403);
@@ -61,9 +73,6 @@ export function createApp(deps: HttpDeps): Hono {
     if (!expected || !sameToken(given, expected)) return c.json({ error: 'not authorised for this run' }, 401);
     await next();
   });
-
-  // Identity check the page runs on every (re)connect: proves this server owns the run.
-  app.get('/api/hello', (c) => c.json({ server: 'workbench', run: c.req.query('run') }));
 
   app.get('/api/state', async (c) => {
     const runId = c.req.query('run')!;

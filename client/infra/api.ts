@@ -21,22 +21,42 @@ export class ApiError extends Error {
   constructor(readonly status: number, message: string, readonly code?: string) { super(message); }
 }
 
+const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+
+/** HMAC-SHA256(token, nonce), what only a server holding the token can produce. */
+export async function proofFor(token: string, nonce: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(nonce)));
+}
+
 export function createApi(s: Session) {
   const q = `run=${encodeURIComponent(s.runId)}`;
   const headers = { [TOKEN_HEADER]: s.token };
+  /** The token is sent only to a server that proved, on this connection, that it holds it. */
+  let proven = false;
 
   async function call<T>(path: string, init?: RequestInit): Promise<T> {
+    if (!proven) throw new ApiError(0, "Not connected to Claude's session yet. Your text is kept.");
     const res = await fetch(`/api/${path}${path.includes('?') ? '&' : '?'}${q}`, { ...init, headers: { ...headers, ...(init?.headers ?? {}) } });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new ApiError(res.status, (body as { error?: string }).error ?? res.statusText, (body as { code?: string }).code);
     return body as T;
   }
 
-  /** True only if the server at this address proves it serves this run with this token. */
+  /**
+   * Proves the server at this address holds this run's token WITHOUT sending
+   * it: a random nonce goes out, HMAC(token, nonce) must come back. Until this
+   * succeeds, nothing carrying the token is sent.
+   */
   async function hello(): Promise<boolean> {
+    proven = false;
     try {
-      const r = await call<{ server?: string; run?: string }>('hello');
-      return r.server === 'workbench' && r.run === s.runId;
+      const nonce = hex(crypto.getRandomValues(new Uint8Array(16)).buffer);
+      const res = await fetch(`/api/hello?${q}&nonce=${nonce}`);
+      if (!res.ok) return false;
+      const r = (await res.json()) as { server?: string; run?: string; proof?: string };
+      proven = r.server === 'workbench' && r.run === s.runId && r.proof === (await proofFor(s.token, nonce));
+      return proven;
     } catch {
       return false;
     }
@@ -48,7 +68,10 @@ export function createApi(s: Session) {
       call<{ seq: number; imageWarning?: string }>('event', { method: 'POST', body: JSON.stringify(event), headers: { 'content-type': 'application/json' } }),
     liveRuns: () => call<{ runs: LiveEntry[] }>('runs').then((r) => r.runs),
     /** Fetches an image with the token (an <img> can't send headers) and returns a blob URL. */
-    imageBlob: async (name: string) => URL.createObjectURL(await (await fetch(`/api/image?${q}&name=${encodeURIComponent(name)}`, { headers })).blob()),
+    imageBlob: async (name: string) => {
+      if (!proven) throw new ApiError(0, 'not connected');
+      return URL.createObjectURL(await (await fetch(`/api/image?${q}&name=${encodeURIComponent(name)}`, { headers })).blob());
+    },
 
     /**
      * Follows the server's live updates. Reconnects on its own; reports how the
@@ -88,6 +111,8 @@ export function createApi(s: Session) {
           } catch {
             if (stopped) return;
           }
+          // The stream dropped: prove the server again before the token goes anywhere.
+          proven = false;
           if (!stopped) {
             downSince ||= Date.now();
             on.connection({ kind: 'reconnecting', since: downSince });

@@ -2,6 +2,7 @@
  * End to end, in-process: a real MCP client talks to the real tools, the page
  * is played by real HTTP requests, and everything lands on a real disk folder.
  */
+import { createHmac } from 'node:crypto';
 import { request } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -180,6 +181,19 @@ describe('HTTP security', () => {
     expect((await http(port, `/api/event?run=${runId}`, { method: 'POST', token, body: ev, origin: 'https://evil.example' })).status).toBe(403);
     expect((await http(port, `/api/state?run=${runId}`, { token, host: 'evil.example' })).status).toBe(421);
     expect((await http(port, `/api/state?run=${runId}`, { token })).status).toBe(200);
+  });
+
+  it('hello proves the server holds the token without the page ever sending it', async () => {
+    const { call, opened } = await boot();
+    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
+    const nonce = 'ab'.repeat(16);
+    const r = await http(port, `/api/hello?run=${runId}&nonce=${nonce}`);
+    expect(r.status).toBe(200);
+    expect(r.json.proof).toBe(createHmac('sha256', token).update(nonce).digest('hex'));
+    expect(JSON.stringify(r.json)).not.toContain(token);
+    expect((await http(port, `/api/hello?run=nope&nonce=${nonce}`)).status).toBe(404);
+    expect((await http(port, `/api/hello?run=${runId}&nonce=short`)).status).toBe(404);
   });
 
   it('a token for one run does not open another', async () => {
