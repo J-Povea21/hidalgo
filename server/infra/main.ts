@@ -49,3 +49,5 @@ process.on('SIGTERM', () => void end('The Claude session was stopped. Your work 
 
 await wb.sweep().catch(() => undefined);
 await server.connect(new StdioServerTransport());
+// After a /mcp reconnect: bring back the pages this Claude Code process had open.
+await wb.reserveOwnRuns().catch(() => undefined);

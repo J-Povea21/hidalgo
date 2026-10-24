@@ -43,6 +43,8 @@ export function registerTools(server: McpServer, wb: Workbench): void {
   /** Runs the slice, then attaches whatever the user did since the last delivery. */
   const withEvents = async (runId: string, act: () => Promise<unknown>): Promise<Result> => {
     try {
+      // A run touched after a restart is served again, so its open page sees the change.
+      await wb.ensureServed(runId);
       const result = await act();
       const events = await takeEvents(deps, runId);
       return ok(events.length ? { ...(result as object), events } : result);
@@ -118,7 +120,12 @@ export function registerTools(server: McpServer, wb: Workbench): void {
     description: "Hand the turn to the user and wait for what they do on the page. Returns at once if events are already waiting. Call it whenever you've finished a round: the session's Stop hook won't let a turn end while a run is open and nobody is waiting.",
     inputSchema: { runId: RunId },
   }, async (input) => {
-    try { return ok(await waitForEvents(deps, input.runId)); } catch (e) { return err(e); }
+    try {
+      await wb.ensureServed(input.runId);
+      return ok(await waitForEvents(deps, input.runId));
+    } catch (e) {
+      return err(e);
+    }
   });
 
   server.registerTool('mark_done', {

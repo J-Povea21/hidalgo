@@ -106,7 +106,9 @@ export function App(props: { api: Api; session: Session }) {
   const busy = state.connection.kind !== 'live' || run.status !== 'open';
   const idle = !state.waiting && now - lastChange > IDLE_MS && run.status === 'open';
   const typingLabel = run.statusLine ? `Claude: ${run.statusLine}` : 'Claude is thinking…';
-  const showTyping = (key: string) => (!state.waiting && typingIn === key && run.status === 'open' ? typingLabel : undefined);
+  // "Thinking" only while a live session is actually working on what was sent from this thread.
+  const showTyping = (key: string) =>
+    (!state.waiting && typingIn === key && run.status === 'open' && state.connection.kind === 'live' ? typingLabel : undefined);
 
   const threadProps = {
     runId: run.id, diagrams: run.diagrams, disabled: busy,
@@ -130,7 +132,7 @@ export function App(props: { api: Api; session: Session }) {
           </button>
         </>
       } />
-      <ConnectionBanner connection={state.connection} listening={state.waiting} idle={idle} />
+      <ConnectionBanner connection={state.connection} listening={state.waiting} idle={idle} runStatus={run.status} />
       <div class="wrap">
         <div class={`drawer ${drawer ? 'open' : ''}`}>
           <div>
@@ -157,7 +159,7 @@ export function App(props: { api: Api; session: Session }) {
                 onSend={(text, images) => send({ type: 'message', threadId: item.threadId, text, images }, item.threadId, 'Sent to Claude')} />
             </div>
             <div class="col sticky">
-              <article class={`panel preview ${status === 'questions' ? 'pending' : ''} ${!state.waiting && typingIn === item.threadId ? 'working' : ''}`}>
+              <article class={`panel preview ${status === 'questions' ? 'pending' : ''} ${showTyping(item.threadId) ? 'working' : ''}`}>
                 <div class="cardtitle">
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'flex-start' }}>
                     <h2>{itemTitle(item)}</h2>

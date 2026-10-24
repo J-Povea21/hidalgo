@@ -25,6 +25,8 @@ export interface WorkbenchConfig {
   heartbeatMs: number;
   /** Open the page in the browser; replaced in tests. */
   openBrowser?: (url: string) => void;
+  /** The owning Claude Code process; defaults to our parent. Set in tests to act as another session. */
+  ownerPid?: number;
 }
 
 export const DEFAULT_LIMITS: Limits = {
@@ -107,7 +109,7 @@ export class Workbench {
       const preferred = (await this.store.port(runId)) ?? 0;
       this.port = await this.listen(preferred).catch(() => this.listen(0));
     }
-    await this.store.rememberPort(runId, this.port);
+    await this.store.rememberServing(runId, this.port, this.config.ownerPid ?? process.ppid);
     this.served.add(runId);
     await this.beat(runId);
     this.heartbeat ??= setInterval(() => { for (const id of this.served) void this.beat(id); }, this.config.heartbeatMs);
@@ -146,13 +148,35 @@ export class Workbench {
     if (!this.served.has(run.id) || !this.port) return;
     await this.live.write(liveEntry(run, {
       port: this.port, pid: process.pid, processStartedAt: this.startedAt, url: this.urlOf(run.id),
-      ownerPid: process.ppid, awaiting: this.signal.waiting(run.id),
+      ownerPid: this.config.ownerPid ?? process.ppid, awaiting: this.signal.waiting(run.id),
     }, this.clock.now())).catch(() => undefined);
   }
 
   private async beat(runId: string): Promise<void> {
     const run = this.hub.current(runId) ?? (await this.store.load(runId));
     if (run) await this.beatRun(run);
+  }
+
+  /**
+   * Serves a run any tool touches, so a page left open from before a restart
+   * reconnects (on the run's old port when it's free) and sees the change.
+   */
+  async ensureServed(runId: string): Promise<void> {
+    if (this.served.has(runId)) return;
+    const run = await this.store.load(runId);
+    if (run && run.status !== 'closed') await this.serve(runId);
+  }
+
+  /**
+   * After a /mcp reconnect, Claude Code starts a new workbench under the same
+   * process: serve again the runs that process had open, so their tabs come
+   * back by themselves. Only one port can be reclaimed per server; other tabs
+   * say the run moved and get a fresh page on resume.
+   */
+  async reserveOwnRuns(): Promise<string[]> {
+    const ids = await this.store.ownedBy(this.config.ownerPid ?? process.ppid);
+    for (const id of ids) await this.serve(id).catch(() => undefined);
+    return ids;
   }
 
   open(url: string): void {

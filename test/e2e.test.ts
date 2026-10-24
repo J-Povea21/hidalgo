@@ -19,7 +19,7 @@ import { card, question } from './fixtures.ts';
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
-async function boot(dataRoot?: string) {
+async function boot(dataRoot?: string, ownerPid?: number) {
   const root = dataRoot ?? mkdtempSync(join(tmpdir(), 'wb-e2e-'));
   const clientDir = mkdtempSync(join(tmpdir(), 'wb-client-'));
   writeFileSync(join(clientDir, 'index.html'), '<!doctype html><title>t</title>');
@@ -28,6 +28,7 @@ async function boot(dataRoot?: string) {
     dataRoot: root, clientDir, retentionDays: 7, heartbeatMs: 60_000,
     limits: { imageBytesPerRun: 1_000_000, imageWarnBytes: 800_000, waitTimeoutMs: 3_000 },
     openBrowser: (u) => opened.push(u),
+    ...(ownerPid ? { ownerPid } : {}),
   });
   wb.recordEvent = (runId, body) => recordPageEvent(wb, runId, body);
   const server = new McpServer({ name: 'workbench', version: 'test' });
@@ -238,6 +239,50 @@ describe('HTTP security', () => {
     const port = portOf(opened[0]!);
     expect((await http(port, '/../../../etc/passwd')).status).toBe(404);
     expect((await http(port, '/%2e%2e/%2e%2e/etc/passwd')).status).toBe(404);
+  });
+});
+
+describe('recovering an open page', () => {
+  it('after a /mcp reconnect, the same session gets its run back on the old port, so the tab reconnects by itself', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'wb-reconnect-'));
+    cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+    const before = await boot(root, 4242);
+    const { runId } = await before.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const [port, token] = [portOf(before.opened[0]!), tokenOf(before.opened[0]!)];
+    await before.wb.shutdown('reconnecting');
+
+    const after = await boot(root, 4242);
+    expect(await after.wb.reserveOwnRuns()).toEqual([runId]);
+    expect(after.wb.boundPort).toBe(port);
+    const nonce = 'cd'.repeat(16);
+    const hello = await http(port, `/api/hello?run=${runId}&nonce=${nonce}`);
+    expect(hello.json.proof).toBe(createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}`).digest('hex'));
+    expect(after.opened).toEqual([]);
+  });
+
+  it("another session's workbench does not take the run back", async () => {
+    const root = mkdtempSync(join(tmpdir(), 'wb-reconnect-'));
+    cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+    const mine = await boot(root, 4242);
+    await mine.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    await mine.wb.shutdown('x');
+    const theirs = await boot(root, 5353);
+    expect(await theirs.wb.reserveOwnRuns()).toEqual([]);
+  });
+
+  it('pausing a run nobody serves serves it again, so its open page shows the pause', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'wb-reconnect-'));
+    cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+    const before = await boot(root, 4242);
+    const { runId } = await before.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    await before.call('add_items', { runId, items: [{ kind: 'card', fields: card() }] });
+    const [port, token] = [portOf(before.opened[0]!), tokenOf(before.opened[0]!)];
+    await before.wb.shutdown('restart');
+
+    const after = await boot(root, 4242);
+    expect(await after.call('close_session', { runId, status: 'paused', outcome: 'later' })).toMatchObject({ status: 'paused' });
+    const state = await http(port, `/api/state?run=${runId}`, { token });
+    expect(state.json.state.status).toBe('paused');
   });
 });
 

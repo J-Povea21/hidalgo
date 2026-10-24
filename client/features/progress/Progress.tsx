@@ -18,7 +18,7 @@ export function Progress(props: { run: RunState; turn: Turn; current: number; on
           <h1>{run.subject}</h1>
           <span class="meta">{run.project} · {run.skill}</span>
           <span class="spacer" />
-          <TurnLine turn={turn} line={run.statusLine} />
+          <TurnLine turn={turn} line={run.statusLine} status={run.status} />
           {run.items.length > 0 && <span class="meta">Item {props.current + 1} of {run.items.length} · {approved} approved</span>}
           {props.actions}
         </div>
@@ -45,9 +45,10 @@ export function Progress(props: { run: RunState; turn: Turn; current: number; on
   );
 }
 
-function TurnLine(props: { turn: Turn; line?: string | undefined }) {
+function TurnLine(props: { turn: Turn; line?: string | undefined; status: RunState['status'] }) {
   if (props.turn === 'yours') return <span class="status yours" role="status"><span class="dotpulse" />Your turn</span>;
   if (props.turn === 'working') return <span class="status working" role="status"><span class="dotpulse" />{props.line ?? 'Claude is working'}</span>;
-  if (props.turn === 'done') return <span class="status" role="status">Run ended</span>;
+  if (props.turn === 'done') return <span class="status" role="status">{props.status === 'paused' ? 'Paused · resumable' : 'Run ended'}</span>;
+  if (props.turn === 'offline') return <span class="status" role="status">Not connected</span>;
   return null;
 }

@@ -10,7 +10,8 @@ import type { RunState } from '../../../shared/contract.ts';
 import type { RunStore } from '../../kernel/ports.ts';
 import { readJson, removeTree, slug, writeAtomic } from './files.ts';
 
-interface RunFile { token: string; port?: number; state: RunState }
+/** `ownerPid`: the Claude Code process last serving the run, so a /mcp reconnect can serve it again. */
+interface RunFile { token: string; port?: number; ownerPid?: number; state: RunState }
 
 export class FsRunStore implements RunStore {
   /** run id → its folder, learned on save or found by scanning. */
@@ -54,7 +55,12 @@ export class FsRunStore implements RunStore {
     const dir = (await this.dirOf(run.id)) ?? join(this.root, 'runs', slug(run.project), run.id);
     this.dirs.set(run.id, dir);
     const prev = await this.file(run.id);
-    const next: RunFile = { token: prev?.token ?? randomBytes(32).toString('base64url'), ...(prev?.port ? { port: prev.port } : {}), state: run };
+    const next: RunFile = {
+      token: prev?.token ?? randomBytes(32).toString('base64url'),
+      ...(prev?.port ? { port: prev.port } : {}),
+      ...(prev?.ownerPid ? { ownerPid: prev.ownerPid } : {}),
+      state: run,
+    };
     await writeAtomic(join(dir, 'run.json'), JSON.stringify(next));
     this.files.set(run.id, next);
   }
@@ -88,12 +94,25 @@ export class FsRunStore implements RunStore {
     return (await this.file(runId))?.port;
   }
 
-  async rememberPort(runId: string, port: number): Promise<void> {
+  /** Where and for whom the run is served now: its port for a restored tab, its owner for a reconnect. */
+  async rememberServing(runId: string, port: number, ownerPid: number): Promise<void> {
     const f = await this.file(runId);
     const dir = await this.dirOf(runId);
-    if (!f || !dir || f.port === port) return;
-    const next = { ...f, port };
+    if (!f || !dir || (f.port === port && f.ownerPid === ownerPid)) return;
+    const next = { ...f, port, ownerPid };
     await writeAtomic(join(dir, 'run.json'), JSON.stringify(next));
     this.files.set(runId, next);
+  }
+
+  /** Runs not closed that this Claude Code process was serving before its workbench restarted. */
+  async ownedBy(ownerPid: number): Promise<string[]> {
+    const ids: string[] = [];
+    for (const project of await readdir(join(this.root, 'runs')).catch(() => [] as string[])) {
+      for (const id of await readdir(join(this.root, 'runs', project)).catch(() => [] as string[])) {
+        const f = await readJson<RunFile>(join(this.root, 'runs', project, id, 'run.json'));
+        if (f && f.ownerPid === ownerPid && f.state.status !== 'closed') ids.push(id);
+      }
+    }
+    return ids;
   }
 }
