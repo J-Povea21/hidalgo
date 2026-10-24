@@ -190,7 +190,7 @@ describe('HTTP security', () => {
     const nonce = 'ab'.repeat(16);
     const r = await http(port, `/api/hello?run=${runId}&nonce=${nonce}`);
     expect(r.status).toBe(200);
-    expect(r.json.proof).toBe(createHmac('sha256', token).update(nonce).digest('hex'));
+    expect(r.json.proof).toBe(createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}`).digest('hex'));
     expect(JSON.stringify(r.json)).not.toContain(token);
     expect((await http(port, `/api/hello?run=nope&nonce=${nonce}`)).status).toBe(404);
     expect((await http(port, `/api/hello?run=${runId}&nonce=short`)).status).toBe(404);
@@ -203,6 +203,19 @@ describe('HTTP security', () => {
     const port = portOf(opened[0]!);
     expect((await http(port, `/api/state?run=${b.runId}`, { token: tokenOf(opened[0]!) })).status).toBe(401);
     expect((await http(port, `/api/state?run=${a.runId}`, { token: tokenOf(opened[0]!) })).status).toBe(200);
+  });
+
+  it("a server neither signs nor accepts a run it isn't serving, even with that run's token from disk", async () => {
+    const root = mkdtempSync(join(tmpdir(), 'wb-two-'));
+    cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+    const a = await boot(root);
+    const { runId } = await a.call('open_session', { skill: 'card', project: 'MiPlan', subject: 'a' });
+    const token = tokenOf(a.opened[0]!);
+    const b = await boot(root);
+    await b.call('open_session', { skill: 'card', project: 'MiPlan', subject: 'b' });
+    const portB = portOf(b.opened[0]!);
+    expect((await http(portB, `/api/hello?run=${runId}&nonce=${'ab'.repeat(16)}`)).status).toBe(404);
+    expect((await http(portB, `/api/state?run=${runId}`, { token })).status).toBe(401);
   });
 
   it('never serves files outside the page folder', async () => {

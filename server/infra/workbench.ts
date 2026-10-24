@@ -117,7 +117,8 @@ export class Workbench {
     return new Promise((resolve, reject) => {
       const app = createApp({
         port: () => this.port,
-        token: async (id) => this.tokens.get(id) ?? (await this.store.token(id)),
+        // Only runs this server serves: it never signs or accepts a token it merely finds on disk.
+        token: async (id) => (this.served.has(id) ? this.tokens.get(id) : undefined),
         hub: this.hub,
         ensureState: async (id) => {
           if (this.hub.current(id)) return;

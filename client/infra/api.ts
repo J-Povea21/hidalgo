@@ -23,11 +23,18 @@ export class ApiError extends Error {
 
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
 
-/** HMAC-SHA256(token, nonce), what only a server holding the token can produce. */
-export async function proofFor(token: string, nonce: string): Promise<string> {
+/**
+ * HMAC-SHA256(token, "workbench-hello|nonce|port"): what only the server holding the token,
+ * answering on this port, can produce. A proof relayed from a server on another port fails.
+ * Mirrors helloProof in server/infra/http/app.ts.
+ */
+export async function proofFor(token: string, nonce: string, port: string): Promise<string> {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(nonce)));
+  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`workbench-hello|${nonce}|${port}`)));
 }
+
+/** The port this page is talking to (the address bar's, defaulting like the browser does). */
+const pagePort = () => location.port || (location.protocol === 'https:' ? '443' : '80');
 
 export function createApi(s: Session) {
   const q = `run=${encodeURIComponent(s.runId)}`;
@@ -55,7 +62,7 @@ export function createApi(s: Session) {
       const res = await fetch(`/api/hello?${q}&nonce=${nonce}`);
       if (!res.ok) return false;
       const r = (await res.json()) as { server?: string; run?: string; proof?: string };
-      proven = r.server === 'workbench' && r.run === s.runId && r.proof === (await proofFor(s.token, nonce));
+      proven = r.server === 'workbench' && r.run === s.runId && r.proof === (await proofFor(s.token, nonce, pagePort()));
       return proven;
     } catch {
       return false;
