@@ -169,6 +169,8 @@ describe('workbench end to end', () => {
     await call('add_items', { runId, items: [{ kind: 'card', fields: card() }] });
     const r = await call('close_session', { runId, status: 'closed', outcome: 'done' });
     expect(r).toMatchObject({ isError: true, error: 'open-items' });
+    // What the Stop hook tells Claude to do must always work: pausing with the item undecided.
+    expect(await call('close_session', { runId, status: 'paused', outcome: 'stopping for now' })).toMatchObject({ isError: false, status: 'paused' });
   });
 
   it('a tool call with a bad card names the reason and adds nothing', async () => {

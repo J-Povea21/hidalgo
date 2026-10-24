@@ -260,18 +260,22 @@ export function itemsWithoutOutcome(run: RunState): Item[] {
 }
 
 /**
- * Ending a run. `closed` needs every item to have a final outcome; a run with
- * items left pending can only be paused, and stays resumable.
+ * Ending a run. `paused` is always allowed: it keeps everything and stays
+ * resumable, whatever state the items are in. `closed` is final, so it needs
+ * every item rejected, or approved and done; anything undecided or left
+ * pending means the run can only be paused.
  */
 export function close(run: RunState, status: Exclude<RunStatus, 'open'>, outcome: string, now: string): RunState {
   assertOpen(run);
-  const missing = itemsWithoutOutcome(run);
-  if (missing.length) {
-    throw new WorkbenchError('open-items', `${missing.length} item(s) have no outcome yet`, missing.map((i) => ({ id: i.id, rev: i.rev })));
-  }
-  const pending = run.items.filter((i) => i.verdict?.value === 'pending');
-  if (status === 'closed' && pending.length) {
-    throw new WorkbenchError('open-items', `${pending.length} item(s) were left pending: the run can only be paused`, pending.map((i) => i.id));
+  if (status === 'closed') {
+    const missing = itemsWithoutOutcome(run);
+    if (missing.length) {
+      throw new WorkbenchError('open-items', `${missing.length} item(s) have no outcome yet: pause the run instead`, missing.map((i) => ({ id: i.id, rev: i.rev })));
+    }
+    const pending = run.items.filter((i) => i.verdict?.rev === i.rev && i.verdict.value === 'pending');
+    if (pending.length) {
+      throw new WorkbenchError('open-items', `${pending.length} item(s) were left pending: pause the run instead`, pending.map((i) => ({ id: i.id, rev: i.rev })));
+    }
   }
   return touch({ ...clone(run), status, closedOutcome: outcome, closedAt: now, turn: 'claude' });
 }

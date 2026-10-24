@@ -158,6 +158,14 @@ describe('ending a run', () => {
     expect(close(markDone(run, 'i1', 'created', T0), 'closed', 'created 1, rejected 1', T0).status).toBe('closed');
   });
 
+  it('a run with undecided items can always be paused, but not closed', () => {
+    const run = two();
+    expect(code(() => close(run, 'closed', 'x', T0))).toBe('open-items');
+    const paused = close(run, 'paused', 'stopping for now', T0);
+    expect(paused.status).toBe('paused');
+    expect(paused.items).toEqual(run.items);
+  });
+
   it('items left pending let the run pause but not close', () => {
     const run = applyVerdict(applyVerdict(two(), 'i1', 1, 'rejected', T0), 'i2', 1, 'pending', T0);
     expect(code(() => close(run, 'closed', 'x', T0))).toBe('open-items');

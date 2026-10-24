@@ -127,7 +127,7 @@ export function registerTools(server: McpServer, wb: Workbench): void {
   }, (input) => withEvents(input.runId, () => markDone(deps, input)));
 
   server.registerTool('close_session', {
-    description: 'End the run. "closed" needs every item rejected, or approved and marked done; items the user left pending allow only "paused", which stays resumable. Refused otherwise, listing the open items.',
+    description: 'End the run. "paused" always works: it keeps everything and the run stays resumable. "closed" is final and needs every item rejected, or approved and marked done; otherwise it is refused, listing the open items, and you pause instead.',
     inputSchema: { runId: RunId, status: z.enum(['closed', 'paused']), outcome: z.string().min(1).max(300) },
   }, (input) => withEvents(input.runId, () => closeSession(deps, input)));
 }
