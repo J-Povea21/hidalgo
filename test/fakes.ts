@@ -1,10 +1,18 @@
-/** In-memory fakes for every port: no disk, network or real clock in slice tests. */
+/** In-memory fakes for every port: no disk, network or real clock in use-case tests. */
 import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '@shared/contract.ts';
-import type { Clock, EventLog, Ids, ImageStore, Limits, PagePublisher, RunStore } from '@server/domain/ports.ts';
-import type { LiveIndex } from '@server/features/list-runs/ports.ts';
-import { MemoryRunLock, MemorySignal } from '@server/infra/runtime.ts';
-import { sequenced } from '@server/domain/events.ts';
-import { addItems, ask, newRun } from '@server/domain/run.ts';
+import type { Clock } from '@server/common/ports/clock.port.ts';
+import type { EventLog } from '@server/common/ports/event-log.port.ts';
+import type { Ids } from '@server/common/ports/ids.port.ts';
+import type { ImageStore } from '@server/page-events/domain/ports/image-store.port.ts';
+import type { Limits } from '@server/page-events/domain/limits.ts';
+import type { PagePublisher } from '@server/common/ports/page-publisher.port.ts';
+import type { RunStore } from '@server/common/ports/run-store.port.ts';
+import type { LiveIndex } from '@server/runs/domain/ports/live-index.port.ts';
+import { buildModules, type Adapters, type Modules } from '@server/app/modules.ts';
+import { MemoryRunLock } from '@server/common/infrastructure/runtime.ts';
+import { MemorySignal } from '@server/page-events/infrastructure/memory-signal.ts';
+import { sequenced } from '@server/common/domain/events.ts';
+import { addItems, ask, newRun } from '@server/common/domain/run.ts';
 import { card, counterIds, question, T0 } from './fixtures.ts';
 
 export class MemoryStore implements RunStore {
@@ -86,11 +94,21 @@ export class MemoryLive implements LiveIndex {
   }
 }
 
-export const clock: Clock = { now: () => T0 };
-export function ids(): Ids {
-  const counters: Record<string, number> = {};
-  return { next: (prefix) => `${prefix}${(counters[prefix] = (counters[prefix] ?? 0) + 1)}` };
+export class FixedClock implements Clock {
+  now(): string {
+    return T0;
+  }
 }
+
+/** Counts per prefix: r1, t1, t2, m1, ... */
+export class CountingIds implements Ids {
+  private counters: Record<string, number> = {};
+  next(prefix: string): string {
+    this.counters[prefix] = (this.counters[prefix] ?? 0) + 1;
+    return `${prefix}${this.counters[prefix]}`;
+  }
+}
+
 export const limits: Limits = { imageBytesPerRun: 1000, imageWarnBytes: 800, waitTimeoutMs: 200 };
 
 export function world() {
@@ -102,10 +120,15 @@ export function world() {
     lock: new MemoryRunLock(),
     page: new CapturePage(),
     live: new MemoryLive(),
-    clock,
-    ids: ids(),
+    clock: new FixedClock(),
+    ids: new CountingIds(),
     limits,
   };
+}
+
+/** The use cases, wired to the given fakes exactly as the server wires them to its adapters. */
+export function useCases(fakes: Adapters): Modules {
+  return buildModules(fakes);
 }
 
 /** A world holding run r1 with one card (i1) that has one open question. */
@@ -116,5 +139,5 @@ export async function seededWorld() {
   run = addItems(run, [{ kind: 'card', fields: card() }], nextId).run;
   run = ask(run, 'i1', [question()], nextId).run;
   await fakes.store.save(run);
-  return { fakes, run, thread: run.items[0]!.threadId };
+  return { fakes, cases: useCases(fakes), run, thread: run.items[0]!.threadId };
 }
