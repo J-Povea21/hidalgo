@@ -6,10 +6,12 @@ import type { RecordedEvent, RunState } from '../../shared/contract.ts';
 import { addMessage, applyAnswers, applyEdit, applyVerdict, rememberEventThread, threadOfItem } from './run.ts';
 
 /** The thread an event belongs to, or undefined for events that have none (a diagram failure). */
-export function threadOfEvent(run: RunState, ev: Pick<RecordedEvent, 'type'> & Partial<{ itemId: string; threadId: string }>): string | undefined {
-  if (ev.type === 'message') return ev.threadId;
-  if (ev.itemId) return threadOfItem(run, ev.itemId);
-  return undefined;
+export function threadOfEvent(run: RunState, ev: RecordedEvent): string | undefined {
+  switch (ev.type) {
+    case 'message': return ev.threadId;
+    case 'diagram-failed': return undefined;
+    default: return threadOfItem(run, ev.itemId);
+  }
 }
 
 /** Throws a WorkbenchError when the event can't apply (stale revision, open questions, unknown thread). */
@@ -32,7 +34,7 @@ export function applyEvent(run: RunState, ev: RecordedEvent): RunState {
       next = run;
       break;
   }
-  const thread = threadOfEvent(run, ev as never);
+  const thread = threadOfEvent(run, ev);
   if (thread) next = rememberEventThread(next, ev.seq, thread);
   return { ...next, appliedSeq: Math.max(next.appliedSeq, ev.seq) };
 }

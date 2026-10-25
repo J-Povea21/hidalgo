@@ -208,3 +208,8 @@ button.stored img { margin-top:0; }
 .verdict:focus { outline:none; }
 .verdict:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .edit-actions { display:flex; gap:6px; margin-top:6px; }
+.titlerow { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+.section.chips { padding-bottom:0; }
+.provenance { margin:0; }
+.provenance.after { margin-top:10px; }
+fieldset.options { border:0; padding:0; margin:0; }

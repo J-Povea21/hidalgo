@@ -26,13 +26,14 @@ export function Questions(props: { runId: string; item: Item; disabled: boolean;
   const card = useRef<HTMLDivElement>(null);
   /** Set when a pick moved on, so focus follows to the next question instead of dropping to the page. */
   const focusNext = useRef(false);
+  const advance = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(advance.current), []);
   useEffect(() => saveDraft(props.runId, key, draft), [draft]);
   useEffect(() => {
     if (!focusNext.current) return;
     focusNext.current = false;
     card.current?.querySelector<HTMLInputElement>('input[type=radio]:checked, input[type=radio]')?.focus();
   }, [pos]);
-  useEffect(() => { setPos(0); setDraft(loadDraft(props.runId, `answers:${item.id}`, {})); }, [item.id]);
 
   const answered = item.questions.filter((q) => q.answer);
   const rulings = answered.length > 0 && (
@@ -65,7 +66,8 @@ export function Questions(props: { runId: string; item: Item; disabled: boolean;
   const choose = (choice: number) => setDraft({ ...draft, [q.id]: { ...a, choice } });
   const commit = (choice: number) => {
     choose(choice);
-    if (i < open.length - 1) setTimeout(() => { focusNext.current = true; go(i + 1); }, ADVANCE_MS);
+    clearTimeout(advance.current);
+    if (i < open.length - 1) advance.current = setTimeout(() => { focusNext.current = true; go(i + 1); }, ADVANCE_MS);
   };
   const send = async () => {
     const answers = Object.fromEntries(ready.map(([id, d]) => [id, { choice: d.choice!, ...(d.note ? { note: d.note } : {}) }]));
@@ -81,7 +83,7 @@ export function Questions(props: { runId: string; item: Item; disabled: boolean;
         {q.evidence.map((e, k) => (
           <div class="ev" key={k}><span class={`tag ${e.kind}`}>{e.kind}</span><span dangerouslySetInnerHTML={inline(e.text)} /></div>
         ))}
-        <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+        <fieldset class="options">
           <legend class="sr">Options</legend>
           {q.options.map((o, k) => (
             <label class="opt" key={k}>

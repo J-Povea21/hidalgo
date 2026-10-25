@@ -30,7 +30,7 @@ export function Progress(props: { run: RunState; turn: TurnView; current: number
                 <button
                   key={item.id}
                   class={`seg ${i === props.current ? 'cur' : ''}`}
-                  style={{ '--fill': fill, '--c': color } as never}
+                  style={{ '--fill': fill, '--c': color } as Record<string, string>}
                   title={itemTitle(item)}
                   aria-label={`${itemTitle(item)}: ${itemStatus(item)}`}
                   aria-current={i === props.current}

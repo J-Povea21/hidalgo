@@ -32,3 +32,12 @@ export function counterIds() {
 }
 
 export const T0 = '2026-10-24T22:00:00.000Z';
+
+/** Polls until `ok` holds (or 3 s pass, then fails the test): for conditions with no event to await. */
+export async function until(ok: () => boolean | Promise<boolean>, ms = 3000): Promise<void> {
+  const end = Date.now() + ms;
+  while (!(await ok())) {
+    if (Date.now() > end) throw new Error(`condition not met within ${ms} ms`);
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}

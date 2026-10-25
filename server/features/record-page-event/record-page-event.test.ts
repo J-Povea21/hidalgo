@@ -1,18 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { card, counterIds, question, T0 } from '../../../test/fixtures.ts';
-import { world } from '../../../test/fakes.ts';
-import { addItems, ask, newRun } from '../../kernel/run.ts';
+import { seededWorld } from '../../../test/fakes.ts';
+import { until } from '../../../test/fixtures.ts';
 import { recordPageEvent } from './record-page-event.ts';
 
-async function setup() {
-  const w = world();
-  const ids = counterIds();
-  let run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'v', now: T0, threadId: ids('t') });
-  run = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
-  run = ask(run, 'i1', [question()], ids).run;
-  await w.store.save(run);
-  return { w, run };
-}
+const setup = seededWorld;
 const png = 'data:image/png;base64,' + 'A'.repeat(400);
 
 describe('record-page-event', () => {

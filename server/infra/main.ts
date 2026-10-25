@@ -3,19 +3,18 @@
  * When Claude Code closes our stdin (the session ended, in any client), we say
  * goodbye to the pages, take our live entries down, and exit.
  */
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerTools } from './mcp/tools.ts';
+import { dataRoot } from './paths.ts';
 import { DEFAULT_LIMITS, Workbench } from './workbench.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const dataRoot = join(process.env['CLAUDE_PLUGIN_DATA'] ?? join(homedir(), '.claude', 'plugins', 'data', 'planeacion-tools'), 'workbench');
 
 const wb = new Workbench({
-  dataRoot,
+  dataRoot: dataRoot(),
   clientDir: join(here, 'client'),
   limits: DEFAULT_LIMITS,
   retentionDays: 7,
@@ -41,8 +40,9 @@ async function end(reason: string): Promise<void> {
   await wb.shutdown(reason).catch(() => undefined);
   process.exit(0);
 }
-process.stdin.on('end', () => void end('The Claude session ended. Your work is saved; run the skill again in this project to resume.'));
-process.stdin.on('close', () => void end('The Claude session ended. Your work is saved; run the skill again in this project to resume.'));
+const SESSION_ENDED = 'The Claude session ended. Your work is saved; run the skill again in this project to resume.';
+process.stdin.on('end', () => void end(SESSION_ENDED));
+process.stdin.on('close', () => void end(SESSION_ENDED));
 process.on('SIGTERM', () => void end('The Claude session was stopped. Your work is saved.'));
 
 await wb.sweep().catch(() => undefined);

@@ -53,6 +53,18 @@ const sameToken = (a: string, b: string) => {
   return x.length === y.length && timingSafeEqual(x, y);
 };
 
+/** Every rule a page event can break, and the status it answers with: a new code must pick one. */
+const HTTP_STATUS = {
+  'not-found': 404,
+  invalid: 400,
+  limit: 413,
+  'stale-revision': 409,
+  'open-questions': 409,
+  'open-items': 409,
+  'thread-mismatch': 409,
+  closed: 409,
+} as const satisfies Record<WorkbenchError['code'], number>;
+
 export function createApp(deps: HttpDeps): Hono {
   const app = new Hono();
   const own = () => [`127.0.0.1:${deps.port()}`, `localhost:${deps.port()}`];
@@ -127,8 +139,7 @@ export function createApp(deps: HttpDeps): Hono {
       return c.json(await deps.recordEvent(runId, body));
     } catch (e) {
       if (e instanceof WorkbenchError) {
-        const status = e.code === 'not-found' ? 404 : e.code === 'limit' ? 413 : e.code === 'invalid' ? 400 : 409;
-        return c.json({ error: e.message, code: e.code }, status);
+        return c.json({ error: e.message, code: e.code }, HTTP_STATUS[e.code]);
       }
       throw e;
     }

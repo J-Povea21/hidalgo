@@ -13,7 +13,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { registerTools } from '../server/infra/mcp/tools.ts';
 import { Workbench } from '../server/infra/workbench.ts';
-import { card, question } from './fixtures.ts';
+import { card, question, until } from './fixtures.ts';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -69,7 +69,7 @@ const portOf = (url: string) => Number(new URL(url).port);
 
 describe('workbench end to end', () => {
   it('open a run, post a page event over HTTP, and wait_for_events returns it', async () => {
-    const { call, opened } = await boot();
+    const { call, opened, wb } = await boot();
     const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 'validator' });
     expect(opened).toHaveLength(1);
     const url = opened[0]!;
@@ -80,7 +80,7 @@ describe('workbench end to end', () => {
     const asked = await call('ask', { runId, itemId, questions: [question()] });
 
     const waiting = call('wait_for_events', { runId });
-    await new Promise((r) => setTimeout(r, 100));
+    await until(async () => wb.signal.waiting(runId) && (await wb.store.load(runId))?.turn === 'user');
     const state = await http(port, `/api/state?run=${runId}`, { token });
     expect(state.json.claudeListening).toBe(true);
     expect(state.json.state.turn).toBe('user');
@@ -110,11 +110,10 @@ describe('workbench end to end', () => {
     });
     req.end();
     cleanups.push(() => { req.destroy(); });
-    await new Promise((r) => setTimeout(r, 100));
+    await until(() => pushed.length > 0);
     // Left pending on purpose; cleanup closes the client, which rejects it.
     call('wait_for_events', { runId }).catch(() => undefined);
-    await new Promise((r) => setTimeout(r, 300));
-    expect(pushed.at(-1)?.claudeListening).toBe(true);
+    await until(() => pushed.at(-1)?.claudeListening === true);
   });
 
   it('events ride along on the next tool result, exactly once', async () => {
@@ -272,13 +271,12 @@ describe('one tab per run', () => {
     });
     req.end();
     cleanups.push(() => { req.destroy(); });
-    await new Promise((r) => setTimeout(r, 100));
+    await until(() => events.includes('state'));
 
     const resumed = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId });
-    await new Promise((r) => setTimeout(r, 100));
     expect(resumed).toMatchObject({ resumed: true, opened: false, alreadyOpen: 1 });
     expect(opened).toHaveLength(1);
-    expect(events).toContain('nudge');
+    await until(() => events.includes('nudge'));
   });
 
   it('resuming with no page connected opens one', async () => {
@@ -380,7 +378,7 @@ describe('resume after a restart', () => {
     const { runId } = await first.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
     const [port, token] = [portOf(first.opened[0]!), tokenOf(first.opened[0]!)];
     const drop = await connect(port, runId, token);
-    await new Promise((r) => setTimeout(r, 100));
+    await until(async () => !!(await first.wb.store.lastViewer(runId)));
     drop();
     await first.wb.shutdown('restart');
 
@@ -400,7 +398,7 @@ describe('resume after a restart', () => {
     const { runId, threadId } = await first.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
     expect(threadId).toMatch(/^t/);
     const drop = await connect(portOf(first.opened[0]!), runId, tokenOf(first.opened[0]!));
-    await new Promise((r) => setTimeout(r, 100));
+    await until(async () => !!(await first.wb.store.lastViewer(runId)));
     drop();
     await first.wb.shutdown('restart');
 

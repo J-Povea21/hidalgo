@@ -36,7 +36,6 @@ export function Thread(p: ThreadProps) {
   const feed = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { setText(loadDraft(p.runId, `text:${p.threadId}`, '')); setImages([]); }, [p.threadId]);
   useEffect(() => saveDraft(p.runId, `text:${p.threadId}`, text), [text]);
   useEffect(() => { feed.current?.scrollTo({ top: feed.current.scrollHeight }); }, [p.messages.length, p.typing]);
   useEffect(() => {
@@ -50,11 +49,15 @@ export function Thread(p: ThreadProps) {
   const add = async (files: FileList | File[]) => {
     const list = [...files].filter((f) => f.type.startsWith('image/'));
     if (!list.length) return;
-    const room = MAX_PER_MESSAGE - images.length;
-    if (room <= 0) return toast(`Up to ${MAX_PER_MESSAGE} images per message`);
-    const urls = await Promise.all(list.slice(0, room).map(compress));
-    setImages((cur) => [...cur, ...urls]);
-    toast(list.length > room ? `Attached ${room}; up to ${MAX_PER_MESSAGE} per message` : `${urls.length} image${urls.length > 1 ? 's' : ''} attached`);
+    if (images.length >= MAX_PER_MESSAGE) return toast(`Up to ${MAX_PER_MESSAGE} images per message`);
+    const urls = await Promise.all(list.slice(0, MAX_PER_MESSAGE - images.length).map(compress));
+    let kept = 0;
+    setImages((cur) => {
+      const next = [...cur, ...urls].slice(0, MAX_PER_MESSAGE);
+      kept = next.length - cur.length;
+      return next;
+    });
+    toast(kept < list.length ? `Attached ${kept}; up to ${MAX_PER_MESSAGE} per message` : `${kept} image${kept > 1 ? 's' : ''} attached`);
   };
 
   const send = async () => {

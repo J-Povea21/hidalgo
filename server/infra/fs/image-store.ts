@@ -41,15 +41,8 @@ export class FsImageStore implements ImageStore {
     return total;
   }
 
-  path(runId: string, name: string): string {
-    const dir = this.dirs.get(runId);
-    if (!dir) throw new Error(`images of run ${runId} not opened yet`);
+  async path(runId: string, name: string): Promise<string> {
     if (!/^[a-f0-9]{24}\.(webp|png|jpg|gif)$/.test(name)) throw new Error('bad image name');
-    return join(dir, name);
-  }
-
-  /** Resolves the folder ahead of `path`, which must stay synchronous. */
-  async open(runId: string): Promise<void> {
-    await this.dir(runId);
+    return join(await this.dir(runId), name);
   }
 }

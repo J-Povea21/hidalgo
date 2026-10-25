@@ -126,7 +126,6 @@ export class Workbench {
     const token = await this.store.token(runId);
     if (!token) throw new Error(`run ${runId} has no token and can't be served`);
     this.tokens.set(runId, token);
-    await this.images.open(runId);
     this.listening ??= this.store.port(runId).then((preferred) => this.listen(preferred ?? 0).catch(() => this.listen(0)));
     this.port = await this.listening;
     await this.store.rememberServing(runId, this.port, this.ownerPid);
@@ -148,7 +147,7 @@ export class Workbench {
           if (run) this.hub.publish(run);
         },
         recordEvent: this.recordEvent,
-        imageFile: async (id, name) => { await this.images.open(id); return this.images.path(id, name); },
+        imageFile: (id, name) => this.images.path(id, name),
         liveRuns: () => this.live.alive(),
         claudeListening: (id) => this.signal.waiting(id),
         claudeActiveAt: (id) => this.activeAt.get(id),

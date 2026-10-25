@@ -2,15 +2,18 @@
  * `events.log`: one JSON line per page event, flushed before it is acted on.
  * `delivered.json`: the bookmark of what Claude has already been handed.
  */
-import { readFile } from 'node:fs/promises';
+import { readFile, truncate } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { RecordedEvent, UnsequencedEvent } from '../../../shared/contract.ts';
 import type { EventLog } from '../../kernel/ports.ts';
 import { appendLine, readJson, writeAtomic } from './files.ts';
 
+/**
+ * Appends are serialised by the caller: every change to a run, the append included, runs under
+ * the run's lock (kernel/unit-of-work). The last sequence number is read from the file on every
+ * append, not cached, so it stays right even if another server ever appended to the same run.
+ */
 export class FsEventLog implements EventLog {
-  /** Serialises appends per run so sequence numbers never collide. */
-  private chains = new Map<string, Promise<unknown>>();
 
   constructor(private readonly folderOf: (runId: string) => Promise<string | undefined>) {}
 
@@ -20,28 +23,37 @@ export class FsEventLog implements EventLog {
     return d;
   }
 
-  private async all(runId: string): Promise<RecordedEvent[]> {
+  private async read(runId: string): Promise<string> {
     try {
-      const text = await readFile(join(await this.dir(runId), 'events.log'), 'utf8');
-      return text.split('\n').filter(Boolean).flatMap((l) => {
-        try { return [JSON.parse(l) as RecordedEvent]; } catch { return []; } // a torn last line from a crash
-      });
+      return await readFile(join(await this.dir(runId), 'events.log'), 'utf8');
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return '';
       throw e;
     }
   }
 
-  append(runId: string, event: UnsequencedEvent): Promise<number> {
-    const prev = this.chains.get(runId) ?? Promise.resolve();
-    const next = prev.then(async () => {
-      const events = await this.all(runId);
-      const seq = (events.at(-1)?.seq ?? 0) + 1;
-      await appendLine(join(await this.dir(runId), 'events.log'), JSON.stringify({ ...event, seq }));
-      return seq;
+  private async all(runId: string): Promise<RecordedEvent[]> {
+    const lines = (await this.read(runId)).split('\n');
+    // The text after the last newline is a line still being written, or torn by a crash.
+    lines.pop();
+    return lines.filter(Boolean).flatMap((l, n) => {
+      try {
+        return [JSON.parse(l) as RecordedEvent];
+      } catch {
+        console.error(`workbench: events.log of run ${runId}, line ${n + 1} is not valid JSON; skipped`);
+        return [];
+      }
     });
-    this.chains.set(runId, next.catch(() => undefined));
-    return next;
+  }
+
+  async append(runId: string, event: UnsequencedEvent): Promise<number> {
+    const file = join(await this.dir(runId), 'events.log');
+    const text = await this.read(runId);
+    // A torn last line from a crash: cut it off, or the new line would be glued to it and lost.
+    if (text && !text.endsWith('\n')) await truncate(file, Buffer.byteLength(text.slice(0, text.lastIndexOf('\n') + 1)));
+    const seq = (await this.all(runId)).at(-1)?.seq ?? 0;
+    await appendLine(file, JSON.stringify({ ...event, seq: seq + 1 }));
+    return seq + 1;
   }
 
   async after(runId: string, seq: number): Promise<RecordedEvent[]> {

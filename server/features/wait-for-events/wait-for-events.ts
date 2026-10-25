@@ -38,8 +38,11 @@ export function takeEvents(deps: WaitDeps, runId: string): Promise<DeliveredEven
     const events = await deps.log.undelivered(runId);
     if (!events.length) return [];
     const run = await loadRun(deps.store, runId);
+    // Resolved before marking delivered, so a failure here hands the events over next time.
+    const names = events.flatMap((ev) => (ev.type === 'message' ? ev.images ?? [] : []));
+    const paths = new Map(await Promise.all(names.map(async (n) => [n, await deps.images.path(runId, n)] as const)));
     await deps.log.markDelivered(runId, events.at(-1)!.seq);
-    return events.map((ev) => describe(ev, run, (name) => deps.images.path(runId, name)));
+    return events.map((ev) => describe(ev, run, (name) => paths.get(name)!));
   });
 }
 

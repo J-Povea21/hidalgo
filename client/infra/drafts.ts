@@ -27,3 +27,24 @@ export function saveDraft(runId: string, key: string, value: unknown): void {
     else mem.set(k, JSON.stringify(value));
   }
 }
+
+/** A value for this tab only (sessionStorage), e.g. which item is on screen; same fallback as drafts. */
+export function loadTabValue<T>(runId: string, key: string, fallback: T): T {
+  const k = `wb:${runId}:${key}`;
+  try {
+    const v = sessionStorage.getItem(k);
+    return v === null ? fallback : (JSON.parse(v) as T);
+  } catch {
+    const v = mem.get(`tab:${k}`);
+    return v === undefined ? fallback : (JSON.parse(v) as T);
+  }
+}
+
+export function saveTabValue(runId: string, key: string, value: unknown): void {
+  const k = `wb:${runId}:${key}`;
+  try {
+    sessionStorage.setItem(k, JSON.stringify(value));
+  } catch {
+    mem.set(`tab:${k}`, JSON.stringify(value));
+  }
+}

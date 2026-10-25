@@ -10,8 +10,9 @@
  * can't be reached is never trapped.
  */
 import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { dataRoot } from '../paths.ts';
 import type { LiveEntry } from '../../../shared/contract.ts';
 
 const MAX_BLOCKS = 3;
@@ -43,10 +44,9 @@ export function openRunsNobodyWaitsOn(liveDir: string, ownerPid: number): LiveEn
 
 function main(): void {
   readStdin();
-  const dataRoot = join(process.env['CLAUDE_PLUGIN_DATA'] ?? join(homedir(), '.claude', 'plugins', 'data', 'planeacion-tools'), 'workbench');
   const owner = process.ppid;
   const counter = join(tmpdir(), `workbench-stop-${owner}.json`);
-  const open = openRunsNobodyWaitsOn(join(dataRoot, 'live'), owner);
+  const open = openRunsNobodyWaitsOn(join(dataRoot(), 'live'), owner);
 
   if (!open.length) {
     rmSync(counter, { force: true });

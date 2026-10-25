@@ -2,7 +2,8 @@
 import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '../shared/contract.ts';
 import type { Clock, EventLog, Ids, ImageStore, Limits, LiveIndex, PageAddress, PagePublisher, RunStore } from '../server/kernel/ports.ts';
 import { MemoryRunLock, MemorySignal } from '../server/infra/runtime.ts';
-import { T0 } from './fixtures.ts';
+import { addItems, ask, newRun } from '../server/kernel/run.ts';
+import { card, counterIds, question, T0 } from './fixtures.ts';
 
 export class MemoryStore implements RunStore {
   runs = new Map<string, RunState>();
@@ -38,7 +39,7 @@ export class MemoryImages implements ImageStore {
     return name;
   }
   async usedBytes(runId: string) { return this.bytes.get(runId) ?? 0; }
-  path(runId: string, name: string) { return `/data/runs/${runId}/images/${name}`; }
+  async path(runId: string, name: string) { return `/data/runs/${runId}/images/${name}`; }
 }
 
 export class CapturePage implements PagePublisher {
@@ -67,4 +68,15 @@ export function world() {
     store: new MemoryStore(), log: new MemoryLog(), images: new MemoryImages(), signal: new MemorySignal(), lock: new MemoryRunLock(),
     page: new CapturePage(), live: new MemoryLive(), clock, ids: ids(), address, limits,
   };
+}
+
+/** A world holding run r1 with one card (i1) that has one open question. */
+export async function seededWorld() {
+  const w = world();
+  const ids = counterIds();
+  let run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'v', now: T0, threadId: ids('t') });
+  run = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
+  run = ask(run, 'i1', [question()], ids).run;
+  await w.store.save(run);
+  return { w, run, thread: run.items[0]!.threadId };
 }

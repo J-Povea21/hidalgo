@@ -4,7 +4,7 @@
  * state the page receives never includes it.
  */
 import { randomBytes } from 'node:crypto';
-import { readdir } from 'node:fs/promises';
+import { access, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { RunState } from '../../../shared/contract.ts';
 import type { RunStore } from '../../kernel/ports.ts';
@@ -25,7 +25,7 @@ export class FsRunStore implements RunStore {
     if (known) return known;
     for (const project of await readdir(join(this.root, 'runs')).catch(() => [] as string[])) {
       const dir = join(this.root, 'runs', project, runId);
-      if (await readJson(join(dir, 'run.json'))) {
+      if (await access(join(dir, 'run.json')).then(() => true, () => false)) {
         this.dirs.set(runId, dir);
         return dir;
       }

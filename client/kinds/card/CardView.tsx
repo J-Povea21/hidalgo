@@ -8,11 +8,15 @@ import { toInlineHtml, toSafeHtml } from '../../ui/markdown.tsx';
 
 const inline = (s: string) => ({ __html: toInlineHtml(s) });
 
+/** How long a changed criterion stays highlighted: the length of its flash animation. */
+const FLASH_MS = 1700;
+
 export function CardView(props: { item: Item; editable: boolean; onEdit: (path: string, text: string) => void }) {
   const f = props.item.fields as unknown as CardFields;
   const fresh = useFresh(props.item);
   return (
     <>
+      {f.tags.length > 0 && <div class="section chips">{f.tags.map((tag) => <span class="chip" key={tag}>{tag}</span>)}</div>}
       <div class="section">
         <dl class="proposal">
           <dt>Priority</dt><dd dangerouslySetInnerHTML={inline(f.proposal.priority)} />
@@ -50,7 +54,7 @@ export function CardView(props: { item: Item; editable: boolean; onEdit: (path: 
       )}
       <div class="section">
         {f.assuming.length > 0 && <div class="assume"><b>Assuming</b><ul>{f.assuming.map((a, k) => <li key={k} dangerouslySetInnerHTML={inline(a)} />)}</ul></div>}
-        <p class="meta" style={{ margin: f.assuming.length ? '10px 0 0' : 0 }}>{f.provenance}</p>
+        <p class={`meta provenance ${f.assuming.length ? 'after' : ''}`}>{f.provenance}</p>
       </div>
     </>
   );
@@ -102,7 +106,7 @@ function useFresh(item: Item): Set<string> {
       f.criteria.forEach((c, k) => { if (before.fields.criteria[k]?.text !== c.text) changed.add(`criteria.${k}.text`); });
       f.manualQa.forEach((t, k) => { if (before.fields.manualQa[k] !== t) changed.add(`manualQa.${k}`); });
       setFresh(changed);
-      const t = setTimeout(() => setFresh(new Set()), 1700);
+      const t = setTimeout(() => setFresh(new Set()), FLASH_MS);
       prev.current = { id: item.id, rev: item.rev, fields: f };
       return () => clearTimeout(t);
     }

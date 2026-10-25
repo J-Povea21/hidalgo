@@ -32,7 +32,7 @@ export interface ImageStore {
   save(runId: string, dataUrl: string): Promise<string>;
   usedBytes(runId: string): Promise<number>;
   /** Absolute path of a stored image, so Claude can open it. */
-  path(runId: string, name: string): string;
+  path(runId: string, name: string): Promise<string>;
 }
 
 /**
