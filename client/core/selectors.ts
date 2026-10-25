@@ -34,7 +34,7 @@ export function tabTitle(s: PageState, sameSubjectStart?: string): string {
   const run = s.run;
   if (!run) return 'Workbench';
   const t = turn(s);
-  const prefix = t === 'working' ? '… ' : t === 'done' ? '✓ ' : t === 'offline' ? '○ ' : `(${waitingCount(run)}) `;
+  const prefix = t === 'working' ? '… ' : t === 'done' ? (run.status === 'paused' ? '⏸ ' : '✓ ') : t === 'offline' ? '○ ' : `(${waitingCount(run)}) `;
   const time = sameSubjectStart ? ` · ${sameSubjectStart}` : '';
   const title = `${prefix}${run.project} · ${run.skill} · ${run.subject}${time}`;
   return title.length > 60 ? `${title.slice(0, 59)}…` : title;

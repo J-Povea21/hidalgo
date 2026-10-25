@@ -88,24 +88,33 @@ export function createApi(s: Session) {
       state: (run: RunState, waiting: boolean) => void;
       waiting: (waiting: boolean) => void;
       connection: (c: Connection) => void;
-    }): () => void {
+    }, retry: { baseMs: number; maxMs: number } = { baseMs: 1500, maxMs: 15_000 }): () => void {
       let stopped = false;
       let controller: AbortController | undefined;
       let downSince = 0;
+      let failures = 0;
+      // Retry gaps grow from 1.5 s to 15 s and never stop: a session that ended, a server
+      // that moved or crashed may all come back (a /mcp reconnect, a resume), and the tab
+      // should find it without a reload. The proof runs on every attempt, so a stranger
+      // on the port is knocked on but never handed the token.
+      const pause = () => new Promise((r) => setTimeout(r, Math.min(retry.baseMs * 2 ** Math.min(failures++, 4), retry.maxMs)));
 
       const loop = async () => {
         while (!stopped) {
           if (!(await hello())) {
-            // Reachable but not ours: never send it anything again.
             const reachable = await fetch('/', { method: 'HEAD' }).then(() => true, () => false);
-            if (reachable && downSince === 0) { on.connection({ kind: 'moved' }); return; }
-            downSince ||= Date.now();
-            on.connection(Date.now() - downSince > 15_000 ? { kind: 'lost' } : { kind: 'reconnecting', since: downSince });
-            await new Promise((r) => setTimeout(r, 1500));
+            if (reachable && downSince === 0) on.connection({ kind: 'moved' });
+            else {
+              downSince ||= Date.now();
+              on.connection(Date.now() - downSince > 15_000 ? { kind: 'lost' } : { kind: 'reconnecting', since: downSince });
+            }
+            await pause();
             continue;
           }
           downSince = 0;
+          failures = 0;
           controller = new AbortController();
+          let saidGoodbye = false;
           try {
             const res = await fetch(`/api/stream?${q}`, { headers, signal: controller.signal });
             if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
@@ -113,18 +122,19 @@ export function createApi(s: Session) {
               const msg = JSON.parse(data);
               if (event === 'state') on.state(msg.state, msg.waiting);
               else if (event === 'ping') on.waiting(msg.waiting);
-              else if (event === 'goodbye') { on.connection({ kind: 'ended', reason: msg.reason }); stopped = true; controller?.abort(); }
+              else if (event === 'goodbye') { saidGoodbye = true; on.connection({ kind: 'ended', reason: msg.reason }); controller?.abort(); }
             });
           } catch {
-            if (stopped) return;
+            // dropped, aborted, or the server went away
           }
-          // The stream dropped: prove the server again before the token goes anywhere.
+          if (stopped) return;
+          // The stream ended: prove the server again before the token goes anywhere.
           proven = false;
-          if (!stopped) {
+          if (!saidGoodbye) {
             downSince ||= Date.now();
             on.connection({ kind: 'reconnecting', since: downSince });
-            await new Promise((r) => setTimeout(r, 1000));
           }
+          await pause();
         }
       };
       void loop();

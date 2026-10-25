@@ -49,6 +49,7 @@ describe('selectors', () => {
     expect(tabTitle(s)).toBe('(1) MiPlan · card · OfficesExist validator');
     expect(tabTitle({ ...s, waiting: false })).toBe('… MiPlan · card · OfficesExist validator');
     expect(tabTitle({ ...s, run: run({ status: 'closed' }) })).toBe('✓ MiPlan · card · OfficesExist validator');
+    expect(tabTitle({ ...s, run: run({ status: 'paused' }) })).toBe('⏸ MiPlan · card · OfficesExist validator');
     expect(tabTitle(s, '14:02')).toBe('(1) MiPlan · card · OfficesExist validator · 14:02');
   });
 

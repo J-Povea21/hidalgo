@@ -30,6 +30,42 @@ function server(signedPort: string | 'garbage') {
 const leaked = (seen: { url: string; headers: Record<string, string> }[]) =>
   seen.some((r) => r.url.includes(session.token) || Object.values(r.headers).includes(session.token));
 
+describe('following the session', () => {
+  const until = async (ok: () => boolean) => {
+    for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 5));
+  };
+
+  it('after a goodbye and a server that is gone for a while, reconnects by itself when it comes back', async () => {
+    let phase: 'first' | 'down' | 'back' = 'first';
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (phase === 'down') throw new TypeError('connection refused');
+      if (url.startsWith('/api/hello')) {
+        const nonce = new URL(url, 'http://x').searchParams.get('nonce')!;
+        return new Response(JSON.stringify({ server: 'workbench', run: 'r1', proof: serverProof(nonce, PAGE_PORT) }));
+      }
+      if (url.startsWith('/api/stream')) {
+        if (phase === 'first') { phase = 'down'; return new Response('event: goodbye\ndata: {"reason":"session ended"}\n\n'); }
+        return new Response(`event: state\ndata: ${JSON.stringify({ state: { id: 'r1', version: 9 }, waiting: true })}\n\n`);
+      }
+      return new Response('{}');
+    });
+    const seen: string[] = [];
+    const states: number[] = [];
+    const stop = createApi(session).follow({
+      state: (run) => states.push(run.version),
+      waiting: () => {},
+      connection: (c) => seen.push(c.kind),
+    }, { baseMs: 2, maxMs: 10 });
+    await until(() => seen.includes('ended') && seen.length > 3);
+    expect(seen[0]).toBe('ended');
+    expect(states).toEqual([]);
+    phase = 'back';
+    await until(() => states.includes(9));
+    expect(states).toContain(9);
+    stop();
+  });
+});
+
 describe('the identity check', () => {
   it("matches the server's HMAC for the same nonce and port", async () => {
     expect(await proofFor(session.token, 'n', '1')).toBe(serverProof('n', '1'));
