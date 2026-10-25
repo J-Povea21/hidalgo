@@ -88,6 +88,9 @@ export function App({ server, session }: AppProps) {
     void server.sendEvent({ type: 'diagram-failed', diagramId, error }).catch(() => undefined);
   }, []);
   const zoomIn = useCallback((html?: string, src?: string) => setZoom({ html, src }), []);
+  // Handed to children as callbacks, so they're bound to the server here.
+  const loadImage = useCallback((name: string) => server.imageBlob(name), []);
+  const loadOpenReviews = useCallback(() => server.liveRuns(), []);
 
   if (!run) {
     return (
@@ -105,7 +108,7 @@ export function App({ server, session }: AppProps) {
     runId: run.id,
     diagrams: run.diagrams,
     disabled: busy,
-    imageSrc: server.imageBlob,
+    imageSrc: loadImage,
     onDiagramFailed: reportDiagram,
     onZoom: zoomIn,
   };
@@ -159,7 +162,7 @@ export function App({ server, session }: AppProps) {
                 }
               />
             )}
-            {drawer === DRAWER.reviews && <OpenReviews currentRunId={run.id} load={server.liveRuns} />}
+            {drawer === DRAWER.reviews && <OpenReviews currentRunId={run.id} load={loadOpenReviews} />}
           </div>
         </div>
       </div>

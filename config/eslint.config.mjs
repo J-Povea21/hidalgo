@@ -7,10 +7,18 @@ export default defineConfig(
   { ignores: ['dist/**', 'node_modules/**', 'test-results/**'] },
   {
     files: ['**/*.{ts,tsx,mjs}'],
-    languageOptions: { parser: tseslint.parser },
+    languageOptions: {
+      parser: tseslint.parser,
+      // Type-aware: some rules below need to know what a value is, not just how it's written.
+      parserOptions: {
+        projectService: { allowDefaultProject: ['*.mjs', 'scripts/*.mjs', 'config/*.mjs', 'browser/support/*.mjs'] },
+      },
+    },
     plugins: { '@typescript-eslint': tseslint.plugin },
     rules: {
       '@typescript-eslint/no-shadow': 'error',
+      // A method handed over as a callback loses its `this`: pass `(name) => server.imageBlob(name)`.
+      '@typescript-eslint/unbound-method': 'error',
       // A guard clause's body goes on its own line: `if (done) {\n return; }`, never `if (done) return;`.
       curly: ['error', 'all'],
       // A ternary is for a short either-or; anything longer is an if/else or a lookup.

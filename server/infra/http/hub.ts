@@ -1,12 +1,12 @@
 /** Pushes each run's state to its open pages over SSE. Implements PagePublisher. */
+import { STREAM_EVENT } from '@shared/constants.ts';
 import type { RunState } from '@shared/contract.ts';
 import type { PagePublisher } from '@server/kernel/ports.ts';
 
 export type PageMessage =
-  | { type: 'state'; state: RunState }
-  | { type: 'goodbye'; reason: string }
-  /** A short notice for pages already open, e.g. "Claude resumed this run". */
-  | { type: 'nudge'; text: string };
+  | { type: typeof STREAM_EVENT.state; state: RunState }
+  | { type: typeof STREAM_EVENT.goodbye; reason: string }
+  | { type: typeof STREAM_EVENT.nudge; text: string };
 
 type Listener = (msg: PageMessage) => void;
 
@@ -20,7 +20,7 @@ export class PageHub implements PagePublisher {
   publish(run: RunState): void {
     this.latest.set(run.id, run);
     for (const listener of this.listeners.get(run.id) ?? []) {
-      listener({ type: 'state', state: run });
+      listener({ type: STREAM_EVENT.state, state: run });
     }
   }
 
@@ -34,7 +34,7 @@ export class PageHub implements PagePublisher {
     this.listeners.set(runId, set);
     const now = this.latest.get(runId);
     if (now) {
-      listener({ type: 'state', state: now });
+      listener({ type: STREAM_EVENT.state, state: now });
     }
     this.onViewer?.(runId);
     for (const arrived of this.arrivals.get(runId) ?? []) {
@@ -69,7 +69,7 @@ export class PageHub implements PagePublisher {
 
   nudge(runId: string, text: string): void {
     for (const listener of this.listeners.get(runId) ?? []) {
-      listener({ type: 'nudge', text });
+      listener({ type: STREAM_EVENT.nudge, text });
     }
   }
 
@@ -77,7 +77,7 @@ export class PageHub implements PagePublisher {
   goodbye(reason: string): void {
     for (const set of this.listeners.values()) {
       for (const listener of set) {
-        listener({ type: 'goodbye', reason });
+        listener({ type: STREAM_EVENT.goodbye, reason });
       }
     }
   }

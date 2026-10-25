@@ -13,7 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { BUILD } from '@shared/constants.ts';
+import { BUILD, STREAM_EVENT } from '@shared/constants.ts';
 import { TOKEN_HEADER, type LiveEntry } from '@shared/contract.ts';
 import { WorkbenchError } from '@server/kernel/errors.ts';
 import type { PageHub } from './hub.ts';
@@ -141,7 +141,7 @@ export function createApp(deps: HttpDeps): Hono {
         if (!open) {
           return;
         }
-        const payload = msg.type === 'state' ? { ...msg, ...presence(runId) } : msg;
+        const payload = msg.type === STREAM_EVENT.state ? { ...msg, ...presence(runId) } : msg;
         void stream.writeSSE({ event: msg.type, data: JSON.stringify(payload) });
       });
       stream.onAbort(() => {
@@ -151,7 +151,7 @@ export function createApp(deps: HttpDeps): Hono {
       while (open) {
         await stream.sleep(15_000);
         if (open) {
-          await stream.writeSSE({ event: 'ping', data: JSON.stringify(presence(runId)) });
+          await stream.writeSSE({ event: STREAM_EVENT.ping, data: JSON.stringify(presence(runId)) });
         }
       }
     });
