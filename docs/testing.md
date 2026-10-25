@@ -4,20 +4,21 @@ How the tests are organised, how a test should read, and how robust it has to be
 The rules here are the ones a reviewer applies; `pnpm run check` enforces what a
 machine can.
 
-## The four kinds of test, and what each is for
+## The five kinds of test, and what each is for
 
-| Kind           | Where                               | Runs in                              | Use it for                                                                                                                                                |
-| -------------- | ----------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Unit**       | next to the code, `*.test.ts`       | `pnpm test` (vitest)                 | A rule in `server/domain/` or `shared/`, a slice's use case with in-memory fakes, a pure client function (reducer, selector).                             |
-| **Component**  | next to the component, `*.test.tsx` | `pnpm test` (vitest + happy-dom)     | One component's behaviour from the outside: what it renders for a given item, what it calls back with.                                                    |
-| **End to end** | `test/e2e.test.ts`                  | `pnpm test`                          | The real server over MCP and real HTTP, without a browser: tokens, origins, exactly-once delivery, crash and resume.                                      |
-| **Browser**    | `browser/*.spec.ts`                 | `pnpm run test:browser` (Playwright) | What only a browser shows: the page against the real bundled server, connection states, keyboard use, accessibility, layout, the Content-Security-Policy. |
+| Kind            | Where                                | Runs in                              | Use it for                                                                                                                                                |
+| --------------- | ------------------------------------ | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**        | `<module>/__tests__/unit/`           | `pnpm test` (vitest)                 | A rule in `common/domain/` or `shared/`, a use case built by `useCases(fakes)` over in-memory fakes, a pure client function (reducer, selector).          |
+| **Component**   | `<module>/__tests__/unit/*.test.tsx` | `pnpm test` (vitest + happy-dom)     | One component's behaviour from the outside: what it renders for a given item, what it calls back with.                                                    |
+| **Integration** | `<module>/__tests__/integration/`    | `pnpm test`                          | An adapter against the real thing it wraps: the event log and the live index on a temporary folder.                                                       |
+| **End to end**  | `test/e2e.test.ts`                   | `pnpm test`                          | The real server over MCP and real HTTP, without a browser: tokens, origins, exactly-once delivery, crash and resume.                                      |
+| **Browser**     | `browser/*.spec.ts`                  | `pnpm run test:browser` (Playwright) | What only a browser shows: the page against the real bundled server, connection states, keyboard use, accessibility, layout, the Content-Security-Policy. |
 
 Pick the cheapest kind that can prove the behaviour. A rule about verdicts is a unit
 test, not a browser test. A browser test that only checks a string a selector builds
 is in the wrong place.
 
-`pnpm run check` runs every unit, component and end-to-end test, and the pre-push hook
+`pnpm run check` runs every unit, component, integration and end-to-end test, and the pre-push hook
 runs `check`. The browser suite is separate and is run before pushing a change to the
 page or the server (it needs Chromium: `pnpm exec playwright install chromium`, once).
 
@@ -70,7 +71,7 @@ reads as what happens:
     client's features: `user.questions.pick('Here')`, `user.verdict.approve()`,
     `user.thread.write()`, `user.status.banner('This run is paused')`,
     `user.drawers.openRun()` (`user/*.ts`).
-- **The page's connection tests** (`client/infra/*.test.ts`) use `SomethingOnThePort`
+- **The page's connection tests** (`client/common/__tests__/unit/{server,identity,live-feed}.test.ts`) use `SomethingOnThePort`
   (`test/something-on-the-port.ts`): whatever answers on the page's port, played as
   `'the real server'`, `'an impostor relaying the real proof'` or `'a stranger'`.
 

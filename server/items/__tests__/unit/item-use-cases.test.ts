@@ -1,6 +1,6 @@
 /**
- * The small slices that change a run from Claude's side. Each is a thin use
- * case over the domain; these tests check the wiring: saved, shown, result.
+ * The small use cases that change a run from Claude's side. Each is thin over
+ * the domain; these tests check the wiring: saved, shown, result.
  */
 import { describe, expect, it } from 'vitest';
 import { card, question } from '@test/fixtures.ts';
@@ -18,7 +18,7 @@ async function setup() {
   return { fakes, cases, runId: run.id, itemId: item!.id };
 }
 
-describe('item slices', () => {
+describe("the use cases that change a run from Claude's side", () => {
   it('add-items saves and shows, and refuses a card that fails its schema', async () => {
     const { fakes, cases, runId } = await setup();
     expect((await fakes.store.load(runId))!.items).toHaveLength(1);

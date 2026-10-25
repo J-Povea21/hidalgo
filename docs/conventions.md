@@ -18,44 +18,81 @@ How tests are written is in [`testing.md`](testing.md).
   with `HMAC(token, "workbench-hello|<nonce>|<port>|<build>")`. Old pages must be able to
   verify new servers, so this string never changes.
 
-## Architecture: vertical slices over a pure domain
+## Architecture: modules by area, each in layers
+
+The server and the page are both organised like Mi Plan v2's backend: a `common/` that
+every module shares, one module per area of the product, and an `app/` that wires them.
+Inside each, the same four layers.
 
 ```mermaid
 flowchart LR
   subgraph server
-    infra["infra/<br/>MCP, HTTP + SSE, disk, processes"] --> features
-    features["features/&lt;slice&gt;/<br/>one use case each"] --> domain["domain/<br/>pure rules, shared ports"]
+    sapp["app/<br/>composition root, MCP host"] --> smodules["runs/ items/ conversation/ page-events/"]
+    smodules --> scommon["common/<br/>the run's rules, shared ports, adapters"]
+    sapp --> scommon
   end
   subgraph client
-    app["app/<br/>wiring"] --> cfeatures["features/&lt;slice&gt;/"] --> cdomain["domain/<br/>pure state, ports"]
-    app --> kinds["kinds/&lt;kind&gt;/"]
+    capp["app/<br/>wiring"] --> cmodules["run/ items/ conversation/"]
+    cmodules --> ccommon["common/<br/>state, ports, adapters, UI parts"]
+    capp --> ccommon
   end
-  domain --> shared["shared/<br/>the contract"]
-  cdomain --> shared
+  scommon --> shared["shared/<br/>the contract"]
+  ccommon --> shared
 ```
 
-| Folder                     | Holds                                                      | May import                 |
-| -------------------------- | ---------------------------------------------------------- | -------------------------- |
-| `shared/`                  | the contract both halves use: schemas, types, fixed values | nothing of ours            |
-| `server/domain/`           | the rules every item kind obeys, as pure functions         | `shared/`                  |
-| `server/features/<slice>/` | one use case per folder, with its tests                    | `domain/`, `shared/`       |
-| `server/infra/`            | disk, HTTP, MCP, processes; wires the slices               | anything on the server     |
-| `client/domain/`           | the page's state, what is derived from it, and its ports   | `shared/`                  |
-| `client/infra/`            | what implements the ports: the server, drafts, images      | `domain/`, `shared/`       |
-| `client/features/<slice>/` | one part of the page each                                  | `domain/`, `ui/`, `infra/` |
-| `client/kinds/<kind>/`     | the view for one item kind                                 | `domain/`, `ui/`           |
-| `client/app/`              | wires the page together                                    | anything on the client     |
+Inside a module (and inside `common/`):
 
-A new feature is a new folder that touches nothing else. The rules above are enforced by
-`config/dependency-cruiser.cjs` in `pnpm run check`, so they hold without anyone
-remembering them.
+| Layer             | Holds                                                                          | May import                                |
+| ----------------- | ------------------------------------------------------------------------------ | ----------------------------------------- |
+| `domain/`         | rules as pure functions over plain data, and the module's own ports            | `shared/`, `common/domain`                |
+| `application/`    | use cases: one class per file (`*.use-case.ts`), with only `execute`           | `domain/`, ports, `common/application`    |
+| `infrastructure/` | what implements the ports: disk, HTTP, processes, the browser                  | `domain/`, ports, `common/infrastructure` |
+| `interface/`      | how the outside reaches the use cases: MCP tools and the Stop hook; page views | `application/`, `domain/`                 |
+| `__tests__/`      | `unit/` and `integration/`, as in Mi Plan                                      | anything                                  |
 
-**Why dependency-cruiser.** The layering is the one thing a framework would give us, and
-for about seventy modules a framework (NestJS, Nx) would be far more machinery than the
-rules it brings. The alternatives:
+Each server module has a `<area>.module.ts` that builds its use cases with `new`, from
+the adapters it is given (`runsModule`, `itemsModule`…); `server/app/modules.ts` builds
+them all from one set of adapters, and the use-case tests build them from fakes the same
+way. The page does the same in `client/app/modules.ts`. There is no container and no
+string token: a constructor parameter's type is the port it needs.
+
+| Folder                 | Holds                                                                                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `shared/`              | the contract both halves use: schemas, types, fixed values. Imports nothing of ours                                                                                                                                            |
+| `server/common/`       | the run's rules (`domain/run.ts`, `events.ts`), the ports two or more modules use (`ports/*.port.ts`), `RunChanges` (load, change, save, show under the run's lock), their adapters, the HTTP app, and what every tool returns |
+| `server/runs/`         | opening, resuming, listing, the status line, closing; the live index; the Stop hook                                                                                                                                            |
+| `server/items/`        | adding, updating, asking about and marking items done                                                                                                                                                                          |
+| `server/conversation/` | Claude's messages and the diagrams they embed (with the Mermaid writer)                                                                                                                                                        |
+| `server/page-events/`  | the mailbox: recording what the page sends, taking and waiting for it; images                                                                                                                                                  |
+| `server/app/`          | the composition root (`Workbench`), the MCP host the tools run in, `main.ts`                                                                                                                                                   |
+| `client/common/`       | the page's state and selectors, its ports, the server and browser adapters, the shared UI parts and styles, sending a page event, following the session                                                                        |
+| `client/run/`          | progress, the connection banner, the tab, the other open reviews                                                                                                                                                               |
+| `client/items/`        | the item panel, questions, the verdict, and one view per item kind (`interface/kinds/`)                                                                                                                                        |
+| `client/conversation/` | threads, attachments, quoting an item into its conversation; loading images                                                                                                                                                    |
+| `client/app/`          | the page shell, its hooks, and the wiring                                                                                                                                                                                      |
+
+These rules are enforced by `config/dependency-cruiser.cjs` in `pnpm run check`:
+
+- **Modules are independent.** No module imports another; what two need lives in
+  `common/`. `common/` imports no module, and nothing but `app/` imports `app/`.
+- **The domain is pure.** `domain/` and `ports/` import no use case, adapter, view or Node
+  built-in.
+- **Use cases reach the outside only through ports.** `application/` imports no
+  `infrastructure/` or `interface/`, and on the server no Node built-in.
+- On the page, views may use the browser adapters in `common/infrastructure` directly
+  (drafts, image compression): threading them through every view would buy nothing a
+  reviewer can't see.
+
+**Why plain TypeScript and not NestJS.** Nest would give the same structure with
+decorators, but its injection reads decorator metadata esbuild can't emit, and Nest,
+reflect-metadata and rxjs would load at every session start. Hand wiring in a module file
+keeps the bundle one file Node starts in a fraction of a second.
+
+**Why dependency-cruiser.** For about a hundred modules a framework (Nx) would be far
+more machinery than the rules it brings. The alternatives:
 
 - TypeScript project references can keep layers apart, but they need one `tsconfig` per
-  slice to say "slices don't import each other".
+  module to say "modules don't import each other".
 - `eslint-plugin-boundaries` would show violations in the editor. It would take every rule
   rewritten in its terms, and it doesn't find cycles.
 
@@ -64,35 +101,51 @@ resolves the path aliases through `tsconfig.json`, and fails the check if it rea
 modules to mean anything. Revisit this if the editor feedback starts to matter more than
 one tool fewer.
 
+### Use cases and ports
+
+- **A use case is a class with one public method, `execute(input)`.** Its constructor
+  takes the ports it needs, as `private readonly` parameters, and nothing else. It calls
+  the domain's pure functions; it doesn't hold rules of its own beyond the order of steps.
+- **A port is an abstract class**, one per file, named `<name>.port.ts`. An adapter
+  `implements` it (`class FsRunStore implements RunStore`), so the compiler checks the
+  contract, and a test's fake does the same.
+- **The run is plain data.** It is saved as it is and sent to the page as it is, so the
+  rules stay functions like `applyVerdict(run, …)`, never methods on an entity class.
+
 ### Where ports live
 
 A port is part of the contract of the code that needs it, not of the code that implements
 it, so where it lives follows who uses it:
 
-- **Used by one slice:** in that slice, as `features/<slice>/ports.ts`
-  (`server/features/list-runs/ports.ts`). Reading the slice tells you everything it needs
-  from outside, and deleting the slice deletes its port. It declares only what the slice
-  calls: `LiveIndex` there has `alive()`, though infra's implementation also writes.
-- **Used by two or more slices:** in the shared `domain/ports.ts`. It has to move there:
-  slices may not import each other, so neither can own it.
-- **Used by no slice:** it isn't a port. Code only infra calls stays a plain method in
-  infra (the page address, `Workbench.pageUrl`).
+- **Used by one module:** in that module, under `domain/ports/`
+  (`server/runs/domain/ports/live-index.port.ts`). Reading the module tells you everything
+  it needs from outside, and deleting the module deletes its port. It declares only what
+  the module calls: `LiveIndex` has `alive()`, though the adapter also writes.
+- **Used by two or more modules:** in `common/ports/`. It has to move there: modules may
+  not import each other, so neither can own it.
+- **What a module's interface needs from the app** is a port too, in that module's
+  `interface/` (`ToolHost` in `common/interface/mcp`, `RunPages` for `open_session`,
+  `WaitHost` for `wait_for_events`); `server/app/tools.ts` implements them.
+- **Used by nothing but the app:** it isn't a port. It stays a plain method on the
+  composition root (the page address, `Workbench.pageUrl`).
 
-Infra implements ports wherever they live (`class FsLiveIndex implements LiveIndex`); it may
-import from slices, and slices still may not import infra. The errors a port can fail with
-live beside it.
+The errors a port can fail with live beside it.
 
 ### Adding to it
 
-- **A tool:** a slice in `server/features/<name>/` with its use case and tests, registered
-  in `server/infra/mcp/tools.ts`.
+- **A tool:** a use case in the module it belongs to
+  (`<module>/application/use-cases/<name>.use-case.ts`), added to `<module>.module.ts`,
+  registered in `<module>/interface/mcp/<module>.tools.ts`, with its tests in
+  `<module>/__tests__/unit/`. A tool for a new area is a new module, added to
+  `server/app/modules.ts` and `server/app/tools.ts`.
 - **A kind of item** (pr-review findings, review-queue pull requests): its schema in
-  `shared/contract.ts` added to `ItemKinds`, its view in `client/kinds/<kind>/` added to
-  `client/kinds/index.ts`. The tools stay the same.
-- **A part of the page:** a slice in `client/features/<name>/`, wired in `client/app/`.
-- **Something the page needs from outside** (storage, the network): an interface in
-  `client/domain/ports.ts`, and a class in `client/infra/` that `implements` it, so the
-  contract is checked by the compiler and tests can stand in their own.
+  `shared/contract.ts` added to `ItemKinds`, its view in
+  `client/items/interface/kinds/<kind>/` added to `kinds/index.ts`. The tools stay the same.
+- **A part of the page:** a view in the module it belongs to, under `interface/`, wired in
+  `client/app/`. If it needs the server, it gets a use case, built in `client/app/modules.ts`.
+- **Something the page needs from outside** (storage, the network): an abstract class in
+  `client/common/ports/`, and a class in `client/common/infrastructure/` that `implements`
+  it.
 
 ## Code style
 
@@ -121,9 +174,10 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
   constant. They live with what they describe:
   - `shared/values.ts` for the run's own values (it imports nothing, so the page can use it
     without loading zod);
-  - `client/domain/connection.ts` for connection kinds, `client/domain/state.ts` for actions;
-  - `client/domain/selectors.ts` for turn views;
-  - `client/ui/classes.ts` for CSS classes.
+  - `client/common/domain/connection.ts` for connection kinds, `client/common/domain/state.ts`
+    for actions;
+  - `client/common/domain/selectors.ts` for turn views;
+  - `client/common/interface/ui/classes.ts` for CSS classes.
 - **A constant other code needs is exported from where it is defined, once.** The
   stream's event names (`STREAM_EVENT` in `shared/constants.ts`) are used by the server
   and the page; the favicon colours (`TURN_COLOR`) by the page and the browser tests.
@@ -151,13 +205,16 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
   - parsers for what can't be trusted: zod for tool results in tests;
   - better-typed APIs: `event.currentTarget` in a handler, a const tuple for a zod enum.
 - **A method passed as a callback is bound** _(lint: `unbound-method`)_:
-  `load={() => server.liveRuns()}`, never `load={server.liveRuns}`, which loses `this`.
+  `load={() => listOpenReviews.execute()}`, never `load={listOpenReviews.execute}`, which
+  loses `this`.
 - **Errors are classes in their own file, next to the contract they belong to**
-  (`server/domain/errors.ts`, `client/domain/errors.ts` beside the page's ports), so
+  (`server/common/domain/errors.ts`, `client/common/domain/errors.ts` beside the page's
+  ports), so
   callers can tell them apart with `instanceof` without knowing which adapter threw.
-- **Components render; behaviour lives elsewhere.** Hooks in `client/app/hooks.ts` hold
-  stateful behaviour (sending, navigation); pure functions in `client/domain/selectors.ts`
-  derive what to show. A component reads them and draws.
+- **Components render; behaviour lives elsewhere.** Use cases do what reaches the server
+  (sending a page event, following the session); hooks in `client/app/hooks.ts` hold the
+  shell's stateful behaviour (navigation, unread); pure functions in
+  `client/common/domain/selectors.ts` derive what to show. A component reads them and draws.
 - **Imports use the path aliases** `@shared/`, `@server/`, `@client/` and `@test/`
   (defined once, in `tsconfig.json`). `./` is only for a file in the same folder; never `../`.
 - **Messages the user reads are written once**, as named constants next to where they

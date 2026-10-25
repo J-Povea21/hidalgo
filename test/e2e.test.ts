@@ -241,7 +241,7 @@ describe('workbench end to end', () => {
   it('a tool call with a bad card names the reason and adds nothing', async () => {
     const { call } = await boot();
     const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
-    // The tool's input schema is the card schema itself, so the MCP layer refuses it before any slice runs.
+    // The tool's input schema is the card schema itself, so the MCP layer refuses it before any use case runs.
     await expect(
       call('add_items', { runId, items: [{ kind: 'card', fields: { ...card(), title: '' } }] }),
     ).rejects.toThrow(/title/);
