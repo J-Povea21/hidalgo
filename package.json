@@ -13,7 +13,8 @@
     "test": "node scripts/setup-hooks.mjs && vitest run",
     "deps": "depcruise --config .dependency-cruiser.cjs server client shared",
     "check": "node scripts/setup-hooks.mjs && node scripts/check.mjs",
-    "demo": "node scripts/demo.mjs"
+    "demo": "node scripts/demo.mjs",
+    "test:browser": "node scripts/setup-hooks.mjs && node scripts/build.mjs && playwright test"
   },
   "dependencies": {
     "@hono/node-server": "2.1.5",
@@ -22,6 +23,8 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
     "@testing-library/preact": "3.2.6",
     "@types/node": "26.6.5",
     "dependency-cruiser": "18.7.0",
