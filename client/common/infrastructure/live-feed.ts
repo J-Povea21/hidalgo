@@ -1,10 +1,3 @@
-/**
- * Follows the server's live updates, and says how the connection stands. It reconnects on
- * its own and never gives up: a session that ended, or a server that moved or crashed, may
- * all come back (a /mcp reconnect, a resume), and the tab should find it without a reload.
- * The server proves itself again before every stream, so a stranger on the port is knocked
- * on but never handed the token.
- */
 import { STREAM_EVENT } from '@shared/constants.ts';
 import type { RunState } from '@shared/contract.ts';
 import type { FeedListener } from '@client/common/ports/workbench-server.port.ts';
@@ -12,14 +5,14 @@ import { CONNECTION, type Connection, LOST_AFTER_MS, type ClaudeActivity } from 
 import { IDENTITY, type Identity } from './identity.ts';
 import { readSse } from './sse.ts';
 
+export const RETRY: RetryPolicy = { firstGapMs: 1500, longestGapMs: 15_000 };
+const MAX_DOUBLINGS = 4;
+
 /** Gaps between attempts start at `firstGapMs` and double, up to `longestGapMs`. */
 export interface RetryPolicy {
   firstGapMs: number;
   longestGapMs: number;
 }
-export const RETRY: RetryPolicy = { firstGapMs: 1500, longestGapMs: 15_000 };
-const MAX_DOUBLINGS = 4;
-
 /** What the feed needs from the server: to be proved, forgotten, and streamed from. */
 export interface ProvableServer {
   prove(): Promise<Identity>;
@@ -34,6 +27,13 @@ interface StreamMessage extends ClaudeActivity {
   reason: string;
 }
 
+/**
+ * Follows the server's live updates, and says how the connection stands. It reconnects on
+ * its own and never gives up: a session that ended, or a server that moved or crashed, may
+ * all come back (a /mcp reconnect, a resume), and the tab should find it without a reload.
+ * The server proves itself again before every stream, so a stranger on the port is knocked
+ * on but never handed the token.
+ */
 export class LiveFeed {
   private stopped = false;
   private controller: AbortController | undefined;

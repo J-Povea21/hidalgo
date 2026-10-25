@@ -1,8 +1,3 @@
-/**
- * Whatever answers on the page's port, played by a test: the real server, an impostor
- * relaying the real server's proof from another port, or a stranger who can't prove
- * anything. It records every request, so a test can say whether the token left the page.
- */
 import { createHmac } from 'node:crypto';
 import { vi } from 'vitest';
 import { STREAM_EVENT, TOKEN_HEADER } from '@shared/constants.ts';
@@ -34,6 +29,11 @@ interface Request {
   headers: Headers;
 }
 
+/**
+ * Whatever answers on the page's port, played by a test: the real server, an impostor
+ * relaying the real server's proof from another port, or a stranger who can't prove
+ * anything. It records every request, so a test can say whether the token left the page.
+ */
 export class SomethingOnThePort {
   readonly requests: Request[] = [];
   /** What each stream request gets, in order: an event to send, then the stream ends. */

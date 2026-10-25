@@ -55,10 +55,13 @@ export async function removeTree(path: string): Promise<void> {
 }
 
 /** A folder-safe version of a project name ("Mi Titulo" → "mi-titulo"). */
-export const slug = (text: string) =>
-  text
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || 'project';
+export function slug(text: string): string {
+  return (
+    text
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'project'
+  );
+}

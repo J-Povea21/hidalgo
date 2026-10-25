@@ -11,10 +11,14 @@ import { WorkbenchError } from './errors.ts';
 /** Makes ids for what a rule creates, each starting with its prefix. */
 export type IdGen = (prefix: string) => string;
 
-export const clone = <T>(value: T): T => structuredClone(value);
+export function clone<T>(value: T): T {
+  return structuredClone(value);
+}
 
 /** Every change bumps the run's version, so the page can tell a newer snapshot from an older one. */
-export const touch = (run: RunState): RunState => ({ ...run, version: run.version + 1 });
+export function touch(run: RunState): RunState {
+  return { ...run, version: run.version + 1 };
+}
 
 export function newRun(init: {
   id: string;

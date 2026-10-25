@@ -1,9 +1,8 @@
-/**
- * "Ask about this": select text on the item and a button offers to quote it into
- * the item's conversation. Works for a mouse selection and a keyboard one
- * (Shift+arrows); the button sits just above the selection.
- */
 import { useEffect, useState } from 'preact/hooks';
+
+/** Half the button's width, to centre it over the selection, and how far above the selection it sits. */
+const BUTTON_HALF_WIDTH_PX = 55;
+const BUTTON_LIFT_PX = 40;
 
 interface AskAboutProps {
   /** A selector for where a selection counts, e.g. the item preview. */
@@ -18,10 +17,11 @@ interface Offer {
   text: string;
 }
 
-/** Half the button's width, to centre it over the selection, and how far above the selection it sits. */
-const BUTTON_HALF_WIDTH_PX = 55;
-const BUTTON_LIFT_PX = 40;
-
+/**
+ * "Ask about this": select text on the item and a button offers to quote it into
+ * the item's conversation. Works for a mouse selection and a keyboard one
+ * (Shift+arrows); the button sits just above the selection.
+ */
 export function AskAbout(props: AskAboutProps) {
   const [offer, setOffer] = useState<Offer>();
 

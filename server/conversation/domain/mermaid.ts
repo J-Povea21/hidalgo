@@ -1,7 +1,3 @@
-/**
- * Structure in, Mermaid out. Claude never writes Mermaid: every label is
- * escaped here, so punctuation in a label can't change the diagram's syntax.
- */
 import type { DiagramSpec } from '@shared/contract.ts';
 import { WorkbenchError } from '@server/common/domain/errors.ts';
 
@@ -67,6 +63,10 @@ function validate(spec: DiagramSpec): void {
   }
 }
 
+/**
+ * Structure in, Mermaid out. Claude never writes Mermaid: every label is
+ * escaped here, so punctuation in a label can't change the diagram's syntax.
+ */
 export function toMermaid(spec: DiagramSpec): string {
   validate(spec);
   if (spec.type === 'sequence') {

@@ -1,4 +1,3 @@
-/** Images under `<run>/images/`, named by content hash so the same image is stored once. */
 import { createHash } from 'node:crypto';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -7,6 +6,7 @@ import { writeAtomic } from '@server/common/infrastructure/fs/files.ts';
 
 const EXT: Record<string, string> = { webp: 'webp', png: 'png', jpeg: 'jpg', gif: 'gif' };
 
+/** Images under `<run>/images/`, named by content hash so the same image is stored once. */
 export class FsImageStore implements ImageStore {
   private dirs = new Map<string, string>();
 

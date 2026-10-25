@@ -1,7 +1,7 @@
-/** Approve, Reject, Leave pending, and the outcome the item shows afterwards. */
 import type { Locator, Page } from '@playwright/test';
 import type { BadgeStatus } from '../types.ts';
 
+/** Approve, Reject, Leave pending, and the outcome the item shows afterwards. */
 export class Verdict {
   constructor(private readonly page: Page) {}
 

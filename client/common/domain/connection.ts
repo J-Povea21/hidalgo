@@ -1,5 +1,8 @@
 /** How the page stands with Claude's session, as the live feed reports it. */
 
+/** How long reconnecting may fail before the page says the session is lost. */
+export const LOST_AFTER_MS = 15_000;
+
 export const CONNECTION = {
   connecting: 'connecting',
   live: 'live',
@@ -23,6 +26,3 @@ export type Connection =
   | { kind: typeof CONNECTION.stale }
   | { kind: typeof CONNECTION.ended; reason: string }
   | { kind: typeof CONNECTION.lost };
-
-/** How long reconnecting may fail before the page says the session is lost. */
-export const LOST_AFTER_MS = 15_000;

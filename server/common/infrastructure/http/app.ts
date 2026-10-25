@@ -1,13 +1,3 @@
-/**
- * The page's HTTP surface, on 127.0.0.1 only.
- *
- * Static files (the page itself) need no token: the token travels after the
- * `#` in the page address and the page sends it in a header, but only after
- * /api/hello has proven this server holds it. Every other /api call passes
- * three checks: Host must be this server (blocks DNS rebinding),
- * Origin must be this server on anything that writes (blocks other websites),
- * and the run's token must match, compared in constant time.
- */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -17,6 +7,29 @@ import { BUILD, STREAM_EVENT } from '@shared/constants.ts';
 import { TOKEN_HEADER, type LiveEntry } from '@shared/contract.ts';
 import { WorkbenchError } from '@server/common/domain/errors.ts';
 import type { PageHub } from './hub.ts';
+
+const TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+
+/** Every rule a page event can break, and the status it answers with: a new code must pick one. */
+const HTTP_STATUS = {
+  'not-found': 404,
+  invalid: 400,
+  limit: 413,
+  'stale-revision': 409,
+  'open-questions': 409,
+  'open-items': 409,
+  'thread-mismatch': 409,
+  closed: 409,
+} as const satisfies Record<WorkbenchError['code'], number>;
 
 export interface HttpDeps {
   port: () => number;
@@ -35,43 +48,16 @@ export interface HttpDeps {
   clientDir: string;
 }
 
-const TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.gif': 'image/gif',
-};
-
 /**
- * What only the server holding the token, answering on this port, as this build, can produce.
- * FROZEN FORMAT: pages from older builds must verify newer servers with it, so it never changes.
- * Mirrored in client/common/infrastructure/identity.ts.
+ * The page's HTTP surface, on 127.0.0.1 only.
+ *
+ * Static files (the page itself) need no token: the token travels after the
+ * `#` in the page address and the page sends it in a header, but only after
+ * /api/hello has proven this server holds it. Every other /api call passes
+ * three checks: Host must be this server (blocks DNS rebinding),
+ * Origin must be this server on anything that writes (blocks other websites),
+ * and the run's token must match, compared in constant time.
  */
-export const helloProof = (token: string, nonce: string, port: number, build: string) =>
-  createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|${build}`).digest('hex');
-
-const sameToken = (given: string, expected: string) => {
-  const givenBytes = Buffer.from(given),
-    expectedBytes = Buffer.from(expected);
-  return givenBytes.length === expectedBytes.length && timingSafeEqual(givenBytes, expectedBytes);
-};
-
-/** Every rule a page event can break, and the status it answers with: a new code must pick one. */
-const HTTP_STATUS = {
-  'not-found': 404,
-  invalid: 400,
-  limit: 413,
-  'stale-revision': 409,
-  'open-questions': 409,
-  'open-items': 409,
-  'thread-mismatch': 409,
-  closed: 409,
-} as const satisfies Record<WorkbenchError['code'], number>;
-
 export function createApp(deps: HttpDeps): Hono {
   const app = new Hono();
   const own = () => [`127.0.0.1:${deps.port()}`, `localhost:${deps.port()}`];
@@ -211,4 +197,19 @@ export function createApp(deps: HttpDeps): Hono {
   });
 
   return app;
+}
+
+/**
+ * What only the server holding the token, answering on this port, as this build, can produce.
+ * FROZEN FORMAT: pages from older builds must verify newer servers with it, so it never changes.
+ * Mirrored in client/common/infrastructure/identity.ts.
+ */
+export function helloProof(token: string, nonce: string, port: number, build: string): string {
+  return createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|${build}`).digest('hex');
+}
+
+function sameToken(given: string, expected: string): boolean {
+  const givenBytes = Buffer.from(given),
+    expectedBytes = Buffer.from(expected);
+  return givenBytes.length === expectedBytes.length && timingSafeEqual(givenBytes, expectedBytes);
 }

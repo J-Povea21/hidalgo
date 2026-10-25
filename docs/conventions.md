@@ -42,13 +42,13 @@ flowchart LR
 
 Inside a module (and inside `common/`):
 
-| Layer             | Holds                                                                          | May import                                |
-| ----------------- | ------------------------------------------------------------------------------ | ----------------------------------------- |
-| `domain/`         | rules as pure functions over plain data, and the module's own ports            | `shared/`, `common/domain`                |
-| `application/`    | use cases: one class per file (`*.use-case.ts`), with only `execute`           | `domain/`, ports, `common/application`    |
-| `infrastructure/` | what implements the ports: disk, HTTP, processes, the browser                  | `domain/`, ports, `common/infrastructure` |
-| `interface/`      | how the outside reaches the use cases: MCP tools and the Stop hook; page views | `application/`, `domain/`                 |
-| `__tests__/`      | `unit/` and `integration/`, as in Mi Plan                                      | anything                                  |
+| Layer             | Holds                                                                                                 | May import                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `domain/`         | rules as pure functions over plain data (`*.rules.ts`), and the module's own ports                    | `shared/`, `common/domain`                |
+| `application/`    | use cases: one class per file (`*.use-case.ts`), with only `execute`; mappers (`mappers/*.mapper.ts`) | `domain/`, ports, `common/application`    |
+| `infrastructure/` | what implements the ports: disk, HTTP, processes, the browser                                         | `domain/`, ports, `common/infrastructure` |
+| `interface/`      | how the outside reaches the use cases: MCP tools and the Stop hook; page views                        | `application/`, `domain/`                 |
+| `__tests__/`      | `unit/` and `integration/`, as in Mi Plan                                                             | anything                                  |
 
 Each server module has a `<area>.module.ts` that builds its use cases with `new`, from
 the adapters it is given (`runsModule`, `itemsModule`…); `server/app/modules.ts` builds
@@ -56,20 +56,20 @@ them all from one set of adapters, and the use-case tests build them from fakes 
 way. The page does the same in `client/app/modules.ts`. There is no container and no
 string token: a constructor parameter's type is the port it needs.
 
-| Folder                 | Holds                                                                                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `shared/`              | the contract both halves use: schemas, types, fixed values. Imports nothing of ours                                                                                                                                            |
-| `server/common/`       | the run's rules (`domain/run.ts`, `events.ts`), the ports two or more modules use (`ports/*.port.ts`), `RunChanges` (load, change, save, show under the run's lock), their adapters, the HTTP app, and what every tool returns |
-| `server/runs/`         | opening, resuming, listing, the status line, closing; the live index; the Stop hook                                                                                                                                            |
-| `server/items/`        | adding, updating, asking about and marking items done                                                                                                                                                                          |
-| `server/conversation/` | Claude's messages and the diagrams they embed (with the Mermaid writer)                                                                                                                                                        |
-| `server/page-events/`  | the mailbox: recording what the page sends, taking and waiting for it; images                                                                                                                                                  |
-| `server/app/`          | the composition root (`Workbench`), the MCP host the tools run in, `main.ts`                                                                                                                                                   |
-| `client/common/`       | the page's state and selectors, its ports, the server and browser adapters, the shared UI parts and styles, sending a page event, following the session                                                                        |
-| `client/run/`          | progress, the connection banner, the tab, the other open reviews                                                                                                                                                               |
-| `client/items/`        | the item panel, questions, the verdict, and one view per item kind (`interface/kinds/`)                                                                                                                                        |
-| `client/conversation/` | threads, attachments, quoting an item into its conversation; loading images                                                                                                                                                    |
-| `client/app/`          | the page shell, its hooks, and the wiring                                                                                                                                                                                      |
+| Folder                 | Holds                                                                                                                                                                                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/`              | the contract both halves use: schemas, types, fixed values. Imports nothing of ours                                                                                                                                                                                                      |
+| `server/common/`       | the run's rules (`domain/run.rules.ts`, `item.rules.ts`, `conversation.rules.ts`, `page-event.rules.ts`), the ports two or more modules use (`ports/*.port.ts`), `RunChanges` (load, change, save, show under the run's lock), their adapters, the HTTP app, and what every tool returns |
+| `server/runs/`         | opening, resuming, listing, the status line, closing; the live index; the Stop hook                                                                                                                                                                                                      |
+| `server/items/`        | adding, updating, asking about and marking items done                                                                                                                                                                                                                                    |
+| `server/conversation/` | Claude's messages and the diagrams they embed (with the Mermaid writer)                                                                                                                                                                                                                  |
+| `server/page-events/`  | the mailbox: recording what the page sends, taking and waiting for it; images                                                                                                                                                                                                            |
+| `server/app/`          | the composition root (`Workbench`), the MCP host the tools run in, `main.ts`                                                                                                                                                                                                             |
+| `client/common/`       | the page's state and selectors, its ports, the server and browser adapters, the shared UI parts and styles, sending a page event, following the session                                                                                                                                  |
+| `client/run/`          | progress, the connection banner, the tab, the other open reviews                                                                                                                                                                                                                         |
+| `client/items/`        | the item panel, questions, the verdict, and one view per item kind (`interface/kinds/`)                                                                                                                                                                                                  |
+| `client/conversation/` | threads, attachments, quoting an item into its conversation; loading images                                                                                                                                                                                                              |
+| `client/app/`          | the page shell, its hooks, and the wiring                                                                                                                                                                                                                                                |
 
 These rules are enforced by `config/dependency-cruiser.cjs` in `pnpm run check`:
 
@@ -79,9 +79,10 @@ These rules are enforced by `config/dependency-cruiser.cjs` in `pnpm run check`:
   built-in.
 - **Use cases reach the outside only through ports.** `application/` imports no
   `infrastructure/` or `interface/`, and on the server no Node built-in.
-- On the page, views may use the browser adapters in `common/infrastructure` directly
-  (drafts, image compression): threading them through every view would buy nothing a
-  reviewer can't see.
+- **Views reach the outside only through what the app hands them.** On the page,
+  `interface/` imports no `infrastructure/`: a view gets a port (the draft store) or a use
+  case (shrinking images, loading one) as a prop, and `client/app/main.tsx` builds the
+  browser's adapters.
 
 **Why plain TypeScript and not NestJS.** Nest would give the same structure with
 decorators, but its injection reads decorator metadata esbuild can't emit, and Nest,
@@ -111,6 +112,17 @@ one tool fewer.
   contract, and a test's fake does the same.
 - **The run is plain data.** It is saved as it is and sent to the page as it is, so the
   rules stay functions like `applyVerdict(run, …)`, never methods on an entity class.
+  They live in `domain/*.rules.ts`, one file per thing they govern: the run's life, items,
+  the conversation, page events. The ones Claude's tools and the user's page events both
+  use (items, messages) are in `common/domain`, since modules can't import each other.
+- **A use case returns the domain's data, and a mapper shapes it for its caller**, as Mi
+  Plan's mappers do for its controllers. `ItemMapper.toAdded(items)` turns the added items
+  into what `add_items` returns; `PageEventMapper.toDelivered(taken)` turns logged events
+  into what Claude reads. A change in what a use case returns is absorbed in its mapper, so
+  the tool's result, which skills read, stays the same. Mappers are classes of static
+  methods in `application/mappers/<area>.mapper.ts`, with a named `…Response` type per
+  result. On the page, `PageEventMapper.toNotice(outcome, …)` turns how sending went into
+  what the user is told.
 
 ### Where ports live
 
@@ -141,11 +153,15 @@ The errors a port can fail with live beside it.
 - **A kind of item** (pr-review findings, review-queue pull requests): its schema in
   `shared/contract.ts` added to `ItemKinds`, its view in
   `client/items/interface/kinds/<kind>/` added to `kinds/index.ts`. The tools stay the same.
+- **A tool's result:** a `…Response` type and a method on the module's mapper; the tool
+  calls `Mapper.toX(await useCase.execute(input))`.
 - **A part of the page:** a view in the module it belongs to, under `interface/`, wired in
-  `client/app/`. If it needs the server, it gets a use case, built in `client/app/modules.ts`.
-- **Something the page needs from outside** (storage, the network): an abstract class in
-  `client/common/ports/`, and a class in `client/common/infrastructure/` that `implements`
-  it.
+  `client/app/`. If it needs the server or the browser, it gets a use case, built in
+  `client/app/modules.ts`, as a prop.
+- **Something the page needs from outside** (storage, the network, the canvas): an abstract
+  class in the `domain/ports/` of the module that uses it (`common/ports/` if several do),
+  and a class in that module's `infrastructure/` that `implements` it, built in
+  `client/app/main.tsx`.
 
 ## Code style
 
@@ -157,10 +173,16 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
 
 - **Code should explain itself.** A name that says what a thing is beats a comment that
   explains a short one. Comments say _why_, never _what_, and only where the code can't
-  say it. Every file opens with one line on what it is for.
-- **A file reads top-down by importance.** What it exports and exists for comes first;
-  the helpers it uses come below, in the order they are needed. A constant sits just
-  above the code that uses it.
+  say it.
+- **The explanation of what a file is for sits on its main export**, as JSDoc right
+  above the class, function or component, so an editor shows it on hover. A file with no
+  single main export (a `*.rules.ts` of several rules, the contract, a test suite) opens
+  with one line on what it is for instead.
+- **Constants come first**, right after the imports: values, then the tables built from
+  them, then module state (caches). A type derived from a constant sits right below it.
+  A function is a `function`, not a `const` arrow, so it never reads as a constant.
+- **Then the file reads top-down by importance.** What it exports and exists for comes
+  first; the helpers it uses come below, in the order they are needed.
 - **A condition that needs a moment to read gets a name**:
   `const verdictJustLanded = previous !== status;` then `if (verdictJustLanded)`.
 

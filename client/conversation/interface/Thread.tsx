@@ -1,7 +1,3 @@
-/**
- * One conversation: the feed, and a composer that takes text, pasted or dropped
- * images (shrunk before sending), and quotes from the item. ⌘/Ctrl+Enter sends.
- */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Diagram, Message } from '@shared/contract.ts';
 import { PARTY } from '@shared/values.ts';
@@ -10,6 +6,11 @@ import { CLASS, classes } from '@client/common/interface/ui/classes.ts';
 import { Markdown } from '@client/common/interface/ui/markdown.tsx';
 import { time, Typing } from '@client/common/interface/ui/parts.tsx';
 import { useAttachments } from './useAttachments.ts';
+
+/** The send shortcut as the user's keyboard labels it, for the composer's placeholder. */
+const SEND_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘+Enter' : 'Ctrl+Enter';
+/** The composer grows with its text up to this height, then scrolls. */
+const COMPOSER_MAX_HEIGHT_PX = 140;
 
 export interface ThreadProps {
   runId: string;
@@ -33,11 +34,10 @@ export interface ThreadProps {
   onZoom: (html?: string, src?: string) => void;
 }
 
-/** The send shortcut as the user's keyboard labels it, for the composer's placeholder. */
-const SEND_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘+Enter' : 'Ctrl+Enter';
-/** The composer grows with its text up to this height, then scrolls. */
-const COMPOSER_MAX_HEIGHT_PX = 140;
-
+/**
+ * One conversation: the feed, and a composer that takes text, pasted or dropped
+ * images (shrunk before sending), and quotes from the item. ⌘/Ctrl+Enter sends.
+ */
 export function Thread(props: ThreadProps) {
   const { drafts } = props;
   const draftKey = `text:${props.threadId}`;

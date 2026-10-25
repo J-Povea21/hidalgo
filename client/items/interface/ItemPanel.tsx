@@ -1,10 +1,12 @@
-/** The item as it will be created, with its verdict; and the Previous / Next bar under the stage. */
 import type { Item, VerdictValue } from '@shared/contract.ts';
 import { ITEM_STATUS, itemStatus, itemTitle } from '@client/common/domain/selectors.ts';
 import { Verdict } from './Verdict.tsx';
 import { KIND_VIEWS } from '@client/items/interface/kinds';
 import { CLASS, classes } from '@client/common/interface/ui/classes.ts';
 import { StatusBadge } from '@client/common/interface/ui/parts.tsx';
+
+/** An item can be edited until it has a verdict. */
+const EDITABLE = new Set<string>([ITEM_STATUS.ready, ITEM_STATUS.questions]);
 
 interface ItemPanelProps {
   item: Item;
@@ -16,9 +18,7 @@ interface ItemPanelProps {
   onVerdict: (value: VerdictValue, rev: number) => void;
 }
 
-/** An item can be edited until it has a verdict. */
-const EDITABLE = new Set<string>([ITEM_STATUS.ready, ITEM_STATUS.questions]);
-
+/** The item as it will be created, with its verdict. */
 export function ItemPanel(props: ItemPanelProps) {
   const { item } = props;
   const View = KIND_VIEWS[item.kind];
@@ -48,6 +48,7 @@ interface ItemNavProps {
   onGo: (itemIndex: number) => void;
 }
 
+/** The Previous / Next bar under the stage. */
 export function ItemNav(props: ItemNavProps) {
   const { items, itemIndex } = props;
   if (items.length < 2) {

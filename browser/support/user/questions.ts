@@ -1,6 +1,6 @@
-/** The questions carousel: picking options, adding a note, sending the answers. */
 import type { Locator, Page } from '@playwright/test';
 
+/** The questions carousel: picking options, adding a note, sending the answers. */
 export class Questions {
   constructor(private readonly page: Page) {}
 

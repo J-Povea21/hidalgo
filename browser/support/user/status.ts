@@ -1,6 +1,6 @@
-/** What the page says about itself: whose turn, how it's connected, banners, toasts, and the tab. */
 import type { Locator, Page } from '@playwright/test';
 
+/** What the page says about itself: whose turn, how it's connected, banners, toasts, and the tab. */
 export class Status {
   constructor(private readonly page: Page) {}
 

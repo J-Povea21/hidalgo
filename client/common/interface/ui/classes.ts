@@ -27,8 +27,11 @@ export const CLASS = {
 } as const;
 
 /** Which way the next question or item comes in, from where we are now. */
-export const slideToward = (target: number, current: number): string =>
-  target > current ? CLASS.slideFromRight : CLASS.slideFromLeft;
+export function slideToward(target: number, current: number): string {
+  return target > current ? CLASS.slideFromRight : CLASS.slideFromLeft;
+}
 
 /** Joins the class names that are set, skipping `false`, `undefined` and empty strings. */
-export const classes = (...names: (string | false | undefined)[]): string => names.filter(Boolean).join(' ');
+export function classes(...names: (string | false | undefined)[]): string {
+  return names.filter(Boolean).join(' ');
+}

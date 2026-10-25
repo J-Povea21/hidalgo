@@ -10,8 +10,12 @@ afterEach(() => {
   cleanup();
   localStorage.clear();
 });
-const question = (id: string, text: string): Question => anOpenQuestion(id, text);
-const item = (questions: Question[]): Item => anItem({ questions, threadId: 't' });
+function question(id: string, text: string): Question {
+  return anOpenQuestion(id, text);
+}
+function item(questions: Question[]): Item {
+  return anItem({ questions, threadId: 't' });
+}
 
 describe('Questions', () => {
   it('marks the recommendation and moves to the next question after a pick', async () => {

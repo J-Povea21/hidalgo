@@ -6,6 +6,25 @@ import { RUN_STATUS } from '@shared/values.ts';
 
 export { ITEM_STATUS, itemStatus, itemTitle, openQuestions, runThreadId, type ItemStatus } from '@shared/rules.ts';
 
+const TITLE_MAX = 60;
+
+/** Not talking to Claude's session right now, for whatever reason: nobody's turn can be shown. */
+const OFFLINE = new Set<PageState['connection']['kind']>([
+  CONNECTION.reconnecting,
+  CONNECTION.ended,
+  CONNECTION.lost,
+  CONNECTION.moved,
+  CONNECTION.stale,
+]);
+
+const PREFIX: Record<TurnView, (run: RunState) => string> = {
+  yours: (run) => `(${pendingForUser(run)}) `,
+  working: () => '… ',
+  idle: () => '○ ',
+  done: (run) => (run.status === RUN_STATUS.paused ? '⏸ ' : '✓ '),
+  offline: () => '○ ',
+};
+
 /**
  * How the page presents whose turn it is (the run's own `turn` is just user or claude).
  * `working` is shown only while Claude has called a tool recently; past that, without a
@@ -19,15 +38,6 @@ export const TURN_VIEW = {
   offline: 'offline',
 } as const;
 export type TurnView = (typeof TURN_VIEW)[keyof typeof TURN_VIEW];
-
-/** Not talking to Claude's session right now, for whatever reason: nobody's turn can be shown. */
-const OFFLINE = new Set<PageState['connection']['kind']>([
-  CONNECTION.reconnecting,
-  CONNECTION.ended,
-  CONNECTION.lost,
-  CONNECTION.moved,
-  CONNECTION.stale,
-]);
 
 export function turnView(state: PageState, now: number): TurnView {
   if (!state.run) {
@@ -45,16 +55,6 @@ export function turnView(state: PageState, now: number): TurnView {
   const claudeCalledAToolRecently = state.claudeActiveAt !== null && now - state.claudeActiveAt < ACTIVE_FOR_MS;
   return claudeCalledAToolRecently ? TURN_VIEW.working : TURN_VIEW.idle;
 }
-
-const PREFIX: Record<TurnView, (run: RunState) => string> = {
-  yours: (run) => `(${pendingForUser(run)}) `,
-  working: () => '… ',
-  idle: () => '○ ',
-  done: (run) => (run.status === RUN_STATUS.paused ? '⏸ ' : '✓ '),
-  offline: () => '○ ',
-};
-
-const TITLE_MAX = 60;
 
 /** `<turn> <project> · <skill> · <subject>`, at most 60 characters. */
 export function tabTitle(state: PageState, now: number): string {
@@ -84,5 +84,6 @@ export function typingIn(
   return state.run.statusLine ? `Claude: ${state.run.statusLine}` : 'Claude is thinking…';
 }
 
-export const threadMessages = (run: RunState, threadId: string): Message[] =>
-  run.messages.filter((message) => message.threadId === threadId);
+export function threadMessages(run: RunState, threadId: string): Message[] {
+  return run.messages.filter((message) => message.threadId === threadId);
+}

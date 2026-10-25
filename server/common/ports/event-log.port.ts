@@ -1,6 +1,6 @@
-/** Every page event, appended before it is applied, and how far Claude has read. */
 import type { RecordedEvent, UnsequencedEvent } from '@shared/contract.ts';
 
+/** Every page event, appended before it is applied, and how far Claude has read. */
 export abstract class EventLog {
   /** Durably appends and returns the event's sequence number. */
   abstract append(runId: string, event: UnsequencedEvent): Promise<number>;

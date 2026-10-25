@@ -18,6 +18,8 @@ import {
   WITHIN_A_RECONNECT,
 } from './support';
 
+const CONTENT_TYPE: Record<string, string> = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html' };
+
 test.describe('whose turn it is', () => {
   test('the title, turn line and favicon follow a wait at once, and survive a reload', async ({ claude, user }) => {
     const run = await claude.opensRun({ subject: 'turns' });
@@ -237,8 +239,6 @@ function buildOf(run: OpenRun): Promise<string> {
       .end();
   });
 }
-
-const CONTENT_TYPE: Record<string, string> = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html' };
 
 /** Something else on a port: it serves the page's files but knows nothing about the run. */
 async function servingThePageButNotTheRun(): Promise<Server> {

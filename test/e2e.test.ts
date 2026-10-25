@@ -95,8 +95,12 @@ function http(
   });
 }
 
-const tokenOf = (url: string) => new URLSearchParams(new URL(url).hash.slice(1)).get('t')!;
-const portOf = (url: string) => Number(new URL(url).port);
+function tokenOf(url: string) {
+  return new URLSearchParams(new URL(url).hash.slice(1)).get('t')!;
+}
+function portOf(url: string) {
+  return Number(new URL(url).port);
+}
 
 describe('workbench end to end', () => {
   it('open a run, post a page event over HTTP, and wait_for_events returns it', async () => {

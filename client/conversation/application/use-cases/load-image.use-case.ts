@@ -1,6 +1,6 @@
-/** A message's stored image, as an address an <img> can show. */
 import type { WorkbenchServer } from '@client/common/ports/workbench-server.port.ts';
 
+/** A message's stored image, as an address an <img> can show. */
 export class LoadImageUseCase {
   constructor(private readonly server: WorkbenchServer) {}
 

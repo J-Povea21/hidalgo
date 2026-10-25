@@ -1,15 +1,13 @@
-/**
- * An item's questions as a carousel. Picking an answer (a click, or Enter or Space
- * on an option) moves to the next one; arrow keys only move between options, so a
- * keyboard user can reach every option. Answers are kept as drafts until sent, so
- * nothing is lost on a reload.
- */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Item, Question } from '@shared/contract.ts';
 import { openQuestions } from '@client/common/domain/selectors.ts';
 import type { DraftStore } from '@client/common/ports/draft-store.port.ts';
 import { CLASS, classes, slideToward } from '@client/common/interface/ui/classes.ts';
 import { toInlineHtml } from '@client/common/interface/ui/markdown.tsx';
+
+/** Long enough to see the pick land before the next question slides in. */
+const ADVANCE_MS = 260;
+const FIRST_QUESTION = 0;
 
 /** What the user picked (and noted) per question, not sent yet. */
 type Draft = Record<string, { choice?: number; note?: string }>;
@@ -24,10 +22,12 @@ interface QuestionsProps {
   onSend: (answers: Answers) => Promise<boolean>;
 }
 
-/** Long enough to see the pick land before the next question slides in. */
-const ADVANCE_MS = 260;
-const FIRST_QUESTION = 0;
-
+/**
+ * An item's questions as a carousel. Picking an answer (a click, or Enter or Space
+ * on an option) moves to the next one; arrow keys only move between options, so a
+ * keyboard user can reach every option. Answers are kept as drafts until sent, so
+ * nothing is lost on a reload.
+ */
 export function Questions(props: QuestionsProps) {
   const { item } = props;
   const open = openQuestions(item);

@@ -1,11 +1,28 @@
-/**
- * Markdown, sanitized, with `{{diagram:<id>}}` placeholders turned into diagrams.
- * Mermaid loads only when a diagram is actually on screen.
- */
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { Diagram as DiagramData } from '@shared/contract.ts';
+
+const PLACEHOLDER = /\{\{diagram:([A-Za-z0-9_-]+)\}\}/g;
+
+/** What Claude is told about a diagram that failed, at most this long. */
+const ERROR_MAX_CHARS = 500;
+
+/** Parsing and sanitizing take real time, and the page re-renders on every state push. */
+const CACHE_MAX_ENTRIES = 500;
+const blockCache = new Map<string, string>();
+const inlineCache = new Map<string, string>();
+
+const drawnDiagrams = new Map<string, string>();
+const reportedFailures = new Set<string>();
+let mermaidLoad: Promise<typeof import('mermaid').default> | undefined;
+let renderCount = 0;
+
+/**
+ * Raw HTML in a message is shown as text, never parsed: Claude's Markdown has no need for it,
+ * and it keeps tag soup (mXSS samples, inline handlers) from ever reaching the sanitizer.
+ */
+marked.use({ async: false, gfm: true, breaks: true, renderer: { html: ({ text }) => escapeHtml(text) } });
 
 interface MarkdownProps {
   text: string;
@@ -14,8 +31,10 @@ interface MarkdownProps {
   onZoom: (html: string) => void;
 }
 
-const PLACEHOLDER = /\{\{diagram:([A-Za-z0-9_-]+)\}\}/g;
-
+/**
+ * Markdown, sanitized, with `{{diagram:<id>}}` placeholders turned into diagrams.
+ * Mermaid loads only when a diagram is actually on screen.
+ */
 export function Markdown(props: MarkdownProps) {
   // Splitting on the placeholder leaves text at even positions and diagram ids at odd ones.
   const parts = useMemo(() => props.text.split(PLACEHOLDER), [props.text]);
@@ -44,9 +63,6 @@ interface DiagramProps {
   onFailed: (id: string, error: string) => void;
   onZoom: (html: string) => void;
 }
-
-/** What Claude is told about a diagram that failed, at most this long. */
-const ERROR_MAX_CHARS = 500;
 
 /** Draws a diagram; if it can't, shows its outline instead and reports the failure. Never shows an error. */
 export function Diagram(props: DiagramProps) {
@@ -111,18 +127,16 @@ export function Diagram(props: DiagramProps) {
 }
 
 /** Block Markdown (paragraphs, lists, code) as sanitized HTML. */
-export const toSafeHtml = (text: string): string => memo(blockCache, text, () => sanitize(marked.parse(text)));
+export function toSafeHtml(text: string): string {
+  return memo(blockCache, text, () => sanitize(marked.parse(text)));
+}
 
 /** Inline Markdown (no paragraph), for labels, options and list items. */
-export const toInlineHtml = (text: string): string => memo(inlineCache, text, () => sanitize(marked.parseInline(text)));
+export function toInlineHtml(text: string): string {
+  return memo(inlineCache, text, () => sanitize(marked.parseInline(text)));
+}
 
 // ---- parsing ----
-
-/**
- * Raw HTML in a message is shown as text, never parsed: Claude's Markdown has no need for it,
- * and it keeps tag soup (mXSS samples, inline handlers) from ever reaching the sanitizer.
- */
-marked.use({ async: false, gfm: true, breaks: true, renderer: { html: ({ text }) => escapeHtml(text) } });
 
 function sanitize(html: string | Promise<string>): string {
   // marked is configured synchronous above, so a promise here would be a bug in that setup.
@@ -135,11 +149,6 @@ function sanitize(html: string | Promise<string>): string {
 function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
-
-/** Parsing and sanitizing take real time, and the page re-renders on every state push. */
-const CACHE_MAX_ENTRIES = 500;
-const blockCache = new Map<string, string>();
-const inlineCache = new Map<string, string>();
 
 function memo(cache: Map<string, string>, text: string, make: () => string): string {
   const cached = cache.get(text);
@@ -155,11 +164,6 @@ function memo(cache: Map<string, string>, text: string, make: () => string): str
 }
 
 // ---- drawing ----
-
-const drawnDiagrams = new Map<string, string>();
-const reportedFailures = new Set<string>();
-let mermaidLoad: Promise<typeof import('mermaid').default> | undefined;
-let renderCount = 0;
 
 async function draw(mermaidSource: string): Promise<string> {
   const mermaid = await loadMermaid();

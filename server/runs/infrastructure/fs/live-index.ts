@@ -1,8 +1,3 @@
-/**
- * `live/<run id>.json`: one small file per running server, written only by it.
- * Reading the folder skips and deletes entries whose owner is provably dead:
- * a stale heartbeat AND a process that is gone, or reused by another program.
- */
 import { execFileSync } from 'node:child_process';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -60,8 +55,15 @@ export function processAlive(
 }
 
 /** This process's own start time, in the same terms `processAlive` checks. */
-export const ownStart = () => new Date(Math.floor((Date.now() - process.uptime() * 1000) / 1000) * 1000).toISOString();
+export function ownStart(): string {
+  return new Date(Math.floor((Date.now() - process.uptime() * 1000) / 1000) * 1000).toISOString();
+}
 
+/**
+ * `live/<run id>.json`: one small file per running server, written only by it.
+ * Reading the folder skips and deletes entries whose owner is provably dead:
+ * a stale heartbeat AND a process that is gone, or reused by another program.
+ */
 export class FsLiveIndex implements LiveIndex {
   constructor(
     private readonly dir: string,

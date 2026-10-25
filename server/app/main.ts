@@ -11,7 +11,11 @@ import { registerTools } from './tools.ts';
 import { dataRoot } from '@server/common/infrastructure/paths.ts';
 import { DEFAULT_LIMITS, Workbench } from './workbench.ts';
 
+const SESSION_ENDED = 'The Claude session ended. Your work is saved; run the skill again in this project to resume.';
+const SESSION_STOPPED = 'The Claude session was stopped. Your work is saved.';
 const here = dirname(fileURLToPath(import.meta.url));
+
+let ending = false;
 
 const wb = new Workbench({
   dataRoot: dataRoot(),
@@ -35,7 +39,6 @@ const server = new McpServer(
 );
 registerTools(server, wb);
 
-let ending = false;
 async function end(reason: string): Promise<void> {
   if (ending) {
     return;
@@ -44,10 +47,9 @@ async function end(reason: string): Promise<void> {
   await wb.shutdown(reason).catch(() => undefined);
   process.exit(0);
 }
-const SESSION_ENDED = 'The Claude session ended. Your work is saved; run the skill again in this project to resume.';
 process.stdin.on('end', () => void end(SESSION_ENDED));
 process.stdin.on('close', () => void end(SESSION_ENDED));
-process.on('SIGTERM', () => void end('The Claude session was stopped. Your work is saved.'));
+process.on('SIGTERM', () => void end(SESSION_STOPPED));
 
 await wb.sweep().catch(() => undefined);
 await server.connect(new StdioServerTransport());

@@ -24,9 +24,9 @@ const HOSTILE = [
 
 beforeAll(() => mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' }));
 
-const parses = async (text: string) => {
+async function parses(text: string) {
   await expect(mermaid.parse(text)).resolves.toBeTruthy();
-};
+}
 
 describe('generated Mermaid always parses', () => {
   it('flowchart with hostile node, group and edge labels', async () => {

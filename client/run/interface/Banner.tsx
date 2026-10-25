@@ -1,4 +1,3 @@
-/** Says plainly when the page can't reach its session, or the run is paused, and what to do. Silent when all is well. */
 import type { ComponentChildren } from 'preact';
 import type { RunStatus } from '@shared/contract.ts';
 import { RUN_STATUS } from '@shared/values.ts';
@@ -19,6 +18,7 @@ interface Banner {
   message: ComponentChildren;
 }
 
+/** Says plainly when the page can't reach its session, or the run is paused, and what to do. Silent when all is well. */
 export function ConnectionBanner(props: ConnectionBannerProps) {
   const { connection } = props;
   let banner: Banner | undefined;

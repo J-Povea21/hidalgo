@@ -1,9 +1,3 @@
-/**
- * The workbench as MCP tools: each module registers its own, and this host gives
- * them what only the running server has. Every tool that acts on a run also
- * hands back any page events not yet delivered, so input reaches Claude mid-run
- * without a wait.
- */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RunState } from '@shared/contract.ts';
 import type { ToolHost } from '@server/common/interface/mcp/tool-host.port.ts';
@@ -65,6 +59,12 @@ class WorkbenchHost implements ToolHost, WaitHost, RunPages {
   }
 }
 
+/**
+ * The workbench as MCP tools: each module registers its own, and this host gives
+ * them what only the running server has. Every tool that acts on a run also
+ * hands back any page events not yet delivered, so input reaches Claude mid-run
+ * without a wait.
+ */
 export function registerTools(server: McpServer, wb: Workbench): void {
   const host = new WorkbenchHost(wb);
   registerRunsTools(server, wb.modules.runs, host, host);

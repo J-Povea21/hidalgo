@@ -1,8 +1,3 @@
-/**
- * Starts a run, or resumes one from disk (after `claude --resume`, a crash, or
- * a reboot). A resumed run replays any logged page events its saved state
- * hadn't absorbed, so nothing the user did is lost.
- */
 import type { RunState } from '@shared/contract.ts';
 import { WorkbenchError } from '@server/common/domain/errors.ts';
 import { replay } from '@server/common/domain/page-event.rules.ts';
@@ -21,7 +16,13 @@ export interface OpenSessionInput {
   resume?: string | undefined;
 }
 
-/** Where the page lives is the server's business: the caller serves the run and builds its address. */
+/**
+ * Starts a run, or resumes one from disk (after `claude --resume`, a crash, or
+ * a reboot). A resumed run replays any logged page events its saved state
+ * hadn't absorbed, so nothing the user did is lost.
+ *
+ * Where the page lives is the server's business: the caller serves the run and builds its address.
+ */
 export class OpenSessionUseCase {
   constructor(
     private readonly store: RunStore,

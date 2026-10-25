@@ -1,11 +1,10 @@
+const EVENT_END = '\n\n';
+const DEFAULT_EVENT = 'message';
+
 /**
  * Reads server-sent events from a fetch body. The page can't use EventSource, which can't
  * send the token header.
  */
-
-const EVENT_END = '\n\n';
-const DEFAULT_EVENT = 'message';
-
 export async function readSse(body: ReadableStream<Uint8Array>, onEvent: (event: string, data: string) => void) {
   const reader = body.getReader();
   const decoder = new TextDecoder();

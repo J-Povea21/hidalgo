@@ -1,7 +1,3 @@
-/**
- * A run Claude has open, and what Claude does with it: one method per workbench tool, named
- * for what Claude does. A new tool is a new method here.
- */
 import type { ItemOnPage, PageEvent } from '../types.ts';
 import type { ClaudeSession } from './session.ts';
 
@@ -13,6 +9,10 @@ interface RunIds {
   url: string;
 }
 
+/**
+ * A run Claude has open, and what Claude does with it: one method per workbench tool, named
+ * for what Claude does. A new tool is a new method here.
+ */
 export class OpenRun implements RunIds {
   readonly runId: string;
   readonly threadId: string;

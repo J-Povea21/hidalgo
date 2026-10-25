@@ -1,18 +1,16 @@
-/**
- * A ClickUp card as it will be created. Criteria can be edited in place; an
- * edit is a change, so it bumps the revision and the adversary re-probes it.
- */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { CardFields, ItemOf } from '@shared/contract.ts';
 import type { KindViewProps } from '@client/items/interface/kinds/types.ts';
 import { toInlineHtml, toSafeHtml } from '@client/common/interface/ui/markdown.tsx';
 import { CLASS, classes } from '@client/common/interface/ui/classes.ts';
 
-const inline = (markdown: string) => ({ __html: toInlineHtml(markdown) });
-
 /** How long a changed criterion stays highlighted: the length of its flash animation. */
 const FLASH_MS = 1700;
 
+/**
+ * A ClickUp card as it will be created. Criteria can be edited in place; an
+ * edit is a change, so it bumps the revision and the adversary re-probes it.
+ */
 export function CardView(props: KindViewProps<'card'>) {
   const { fields } = props.item;
   const fresh = useFresh(props.item);
@@ -117,6 +115,10 @@ export function CardView(props: KindViewProps<'card'>) {
       </div>
     </>
   );
+}
+
+function inline(markdown: string) {
+  return { __html: toInlineHtml(markdown) };
 }
 
 interface CriterionProps {

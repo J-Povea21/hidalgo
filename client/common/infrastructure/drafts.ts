@@ -1,16 +1,16 @@
+import type { DraftStore } from '@client/common/ports/draft-store.port.ts';
+
+/** Shared by every store: what couldn't be kept in the browser. */
+const inMemory = new Map<string, string>();
+
+/** Drafts outlive the tab (localStorage); tab values, like which item is on screen, don't (sessionStorage). */
+type Lifetime = 'drafts' | 'tab';
+
 /**
  * What the user typed or picked but hasn't sent, kept in the browser per run, so a reload,
  * a dropped connection or a moved page loses nothing. When the browser refuses storage
  * (a private window, blocked site data) the values live in memory for the tab's life.
  */
-import type { DraftStore } from '@client/common/ports/draft-store.port.ts';
-
-/** Drafts outlive the tab (localStorage); tab values, like which item is on screen, don't (sessionStorage). */
-type Lifetime = 'drafts' | 'tab';
-
-/** Shared by every store: what couldn't be kept in the browser. */
-const inMemory = new Map<string, string>();
-
 export class BrowserDraftStore implements DraftStore {
   constructor(
     private readonly runId: string,

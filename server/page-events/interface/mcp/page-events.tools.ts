@@ -1,10 +1,10 @@
-/** The page-events module as MCP tools. What the page sends arrives over HTTP, not here. */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { RunId } from '@server/common/interface/mcp/tool-result.ts';
 import { PageEventMapper } from '@server/page-events/application/mappers/page-event.mapper.ts';
 import type { WaitHost } from '@server/page-events/interface/mcp/wait-host.port.ts';
 import type { PageEventsModule } from '@server/page-events/page-events.module.ts';
 
+/** The page-events module as MCP tools. What the page sends arrives over HTTP, not here. */
 export function registerPageEventsTools(server: McpServer, pageEvents: PageEventsModule, host: WaitHost): void {
   server.registerTool(
     'wait_for_events',

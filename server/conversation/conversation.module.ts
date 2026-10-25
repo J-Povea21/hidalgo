@@ -1,4 +1,3 @@
-/** Claude's side of the conversation: messages and the diagrams they embed. */
 import type { RunChanges } from '@server/common/application/run-changes.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { Ids } from '@server/common/ports/ids.port.ts';
@@ -10,6 +9,7 @@ export interface ConversationModule {
   createDiagram: CreateDiagramUseCase;
 }
 
+/** Claude's side of the conversation: messages and the diagrams they embed. */
 export function conversationModule(adapters: { runs: RunChanges; ids: Ids; clock: Clock }): ConversationModule {
   return {
     sendMessage: new SendMessageUseCase(adapters.runs, adapters.ids, adapters.clock),

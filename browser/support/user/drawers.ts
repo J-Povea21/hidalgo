@@ -1,6 +1,6 @@
-/** The side drawers: the whole run's conversation, and the other reviews open on this machine. */
 import type { Locator, Page } from '@playwright/test';
 
+/** The side drawers: the whole run's conversation, and the other reviews open on this machine. */
 export class Drawers {
   constructor(private readonly page: Page) {}
 

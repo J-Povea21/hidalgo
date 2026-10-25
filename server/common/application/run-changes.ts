@@ -1,14 +1,14 @@
-/**
- * Load a run, change it, save it, show it, under the run's lock. Every use case
- * that changes a run goes through this, so "saved before shown" holds and two
- * changes can't overwrite each other. Uses ports only.
- */
 import type { RunState } from '@shared/contract.ts';
 import { WorkbenchError } from '@server/common/domain/errors.ts';
 import type { PagePublisher } from '@server/common/ports/page-publisher.port.ts';
 import type { RunLock } from '@server/common/ports/run-lock.port.ts';
 import type { RunStore } from '@server/common/ports/run-store.port.ts';
 
+/**
+ * Load a run, change it, save it, show it, under the run's lock. Every use case
+ * that changes a run goes through this, so "saved before shown" holds and two
+ * changes can't overwrite each other. Uses ports only.
+ */
 export class RunChanges {
   constructor(
     private readonly store: RunStore,

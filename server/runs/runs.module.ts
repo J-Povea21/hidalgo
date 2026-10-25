@@ -1,4 +1,3 @@
-/** A run's life: opening or resuming it, its status line, listing a project's runs, and closing it. */
 import type { RunChanges } from '@server/common/application/run-changes.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { EventLog } from '@server/common/ports/event-log.port.ts';
@@ -18,6 +17,7 @@ export interface RunsModule {
   closeSession: CloseSessionUseCase;
 }
 
+/** A run's life: opening or resuming it, its status line, listing a project's runs, and closing it. */
 export function runsModule(adapters: {
   runs: RunChanges;
   store: RunStore;

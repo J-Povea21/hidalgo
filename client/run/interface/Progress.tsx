@@ -1,4 +1,3 @@
-/** The header: what this run is, whose turn it is, what Claude is doing, and where each item stands. */
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { RunState } from '@shared/contract.ts';
@@ -23,6 +22,7 @@ interface ProgressProps {
   actions: ComponentChildren;
 }
 
+/** The header: what this run is, whose turn it is, what Claude is doing, and where each item stands. */
 export function Progress(props: ProgressProps) {
   const { run, turn } = props;
   const approved = run.items.filter((item) => ['approved', 'done'].includes(itemStatus(item))).length;

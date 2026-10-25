@@ -1,4 +1,3 @@
-/** One conversation: its composer, and the messages in it. */
 import type { Locator, Page } from '@playwright/test';
 
 /** Each conversation's composer is named by its hint. */
@@ -7,6 +6,7 @@ export const COMPOSER = {
   run: 'About anything that spans the items.',
 } as const;
 
+/** One conversation: its composer, and the messages in it. */
 export class Thread {
   constructor(
     private readonly page: Page,

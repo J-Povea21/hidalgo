@@ -17,6 +17,8 @@ import { addItems, ask } from '@server/common/domain/item.rules.ts';
 import { newRun } from '@server/common/domain/run.rules.ts';
 import { card, counterIds, question, T0 } from './fixtures.ts';
 
+export const limits: Limits = { imageBytesPerRun: 1000, imageWarnBytes: 800, waitTimeoutMs: 200 };
+
 export class MemoryStore implements RunStore {
   runs = new Map<string, RunState>();
   async load(id: string) {
@@ -110,8 +112,6 @@ export class CountingIds implements Ids {
     return `${prefix}${this.counters[prefix]}`;
   }
 }
-
-export const limits: Limits = { imageBytesPerRun: 1000, imageWarnBytes: 800, waitTimeoutMs: 200 };
 
 export function world() {
   return {

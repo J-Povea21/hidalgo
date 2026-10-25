@@ -1,4 +1,3 @@
-/** The runs module as MCP tools. */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ToolHost } from '@server/common/interface/mcp/tool-host.port.ts';
@@ -8,6 +7,7 @@ import type { RunPages } from '@server/runs/interface/mcp/run-pages.port.ts';
 import type { RunsModule } from '@server/runs/runs.module.ts';
 import { RUN_STATUS } from '@shared/values.ts';
 
+/** The runs module as MCP tools. */
 export function registerRunsTools(server: McpServer, runs: RunsModule, host: ToolHost, pages: RunPages): void {
   server.registerTool(
     'open_session',

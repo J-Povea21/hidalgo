@@ -1,4 +1,3 @@
-/** The mailbox between the page and Claude: what the page sends goes in, and Claude takes it out exactly once. */
 import type { RunChanges } from '@server/common/application/run-changes.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { EventLog } from '@server/common/ports/event-log.port.ts';
@@ -18,6 +17,7 @@ export interface PageEventsModule {
   waitForEvents: WaitForEventsUseCase;
 }
 
+/** The mailbox between the page and Claude: what the page sends goes in, and Claude takes it out exactly once. */
 export function pageEventsModule(adapters: {
   runs: RunChanges;
   store: RunStore;

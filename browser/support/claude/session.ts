@@ -1,8 +1,3 @@
-/**
- * Claude's side of a browser test: the real bundled workbench server over stdio, driven
- * with the same MCP tool calls Claude makes. The session starts, ends, crashes and restarts
- * the server; what Claude does with a run is on the run (run.ts).
- */
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +15,11 @@ const LAUNCH_APART = join(packageRoot, 'browser', 'support', 'launch-apart.mjs')
 /** With WORKBENCH_OPEN=0 the server prints the page it would open instead of opening it. */
 const OPENED_PAGE = /workbench page: (\S+)/g;
 
+/**
+ * Claude's side of a browser test: the real bundled workbench server over stdio, driven
+ * with the same MCP tool calls Claude makes. The session starts, ends, crashes and restarts
+ * the server; what Claude does with a run is on the run (run.ts).
+ */
 export class ClaudeSession {
   private client!: Client;
   private transport!: StdioClientTransport;

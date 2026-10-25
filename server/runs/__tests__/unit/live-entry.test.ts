@@ -4,22 +4,26 @@ import { T0 } from '@test/fixtures.ts';
 import { newRun } from '@server/common/domain/run.rules.ts';
 import { expired, isDead, liveEntry } from '@server/runs/domain/live-entry.rules.ts';
 
-const entry = (heartbeat: string): LiveEntry => ({
-  runId: 'r1',
-  project: 'MiPlan',
-  skill: 'card',
-  subject: 's',
-  port: 1,
-  pid: 42,
-  processStartedAt: T0,
-  heartbeat,
-  pendingForUser: 0,
-  url: '',
-  status: 'open',
-  ownerPid: 7,
-  claudeListening: false,
-});
-const later = (ms: number) => new Date(Date.parse(T0) + ms).toISOString();
+function entry(heartbeat: string): LiveEntry {
+  return {
+    runId: 'r1',
+    project: 'MiPlan',
+    skill: 'card',
+    subject: 's',
+    port: 1,
+    pid: 42,
+    processStartedAt: T0,
+    heartbeat,
+    pendingForUser: 0,
+    url: '',
+    status: 'open',
+    ownerPid: 7,
+    claudeListening: false,
+  };
+}
+function later(ms: number) {
+  return new Date(Date.parse(T0) + ms).toISOString();
+}
 
 describe('live-index', () => {
   it('a stale heartbeat alone never declares a server dead', () => {

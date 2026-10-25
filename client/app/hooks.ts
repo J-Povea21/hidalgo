@@ -7,6 +7,10 @@ import { BrowserDraftStore } from '@client/common/infrastructure/drafts.ts';
 import { slideToward } from '@client/common/interface/ui/classes.ts';
 import { toast } from '@client/common/interface/ui/parts.tsx';
 
+const FIRST_ITEM = 0;
+const ITEM_INDEX_KEY = 'item-index';
+const NONE_SEEN = 0;
+
 /**
  * Sends a page event and tells the user how it went. `fromThread` is the conversation it was
  * sent from, so that thread can show Claude working on it. Resolves false when it didn't go.
@@ -21,9 +25,6 @@ export function useSend(sendPageEvent: SendPageEventUseCase, onSent: (fromThread
     return outcome.sent;
   }, []);
 }
-
-const FIRST_ITEM = 0;
-const ITEM_INDEX_KEY = 'item-index';
 
 /**
  * Which item is on screen (its position in the run's items), kept per tab so a reload lands
@@ -49,8 +50,6 @@ export function useItemNavigation(runId: string, itemCount: number) {
   };
   return { itemIndex, goTo, slide, slideDone: () => setSlide('') };
 }
-
-const NONE_SEEN = 0;
 
 /** True while `count` has grown since the last time `open` was true. */
 export function useUnread(count: number, open: boolean): boolean {

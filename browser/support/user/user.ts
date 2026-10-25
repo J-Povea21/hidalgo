@@ -1,9 +1,3 @@
-/**
- * The user's side of a browser test: the real page, through what a person sees and does.
- * Each part of the page has its own object (support/user/*.ts), so a new feature of the
- * page is a new part, not more methods here. Locators find things by role and accessible
- * name, so a test that passes also proves the page works for a screen reader.
- */
 import type { Locator, Page } from '@playwright/test';
 import { Drawers } from './drawers.ts';
 import { Items } from './items.ts';
@@ -12,6 +6,12 @@ import { Status } from './status.ts';
 import { COMPOSER, Thread } from './thread.ts';
 import { Verdict } from './verdict.ts';
 
+/**
+ * The user's side of a browser test: the real page, through what a person sees and does.
+ * Each part of the page has its own object (support/user/*.ts), so a new feature of the
+ * page is a new part, not more methods here. Locators find things by role and accessible
+ * name, so a test that passes also proves the page works for a screen reader.
+ */
 export class UserInPage {
   readonly status: Status;
   readonly questions: Questions;

@@ -1,6 +1,6 @@
-/** What open_session needs once the run exists: its page shown to the user. */
 import type { RunState } from '@shared/contract.ts';
 
+/** What open_session needs once the run exists: its page shown to the user. */
 export abstract class RunPages {
   /**
    * Serves the run and shows its page: tells a tab already connected to it, or opens a new one.

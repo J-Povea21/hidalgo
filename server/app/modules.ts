@@ -1,4 +1,3 @@
-/** Every module, built from one set of adapters. The server and the use-case tests both build them here. */
 import { RunChanges } from '@server/common/application/run-changes.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { EventLog } from '@server/common/ports/event-log.port.ts';
@@ -35,6 +34,7 @@ export interface Modules {
   pageEvents: PageEventsModule;
 }
 
+/** Every module, built from one set of adapters. The server and the use-case tests both build them with this. */
 export function buildModules(adapters: Adapters): Modules {
   const withRuns = { ...adapters, runs: new RunChanges(adapters.store, adapters.page, adapters.lock) };
   return {

@@ -1,6 +1,6 @@
-/** Moving between items, and the card on screen. */
 import type { Locator, Page } from '@playwright/test';
 
+/** Moving between items, and the card on screen. */
 export class Items {
   constructor(private readonly page: Page) {}
 

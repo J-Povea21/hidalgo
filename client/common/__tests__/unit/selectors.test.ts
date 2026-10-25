@@ -23,8 +23,9 @@ const CLAUDE = {
 } satisfies Record<string, ClaudeActivity>;
 
 /** A connected page showing `run`, with Claude in the given state. */
-const aLivePage = (claude: ClaudeActivity, run: RunState = aRun()) =>
-  [actions.state(run, claude), actions.connection({ kind: CONNECTION.live })].reduce(reduce, initialState);
+function aLivePage(claude: ClaudeActivity, run: RunState = aRun()) {
+  return [actions.state(run, claude), actions.connection({ kind: CONNECTION.live })].reduce(reduce, initialState);
+}
 
 describe("an item's status", () => {
   it('is ready when nothing is open and nothing is decided', () => {

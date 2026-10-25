@@ -1,6 +1,6 @@
-/** The in-memory bell that wakes a pending wait_for_events. */
 import type { EventSignal } from '@server/page-events/domain/ports/event-signal.port.ts';
 
+/** The in-memory bell that wakes a pending wait_for_events. */
 export class MemorySignal implements EventSignal {
   private pending = new Map<string, Set<(why: 'event' | 'timeout') => void>>();
 

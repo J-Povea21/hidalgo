@@ -9,6 +9,8 @@ import type { LiveEntry, RunState } from '@shared/contract.ts';
 import { pendingForUser } from '@shared/rules.ts';
 import { RUN_STATUS } from '@shared/values.ts';
 
+const DAY = 24 * 60 * 60 * 1000;
+
 export function liveEntry(
   run: RunState,
   server: {
@@ -37,8 +39,6 @@ export function liveEntry(
     url: server.url,
   };
 }
-
-const DAY = 24 * 60 * 60 * 1000;
 
 /** Closed runs older than the retention window. Paused or open runs are kept: the user decides those. */
 export function expired(runs: RunState[], now: string, retentionDays: number): string[] {

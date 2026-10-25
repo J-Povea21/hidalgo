@@ -1,4 +1,3 @@
-/** Pushes each run's state to its open pages over SSE. Implements PagePublisher. */
 import { STREAM_EVENT } from '@shared/constants.ts';
 import type { RunState } from '@shared/contract.ts';
 import type { PagePublisher } from '@server/common/ports/page-publisher.port.ts';
@@ -10,6 +9,7 @@ export type PageMessage =
 
 type Listener = (msg: PageMessage) => void;
 
+/** Pushes each run's state to its open pages over SSE. Implements PagePublisher. */
 export class PageHub implements PagePublisher {
   private listeners = new Map<string, Set<Listener>>();
   private latest = new Map<string, RunState>();

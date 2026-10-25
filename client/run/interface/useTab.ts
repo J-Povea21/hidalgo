@@ -1,4 +1,3 @@
-/** The browser tab: a title that leads with whose turn it is, and a dot of the same state's colour. */
 import { useEffect } from 'preact/hooks';
 import type { TurnView } from '@client/common/domain/selectors.ts';
 
@@ -14,6 +13,7 @@ export const TURN_COLOR: Record<TurnView, string> = {
 const ICON_SIZE_PX = 32;
 const DOT_RADIUS_PX = 12;
 
+/** The browser tab: a title that leads with whose turn it is, and a dot of the same state's colour. */
 export function useTab(title: string, turn: TurnView): void {
   useEffect(() => {
     document.title = title;

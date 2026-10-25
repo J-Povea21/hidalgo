@@ -1,9 +1,3 @@
-/**
- * Approve, reject, or leave pending. Approve is blocked while questions are
- * open, and always names the revision on screen: if the item changes, the
- * server refuses the old revision and the user approves the new one. An item
- * left pending can still be approved or rejected later.
- */
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { Item, VerdictValue } from '@shared/contract.ts';
@@ -17,6 +11,12 @@ interface VerdictProps {
   onVerdict: (value: VerdictValue, rev: number) => void;
 }
 
+/**
+ * Approve, reject, or leave pending. Approve is blocked while questions are
+ * open, and always names the revision on screen: if the item changes, the
+ * server refuses the old revision and the user approves the new one. An item
+ * left pending can still be approved or rejected later.
+ */
 export function Verdict(props: VerdictProps) {
   const { item } = props;
   const status = itemStatus(item);

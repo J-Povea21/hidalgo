@@ -1,6 +1,6 @@
-/** What a module's tools need from the server around them. */
 import type { ToolResult } from '@server/common/interface/mcp/tool-result.ts';
 
+/** What a module's tools need from the server around them. */
 export abstract class ToolHost {
   /**
    * For a tool that acts on a run: serves the run (so a page left open from before a restart

@@ -1,7 +1,3 @@
-/**
- * The composition root: builds every adapter, hands them to the modules, and
- * owns the process-level jobs (the HTTP port, heartbeats, cleanup, shutdown).
- */
 import { spawn } from 'node:child_process';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
@@ -27,6 +23,19 @@ import { RUN_STATUS } from '@shared/values.ts';
 const RECENT_VIEWER_MS = 10 * 60_000;
 const REATTACH_WAIT_MS = 17_000;
 
+export const DEFAULT_LIMITS: Limits = {
+  imageBytesPerRun: 50 * 1024 * 1024,
+  imageWarnBytes: 40 * 1024 * 1024,
+  // Under the 30-minute idle limit Claude Code applies to stdio tool calls.
+  waitTimeoutMs: 25 * 60 * 1000,
+};
+
+/** How each OS opens an address in the default browser; anything else is assumed to have xdg-open. */
+const BROWSER_OPENER: Partial<Record<NodeJS.Platform, (url: string) => [string, string[]]>> = {
+  darwin: (url) => ['open', [url]],
+  win32: (url) => ['cmd', ['/c', 'start', '', url]],
+};
+
 export interface WorkbenchConfig {
   dataRoot: string;
   clientDir: string;
@@ -46,24 +55,15 @@ export interface WorkbenchConfig {
   ownerPid?: number;
 }
 
-export const DEFAULT_LIMITS: Limits = {
-  imageBytesPerRun: 50 * 1024 * 1024,
-  imageWarnBytes: 40 * 1024 * 1024,
-  // Under the 30-minute idle limit Claude Code applies to stdio tool calls.
-  waitTimeoutMs: 25 * 60 * 1000,
-};
-
-/** How each OS opens an address in the default browser; anything else is assumed to have xdg-open. */
-const BROWSER_OPENER: Partial<Record<NodeJS.Platform, (url: string) => [string, string[]]>> = {
-  darwin: (url) => ['open', [url]],
-  win32: (url) => ['cmd', ['/c', 'start', '', url]],
-};
-
 export function openInBrowser(url: string): void {
   const [command, args] = BROWSER_OPENER[process.platform]?.(url) ?? ['xdg-open', [url]];
   spawn(command, args, { stdio: 'ignore', detached: true }).unref();
 }
 
+/**
+ * The composition root: builds every adapter, hands them to the modules, and
+ * owns the process-level jobs (the HTTP port, heartbeats, cleanup, shutdown).
+ */
 export class Workbench {
   readonly clock = new SystemClock();
   /** When this server started: a page last seen before it may still be retrying to reach it. */

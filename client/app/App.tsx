@@ -1,7 +1,3 @@
-/**
- * Wires every module's views to the state and the use cases. The only part of
- * the page that knows them all; each module stays ignorant of the others.
- */
 import { useCallback, useEffect, useReducer, useState } from 'preact/hooks';
 import { PARTY, RUN_STATUS, VERDICT, type VerdictValue } from '@shared/values.ts';
 import {
@@ -31,10 +27,6 @@ import { ItemNav, ItemPanel } from '@client/items/interface/ItemPanel.tsx';
 /** How often the page re-checks time-based state ("Claude went quiet"). */
 const TICK_MS = 10_000;
 
-/** The side panel: the whole run's conversation, or the other reviews open on this machine. */
-const DRAWER = { run: 'run', reviews: 'reviews' } as const;
-type Drawer = (typeof DRAWER)[keyof typeof DRAWER];
-
 /** What the toast says once something reached Claude. */
 const SENT = {
   message: 'Sent to Claude',
@@ -47,6 +39,10 @@ const SENT = {
     ],
 };
 
+/** The side panel: the whole run's conversation, or the other reviews open on this machine. */
+const DRAWER = { run: 'run', reviews: 'reviews' } as const;
+type Drawer = (typeof DRAWER)[keyof typeof DRAWER];
+
 interface AppProps {
   modules: PageModules;
   /** Where what the user hasn't sent yet is kept. */
@@ -54,6 +50,10 @@ interface AppProps {
   session: Session;
 }
 
+/**
+ * Wires every module's views to the state and the use cases. The only part of
+ * the page that knows them all; each module stays ignorant of the others.
+ */
 export function App({ modules, drafts, session }: AppProps) {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [drawer, setDrawer] = useState<Drawer | undefined>();

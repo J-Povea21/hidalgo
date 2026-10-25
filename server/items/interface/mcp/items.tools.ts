@@ -1,4 +1,3 @@
-/** The items module as MCP tools. */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { ITEM_KINDS, ItemKinds, QuestionSpec } from '@shared/contract.ts';
@@ -13,6 +12,7 @@ const [firstKind, ...otherKinds] = ITEM_KINDS.map((kind) =>
 );
 const ItemInput = z.discriminatedUnion('kind', [firstKind!, ...otherKinds]);
 
+/** The items module as MCP tools. */
 export function registerItemsTools(server: McpServer, items: ItemsModule, host: ToolHost): void {
   server.registerTool(
     'add_items',

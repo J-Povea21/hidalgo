@@ -4,33 +4,50 @@ import type { ComponentChildren } from 'preact';
 import type { ItemStatus } from '@shared/rules.ts';
 import { CLASS, classes } from './classes.ts';
 
-export const ChatIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-  </svg>
-);
+const TOAST_MS = 2200;
 
-export const LayersIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-  </svg>
-);
+const STATUS_TEXT: Record<ItemStatus, string> = {
+  questions: 'Questions open',
+  ready: 'Ready',
+  approved: 'Approved',
+  done: 'Done',
+  rejected: 'Rejected',
+  pending: 'Left pending',
+};
+
+let pushToast: ((text: string) => void) | undefined;
+
+export function ChatIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+export function LayersIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+    </svg>
+  );
+}
 
 export function Typing(props: { label: string }) {
   return (
@@ -47,23 +64,15 @@ export function Typing(props: { label: string }) {
   );
 }
 
-const STATUS_TEXT: Record<ItemStatus, string> = {
-  questions: 'Questions open',
-  ready: 'Ready',
-  approved: 'Approved',
-  done: 'Done',
-  rejected: 'Rejected',
-  pending: 'Left pending',
-};
-export const StatusBadge = (props: { status: ItemStatus; children?: ComponentChildren }) => (
-  <span class={classes('badge', props.status)}>{props.children ?? STATUS_TEXT[props.status]}</span>
-);
-
-const TOAST_MS = 2200;
+export function StatusBadge(props: { status: ItemStatus; children?: ComponentChildren }) {
+  return <span class={classes('badge', props.status)}>{props.children ?? STATUS_TEXT[props.status]}</span>;
+}
 
 /** One toast at a time; a new one replaces the old. */
-let pushToast: ((t: string) => void) | undefined;
-export const toast = (text: string) => pushToast?.(text);
+export function toast(text: string): void {
+  pushToast?.(text);
+}
+
 export function Toaster() {
   const [text, setText] = useState('');
   const [show, setShow] = useState(false);
@@ -137,4 +146,6 @@ export function Lightbox(props: LightboxProps) {
   );
 }
 
-export const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+export function time(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}

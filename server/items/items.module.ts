@@ -1,4 +1,3 @@
-/** The items on a run's page: what Claude adds, changes, asks about and marks done. */
 import type { RunChanges } from '@server/common/application/run-changes.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { Ids } from '@server/common/ports/ids.port.ts';
@@ -14,6 +13,7 @@ export interface ItemsModule {
   markDone: MarkDoneUseCase;
 }
 
+/** The items on a run's page: what Claude adds, changes, asks about and marks done. */
 export function itemsModule(adapters: { runs: RunChanges; ids: Ids; clock: Clock }): ItemsModule {
   return {
     addItems: new AddItemsUseCase(adapters.runs, adapters.ids),

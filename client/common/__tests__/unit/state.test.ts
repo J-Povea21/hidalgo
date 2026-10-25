@@ -13,7 +13,9 @@ import {
 const LISTENING: ClaudeActivity = { claudeListening: true, claudeActiveAt: 0 };
 const NOT_LISTENING: ClaudeActivity = { claudeListening: false, claudeActiveAt: 0 };
 
-const after = (...steps: PageAction[]): PageState => steps.reduce(reduce, initialState);
+function after(...steps: PageAction[]): PageState {
+  return steps.reduce(reduce, initialState);
+}
 
 describe('the page state', () => {
   it('takes a newer snapshot of the run', () => {

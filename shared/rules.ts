@@ -8,10 +8,13 @@ import { ITEM_STATUS, type ItemStatus, VERDICT, type VerdictValue } from './valu
 export { ITEM_STATUS, type ItemStatus } from './values.ts';
 
 /** A verdict counts only when it names the item's current revision; any later change voids it. */
-export const currentVerdict = (item: Item): VerdictValue | undefined =>
-  item.verdict && item.verdict.rev === item.rev ? item.verdict.value : undefined;
+export function currentVerdict(item: Item): VerdictValue | undefined {
+  return item.verdict && item.verdict.rev === item.rev ? item.verdict.value : undefined;
+}
 
-export const openQuestions = (item: Item): Question[] => item.questions.filter((question) => !question.answer);
+export function openQuestions(item: Item): Question[] {
+  return item.questions.filter((question) => !question.answer);
+}
 
 /** Final: rejected, or approved and done outside the workbench. Only then may a run close. */
 export function isFinal(item: Item): boolean {
@@ -31,14 +34,18 @@ export function itemStatus(item: Item): ItemStatus {
 }
 
 /** Things waiting on the user: open questions, plus items ready for a verdict. */
-export const pendingForUser = (run: RunState): number =>
-  run.items.reduce(
+export function pendingForUser(run: RunState): number {
+  return run.items.reduce(
     (total, item) => total + openQuestions(item).length + (itemStatus(item) === ITEM_STATUS.ready ? 1 : 0),
     0,
   );
+}
 
-export const runThreadId = (run: RunState): string | undefined =>
-  run.threads.find((thread) => thread.owner.type === 'run')?.id;
+export function runThreadId(run: RunState): string | undefined {
+  return run.threads.find((thread) => thread.owner.type === 'run')?.id;
+}
 
 /** Every kind has a title (ItemKinds requires it). */
-export const itemTitle = (item: Item): string => item.fields.title;
+export function itemTitle(item: Item): string {
+  return item.fields.title;
+}

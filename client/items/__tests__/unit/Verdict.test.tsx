@@ -5,11 +5,14 @@ import type { Item } from '@shared/contract.ts';
 import { anItem, anOpenQuestion } from '@test/builders.ts';
 import { Verdict } from '@client/items/interface/Verdict.tsx';
 
-afterEach(cleanup);
-/** An item at rev 3, so the revision Approve names is visibly the item's own. */
-const item = (overrides: Partial<Item> = {}): Item => anItem({ rev: 3, ...overrides });
 const openQ = anOpenQuestion();
 
+afterEach(cleanup);
+
+/** An item at rev 3, so the revision Approve names is visibly the item's own. */
+function item(overrides: Partial<Item> = {}): Item {
+  return anItem({ rev: 3, ...overrides });
+}
 describe('Verdict', () => {
   it('blocks Approve while a question is open, and says why', () => {
     render(<Verdict item={item({ questions: [openQ] })} disabled={false} onVerdict={() => {}} />);

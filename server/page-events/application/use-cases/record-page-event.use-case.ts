@@ -24,16 +24,6 @@ export interface RecordPageEventInput {
   event: unknown;
 }
 
-/** Decoded size of a data: URL, without decoding it. */
-const dataUrlBytes = (url: string) => Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4);
-
-const formatBytes = (bytes: number) =>
-  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
-
-/** The event as the log keeps it: a message's images by stored file name. */
-const toRecorded = (event: PageEvent, images: string[], at: string): UnsequencedEvent =>
-  event.type === 'message' ? { ...event, images, at } : { ...event, at };
-
 /**
  * The mailbox's slot: everything the page sends comes through here.
  *   1. checks it's well-formed and that it can apply to the run as it is now;
@@ -106,4 +96,18 @@ export class RecordPageEventUseCase {
     }
     return { names, nearLimit: total > this.limits.imageWarnBytes };
   }
+}
+
+/** The event as the log keeps it: a message's images by stored file name. */
+function toRecorded(event: PageEvent, images: string[], at: string): UnsequencedEvent {
+  return event.type === 'message' ? { ...event, images, at } : { ...event, at };
+}
+
+/** Decoded size of a data: URL, without decoding it. */
+function dataUrlBytes(url: string): number {
+  return Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4);
+}
+
+function formatBytes(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
 }

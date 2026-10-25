@@ -1,4 +1,3 @@
-/** The conversation module as MCP tools. */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { DiagramSpec } from '@shared/contract.ts';
@@ -7,6 +6,7 @@ import { RunId } from '@server/common/interface/mcp/tool-result.ts';
 import { ConversationMapper } from '@server/conversation/application/mappers/conversation.mapper.ts';
 import type { ConversationModule } from '@server/conversation/conversation.module.ts';
 
+/** The conversation module as MCP tools. */
 export function registerConversationTools(server: McpServer, conversation: ConversationModule, host: ToolHost): void {
   server.registerTool(
     'send_message',

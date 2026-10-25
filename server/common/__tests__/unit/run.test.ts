@@ -14,19 +14,19 @@ import { addMessage, rememberEventThread } from '@server/common/domain/conversat
 import { close, newRun, runThreadId } from '@server/common/domain/run.rules.ts';
 import { isFinal, pendingForUser } from '@shared/rules.ts';
 
-const start = () => {
+function start() {
   const ids = counterIds();
   const run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'validator', now: T0, threadId: ids('t') });
   return { ids, run };
-};
-const code = (fn: () => unknown) => {
+}
+function code(fn: () => unknown) {
   try {
     fn();
   } catch (error) {
     return error instanceof WorkbenchError ? error.code : 'not a WorkbenchError';
   }
   return 'no error';
-};
+}
 
 describe('items', () => {
   it('adds a valid card with its own thread at rev 1', () => {

@@ -1,8 +1,3 @@
-/**
- * Runs on disk: `runs/<project>/<run id>/run.json` holds the state and the
- * run's token. The token stays here and in memory: no tool returns it, and the
- * state the page receives never includes it.
- */
 import { randomBytes } from 'node:crypto';
 import { access, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -19,6 +14,11 @@ interface RunFile {
   state: RunState;
 }
 
+/**
+ * Runs on disk: `runs/<project>/<run id>/run.json` holds the state and the
+ * run's token. The token stays here and in memory: no tool returns it, and the
+ * state the page receives never includes it.
+ */
 export class FsRunStore implements RunStore {
   /** run id → its folder, learned on save or found by scanning. */
   private dirs = new Map<string, string>();

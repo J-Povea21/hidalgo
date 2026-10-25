@@ -1,11 +1,7 @@
-/**
- * Proving that the server answering on this port holds the run's token, without sending
- * it: the page sends a random nonce, and only the real server can answer with
- * HMAC(token, "workbench-hello|nonce|port|build"). A proof relayed from another port fails,
- * and a claim of a newer build counts only when proven.
- */
 import { BUILD } from '@shared/constants.ts';
 import type { Session } from './session.ts';
+
+const NONCE_BYTES = 16;
 
 export const IDENTITY = {
   /** The real server, on this page's build: the token may be sent. */
@@ -17,11 +13,6 @@ export const IDENTITY = {
 } as const;
 export type Identity = (typeof IDENTITY)[keyof typeof IDENTITY];
 
-/** FROZEN: pages from older builds must be able to verify newer servers with it. Mirrors server/common/infrastructure/http/app.ts. */
-const proofMessage = (nonce: string, port: string, build: string) => `workbench-hello|${nonce}|${port}|${build}`;
-
-const NONCE_BYTES = 16;
-
 interface HelloAnswer {
   server?: string;
   run?: string;
@@ -29,6 +20,12 @@ interface HelloAnswer {
   proof?: string;
 }
 
+/**
+ * Proving that the server answering on this port holds the run's token, without sending
+ * it: the page sends a random nonce, and only the real server can answer with
+ * HMAC(token, "workbench-hello|nonce|port|build"). A proof relayed from another port fails,
+ * and a claim of a newer build counts only when proven.
+ */
 export async function proveServer(session: Session): Promise<Identity> {
   try {
     const nonce = toHex(crypto.getRandomValues(new Uint8Array(NONCE_BYTES)).buffer);
@@ -58,6 +55,14 @@ export async function proofFor(token: string, nonce: string, port: string, build
   const key = await crypto.subtle.importKey('raw', encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const signature = await crypto.subtle.sign('HMAC', key, encode(proofMessage(nonce, port, build)));
   return toHex(signature);
+}
+
+/**
+ * FROZEN: pages from older builds must be able to verify newer servers with it.
+ * Mirrors server/common/infrastructure/http/app.ts.
+ */
+function proofMessage(nonce: string, port: string, build: string) {
+  return `workbench-hello|${nonce}|${port}|${build}`;
 }
 
 /** The port this page is talking to: the address bar's, or the scheme's default when it shows none. */

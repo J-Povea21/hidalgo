@@ -11,7 +11,9 @@ import { delivered, MemoryLog, MemoryStore, useCases, waited, world } from '@tes
 import { addItems, ask } from '@server/common/domain/item.rules.ts';
 import { newRun } from '@server/common/domain/run.rules.ts';
 
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+function pause(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 class SlowStore extends MemoryStore {
   override async save(run: RunState) {
