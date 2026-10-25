@@ -88,6 +88,7 @@ export function createApi(s: Session) {
       state: (run: RunState, waiting: boolean) => void;
       waiting: (waiting: boolean) => void;
       connection: (c: Connection) => void;
+      nudge?: (text: string) => void;
     }, retry: { baseMs: number; maxMs: number } = { baseMs: 1500, maxMs: 15_000 }): () => void {
       let stopped = false;
       let controller: AbortController | undefined;
@@ -122,6 +123,7 @@ export function createApi(s: Session) {
               const msg = JSON.parse(data);
               if (event === 'state') on.state(msg.state, msg.waiting);
               else if (event === 'ping') on.waiting(msg.waiting);
+              else if (event === 'nudge') on.nudge?.(msg.text);
               else if (event === 'goodbye') { saidGoodbye = true; on.connection({ kind: 'ended', reason: msg.reason }); controller?.abort(); }
             });
           } catch {

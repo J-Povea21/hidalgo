@@ -242,6 +242,36 @@ describe('HTTP security', () => {
   });
 });
 
+describe('one tab per run', () => {
+  it('resuming a run whose page is connected tells that page instead of opening another', async () => {
+    const { call, opened } = await boot();
+    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    await call('close_session', { runId, status: 'paused', outcome: 'later' });
+    const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
+    const events: string[] = [];
+    const req = request({ host: '127.0.0.1', port, path: `/api/stream?run=${runId}`, headers: { host: `127.0.0.1:${port}`, 'x-workbench-token': token } }, (res) => {
+      res.on('data', (c) => { for (const m of String(c).matchAll(/event: (\w+)/g)) events.push(m[1]!); });
+    });
+    req.end();
+    cleanups.push(() => { req.destroy(); });
+    await new Promise((r) => setTimeout(r, 100));
+
+    const resumed = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(resumed).toMatchObject({ resumed: true, opened: false, alreadyOpen: 1 });
+    expect(opened).toHaveLength(1);
+    expect(events).toContain('nudge');
+  });
+
+  it('resuming with no page connected opens one', async () => {
+    const { call, opened } = await boot();
+    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    await call('close_session', { runId, status: 'paused', outcome: 'later' });
+    expect(await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId })).toMatchObject({ opened: true });
+    expect(opened).toHaveLength(2);
+  });
+});
+
 describe('recovering an open page', () => {
   it('after a /mcp reconnect, the same session gets its run back on the old port, so the tab reconnects by itself', async () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-reconnect-'));

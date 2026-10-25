@@ -4,7 +4,9 @@ import type { PagePublisher } from '../../kernel/ports.ts';
 
 export type PageMessage =
   | { type: 'state'; state: RunState }
-  | { type: 'goodbye'; reason: string };
+  | { type: 'goodbye'; reason: string }
+  /** A short notice for pages already open, e.g. "Claude resumed this run". */
+  | { type: 'nudge'; text: string };
 
 type Listener = (msg: PageMessage) => void;
 
@@ -28,6 +30,15 @@ export class PageHub implements PagePublisher {
     const now = this.latest.get(runId);
     if (now) l({ type: 'state', state: now });
     return () => set.delete(l);
+  }
+
+  /** Pages connected to the run right now. A closed tab or a sleeping laptop drops out on the next keep-alive. */
+  viewers(runId: string): number {
+    return this.listeners.get(runId)?.size ?? 0;
+  }
+
+  nudge(runId: string, text: string): void {
+    for (const l of this.listeners.get(runId) ?? []) l({ type: 'nudge', text });
   }
 
   /** The session is ending normally: tell every open page before the server exits. */

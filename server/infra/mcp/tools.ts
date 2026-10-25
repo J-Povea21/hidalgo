@@ -54,7 +54,7 @@ export function registerTools(server: McpServer, wb: Workbench): void {
   };
 
   server.registerTool('open_session', {
-    description: 'Start a workbench run (or resume one) and open its page in the browser. Returns the run id. Resuming replays anything the user did while no server was running.',
+    description: 'Start a workbench run (or resume one) and open its page in the browser. Returns the run id. Resuming replays anything the user did while no server was running; if the run\'s page is already open, that tab is told instead of opening another (opened:false, alreadyOpen).',
     inputSchema: {
       skill: z.string().describe('The skill using the page, e.g. "card".'),
       project: z.string().describe('Project name from references/projects.json, e.g. "MiPlan".'),
@@ -65,10 +65,12 @@ export function registerTools(server: McpServer, wb: Workbench): void {
     try {
       const { run, resumed } = await openSession(deps, input);
       await wb.serve(run.id);
-      const url = wb.address.url(run.id);
-      wb.open(url);
+      // A page already connected to this run is the one the user has: tell it, don't open another.
+      const viewers = wb.hub.viewers(run.id);
+      if (resumed && viewers > 0) wb.hub.nudge(run.id, 'Claude resumed this run.');
+      else wb.open(wb.address.url(run.id));
       const events = resumed ? await takeEvents(deps, run.id) : [];
-      return ok({ runId: run.id, resumed, opened: true, ...(events.length ? { events } : {}) });
+      return ok({ runId: run.id, resumed, opened: !(resumed && viewers > 0), ...(resumed && viewers > 0 ? { alreadyOpen: viewers } : {}), ...(events.length ? { events } : {}) });
     } catch (e) {
       return err(e);
     }

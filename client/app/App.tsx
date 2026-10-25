@@ -37,6 +37,7 @@ export function App(props: { api: Api; session: Session }) {
     state: (run, waiting) => dispatch({ type: 'state', run, waiting }),
     waiting: (waiting) => dispatch({ type: 'waiting', waiting }),
     connection: (connection) => dispatch({ type: 'connection', connection }),
+    nudge: (text) => toast(text),
   }), []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 10_000); return () => clearInterval(t); }, []);
 
