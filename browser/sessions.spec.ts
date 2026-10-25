@@ -1,50 +1,49 @@
 /** More than one: two Claude sessions on the machine, and one run open in two tabs. */
-import { card, connectionOf, expect, openRun, test } from './harness.ts';
+import { plainCard } from './support/data.ts';
+import { expect, test } from './support/test.ts';
+import { UserInPage } from './support/user.ts';
 
-test("B-14 Open reviews lists the other session's run and opens it; what one does never reaches the other", async ({
-  page,
-  wb,
-  newSession,
+test("Open reviews lists another session's run and opens it; what happens in one never reaches the other", async ({
+  claude,
+  anotherClaude,
+  user,
   context,
 }) => {
-  const runA = await openRun(wb, [{}], 'run A');
-  const other = await newSession();
-  const { runId: bRun } = await other.call('open_session', { skill: 'card', project: 'Mi Titulo', subject: 'run B' });
-  await other.call('add_items', { runId: bRun, items: [{ kind: 'card', fields: card('B card') }] });
+  const runA = await claude.opensRun({ subject: 'run A' });
+  const otherClaude = await anotherClaude();
+  const runB = await otherClaude.opensRun({ project: 'Mi Titulo', subject: 'run B', cards: [plainCard('B card')] });
 
-  await page.goto(runA.url);
-  await page.getByRole('button', { name: 'Open reviews' }).click();
-  const link = page.getByRole('link', { name: /Mi Titulo · card · run B/ });
+  await user.opens(runA);
+  await user.opensReviews();
+  const link = user.page.getByRole('link', { name: /Mi Titulo · card · run B/ });
   await expect(link).toBeVisible();
   await expect(link).toContainText('Claude is working');
 
   const popup = context.waitForEvent('page');
   await link.click();
-  const pageB = await popup;
-  await expect(pageB.getByRole('heading', { name: 'B card' })).toBeVisible();
-  await expect.poll(() => connectionOf(pageB)).toBe('live');
+  const inB = new UserInPage(await popup);
+  await expect(inB.heading('B card')).toBeVisible();
+  await expect.poll(() => inB.connection()).toBe('live');
 
-  // A verdict in A is A's alone: B's next tool result carries nothing.
-  const waitA = wb.start('wait_for_events', { runId: runA.runId });
-  await page.getByRole('button', { name: 'Reject' }).click();
-  expect((await waitA).events[0]).toMatchObject({ verdict: 'rejected', item: runA.added[0]!.id });
-  expect(await other.call('set_status', { runId: bRun, line: 'checking' })).not.toHaveProperty('events');
+  const verdict = claude.waitsForTheUser(runA);
+  await user.rejects();
+  expect(await verdict).toEqual([expect.objectContaining({ verdict: 'rejected', item: runA.items[0]!.id })]);
+  // B's next tool result would carry anything recorded for it: nothing was.
+  expect(await otherClaude.setsStatus(runB, 'checking')).not.toHaveProperty('events');
 });
 
-test('B-14 one run in two tabs: both follow it, and a resume counts both', async ({ page, wb, context }) => {
-  const { runId, added, url } = await openRun(wb);
-  await page.goto(url);
-  const second = await context.newPage();
-  await second.goto(url);
-  await expect.poll(() => connectionOf(second)).toBe('live');
+test('one run in two tabs: both follow it, and a resume counts both', async ({ claude, user, context }) => {
+  const run = await claude.opensRun();
+  await user.opens(run);
+  const secondTab = new UserInPage(await context.newPage());
+  await secondTab.opens(run);
+  await expect.poll(() => secondTab.connection()).toBe('live');
 
-  const waiting = wb.start('wait_for_events', { runId });
-  await page.getByRole('button', { name: 'Leave pending' }).click();
-  expect((await waiting).events[0]).toMatchObject({ verdict: 'pending', item: added[0]!.id });
-  await expect(second.locator('.verdict .badge.pending')).toBeVisible();
+  const verdict = claude.waitsForTheUser(run);
+  await user.leavesPending();
+  expect(await verdict).toEqual([expect.objectContaining({ verdict: 'pending', item: run.items[0]!.id })]);
+  await expect(secondTab.verdictBadge('pending')).toBeVisible();
 
-  await wb.call('close_session', { runId, status: 'paused', outcome: 'later' });
-  expect(
-    await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId }),
-  ).toMatchObject({ opened: false, alreadyOpen: 2 });
+  await claude.pauses(run);
+  expect(await claude.resumes(run)).toMatchObject({ opened: false, alreadyOpen: 2 });
 });

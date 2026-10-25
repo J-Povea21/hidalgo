@@ -2,29 +2,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Item } from '@shared/contract.ts';
-import { card } from '@test/fixtures.ts';
+import { anItem, anOpenQuestion } from '@test/builders.ts';
 import { Verdict } from './Verdict.tsx';
 
 afterEach(cleanup);
-const item = (over: Partial<Item> = {}): Item => ({
-  id: 'i1',
-  kind: 'card',
-  rev: 3,
-  fields: card(),
-  questions: [],
-  threadId: 't',
-  ...over,
-});
-const openQ = {
-  id: 'q1',
-  text: 'x',
-  evidence: [],
-  options: [
-    { label: 'a', detail: '' },
-    { label: 'b', detail: '' },
-  ],
-  recommended: 0,
-};
+/** An item at rev 3, so the revision Approve names is visibly the item's own. */
+const item = (overrides: Partial<Item> = {}): Item => anItem({ rev: 3, ...overrides });
+const openQ = anOpenQuestion();
 
 describe('Verdict', () => {
   it('blocks Approve while a question is open, and says why', () => {

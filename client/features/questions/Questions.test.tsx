@@ -2,31 +2,15 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Item, Question } from '@shared/contract.ts';
-import { card } from '@test/fixtures.ts';
+import { anItem, anOpenQuestion } from '@test/builders.ts';
 import { Questions } from './Questions.tsx';
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
 });
-const question = (id: string, text: string): Question => ({
-  id,
-  text,
-  evidence: [{ kind: 'verified', text: 'seen in the code' }],
-  options: [
-    { label: 'Separately', detail: 'one file' },
-    { label: 'Here', detail: 'all at once' },
-  ],
-  recommended: 0,
-});
-const item = (questions: Question[]): Item => ({
-  id: 'i1',
-  kind: 'card',
-  rev: 1,
-  fields: card(),
-  questions,
-  threadId: 't',
-});
+const question = (id: string, text: string): Question => anOpenQuestion(id, text);
+const item = (questions: Question[]): Item => anItem({ questions, threadId: 't' });
 
 describe('Questions', () => {
   it('marks the recommendation and moves to the next question after a pick', async () => {
