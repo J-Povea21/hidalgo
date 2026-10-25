@@ -73,7 +73,7 @@ export function Thread(p: ThreadProps) {
         {p.messages.map((m) => (
           <div class={`msg ${m.from}`} key={m.id}>
             <div class="who">{m.from === 'claude' ? 'Claude' : 'You'} · {time(m.at)}</div>
-            <Markdown text={m.text} diagrams={p.diagrams} onDiagramFailed={p.onDiagramFailed} onZoom={(n) => p.onZoom(n.innerHTML)} />
+            <Markdown text={m.text} diagrams={p.diagrams} onDiagramFailed={p.onDiagramFailed} onZoom={(html) => p.onZoom(html)} />
             {m.images?.map((name) => <StoredImage key={name} name={name} load={p.imageSrc} onZoom={(src) => p.onZoom(undefined, src)} />)}
           </div>
         ))}

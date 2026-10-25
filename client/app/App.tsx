@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useReducer, useRef, useState } from 'preact/hooks';
 import type { PageEvent, VerdictValue } from '../../shared/contract.ts';
-import { itemStatus, itemTitle, runThreadId, tabTitle, threadMessages, turn } from '../core/selectors.ts';
+import { itemStatus, itemTitle, runThreadId, tabTitle, threadMessages, turnView } from '../core/selectors.ts';
 import { initialState, reduce } from '../core/state.ts';
 import { ConnectionBanner } from '../features/connection/Banner.tsx';
 import { OpenReviews } from '../features/open-reviews/OpenReviews.tsx';
@@ -17,8 +17,6 @@ import { ApiError, type Api, type Session } from '../infra/api.ts';
 import { KIND_VIEWS } from '../kinds/index.ts';
 import { ChatIcon, LayersIcon, Lightbox, StatusBadge, Toaster, toast } from '../ui/parts.tsx';
 
-const IDLE_MS = 90_000;
-
 export function App(props: { api: Api; session: Session }) {
   const { api, session } = props;
   const [state, dispatch] = useReducer(reduce, initialState);
@@ -29,39 +27,35 @@ export function App(props: { api: Api; session: Session }) {
   const [zoom, setZoom] = useState<{ html?: string | undefined; src?: string | undefined }>();
   const [quote, setQuote] = useState<{ text: string; nonce: number }>();
   const [ask, setAsk] = useState<{ x: number; y: number; text: string }>();
-  const [lastChange, setLastChange] = useState(Date.now());
   const [now, setNow] = useState(Date.now());
   const seenRun = useRef(0);
 
   useEffect(() => api.follow({
-    state: (run, waiting) => dispatch({ type: 'state', run, waiting }),
-    waiting: (waiting) => dispatch({ type: 'waiting', waiting }),
+    state: (run, presence) => dispatch({ type: 'state', run, presence }),
+    presence: (presence) => dispatch({ type: 'presence', presence }),
     connection: (connection) => dispatch({ type: 'connection', connection }),
     nudge: (text) => toast(text),
   }), []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 10_000); return () => clearInterval(t); }, []);
 
   const run = state.run;
-  useEffect(() => { if (run) setLastChange(Date.now()); }, [run?.version]);
-  useEffect(() => { if (state.waiting) setTypingIn(undefined); }, [state.waiting]);
+  useEffect(() => { if (state.claudeListening) setTypingIn(undefined); }, [state.claudeListening]);
   useEffect(() => { sessionStorage.setItem(`wb:${session.runId}:cur`, String(cur)); }, [cur]);
 
-  const t = turn(state);
-  useTab(tabTitle(state), t);
+  const t = turnView(state, now);
+  useTab(tabTitle(state, now), t);
 
   const runThread = run ? runThreadId(run) : undefined;
   const unreadRun = run && runThread ? threadMessages(run, runThread).filter((m) => m.from === 'claude').length : 0;
   useEffect(() => { if (drawer === 'run') seenRun.current = unreadRun; }, [drawer, unreadRun]);
 
   async function send(event: PageEvent, from: string | undefined, ok: string): Promise<boolean> {
-    dispatch({ type: 'sent' });
     try {
       const r = await api.sendEvent(event);
       if (from) setTypingIn(from);
       toast(r.imageWarning ?? ok);
       return true;
     } catch (e) {
-      dispatch({ type: 'send-failed' });
       toast(e instanceof ApiError ? e.message : 'Not sent: Claude\'s session is unreachable. Your text is kept.');
       return false;
     }
@@ -105,11 +99,10 @@ export function App(props: { api: Api; session: Session }) {
   const index = Math.min(cur, Math.max(0, run.items.length - 1));
   const item = run.items[index];
   const busy = state.connection.kind !== 'live' || run.status !== 'open';
-  const idle = !state.waiting && now - lastChange > IDLE_MS && run.status === 'open';
+  const idle = t === 'idle';
   const typingLabel = run.statusLine ? `Claude: ${run.statusLine}` : 'Claude is thinking…';
   // "Thinking" only while a live session is actually working on what was sent from this thread.
-  const showTyping = (key: string) =>
-    (!state.waiting && typingIn === key && run.status === 'open' && state.connection.kind === 'live' ? typingLabel : undefined);
+  const showTyping = (key: string) => (t === 'working' && typingIn === key && state.connection.kind === 'live' ? typingLabel : undefined);
 
   const threadProps = {
     runId: run.id, diagrams: run.diagrams, disabled: busy,
@@ -133,7 +126,7 @@ export function App(props: { api: Api; session: Session }) {
           </button>
         </>
       } />
-      <ConnectionBanner connection={state.connection} listening={state.waiting} idle={idle} runStatus={run.status} />
+      <ConnectionBanner connection={state.connection} listening={state.claudeListening} idle={idle} runStatus={run.status} />
       <div class="wrap">
         <div class={`drawer ${drawer ? 'open' : ''}`}>
           <div>

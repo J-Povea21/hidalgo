@@ -2,10 +2,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Item } from '../../../shared/contract.ts';
+import { card } from '../../../test/fixtures.ts';
 import { Verdict } from './Verdict.tsx';
 
 afterEach(cleanup);
-const item = (over: Partial<Item> = {}): Item => ({ id: 'i1', kind: 'card', rev: 3, fields: {}, questions: [], threadId: 't', ...over });
+const item = (over: Partial<Item> = {}): Item => ({ id: 'i1', kind: 'card', rev: 3, fields: card(), questions: [], threadId: 't', ...over });
 const openQ = { id: 'q1', text: 'x', evidence: [], options: [{ label: 'a', detail: '' }, { label: 'b', detail: '' }], recommended: 0 };
 
 describe('Verdict', () => {

@@ -6,14 +6,17 @@
 import {
   ItemKinds,
   QuestionSpec,
+  type Diagram,
   type Item,
   type ItemKind,
+  type ItemOf,
   type Message,
   type Question,
   type RunState,
   type RunStatus,
   type VerdictValue,
 } from '../../shared/contract.ts';
+import { currentVerdict, isFinal, openQuestions } from '../../shared/rules.ts';
 import { WorkbenchError } from './errors.ts';
 
 type IdGen = (prefix: string) => string;
@@ -46,6 +49,7 @@ export function runThreadId(run: RunState): string {
   return t.id;
 }
 
+/** A closed run is final: every change to it is refused. A paused run still takes changes and stays resumable. */
 function assertOpen(run: RunState): void {
   if (run.status === 'closed') throw new WorkbenchError('closed', `run ${run.id} is closed`);
 }
@@ -56,14 +60,17 @@ export function findItem(run: RunState, itemId: string): Item {
   return item;
 }
 
-function parseFields(kind: ItemKind, fields: unknown): Record<string, unknown> {
-  const schema = ItemKinds[kind];
-  const parsed = schema.safeParse(fields);
+function parseFields<K extends ItemKind>(kind: K, fields: unknown): ItemOf<K>['fields'] {
+  const parsed = ItemKinds[kind].safeParse(fields);
   if (!parsed.success) {
     throw new WorkbenchError('invalid', `fields do not match the "${kind}" schema`, parsed.error.issues);
   }
-  return parsed.data as Record<string, unknown>;
+  // zod can't relate a generic K to its schema's output; the parse above is what guarantees it.
+  return parsed.data as ItemOf<K>['fields'];
 }
+
+/** Replaces an item's fields with a re-validated copy (assigning to the union directly can't be typed). */
+const setFields = (item: Item, fields: unknown) => Object.assign(item, { fields: parseFields(item.kind, fields) });
 
 function buildQuestions(specs: unknown[], ids: IdGen): Question[] {
   return specs.map((raw) => {
@@ -74,8 +81,6 @@ function buildQuestions(specs: unknown[], ids: IdGen): Question[] {
     return { ...spec, id: ids('q') };
   });
 }
-
-export const openQuestions = (item: Item): Question[] => item.questions.filter((q) => !q.answer);
 
 export function addItems(
   run: RunState,
@@ -91,14 +96,14 @@ export function addItems(
     }
     const kind = input.kind as ItemKind;
     const threadId = ids('t');
-    const item: Item = {
+    const item = {
       id: ids('i'),
       kind,
       rev: 1,
       fields: parseFields(kind, input.fields),
       questions: buildQuestions(input.questions ?? [], ids),
       threadId,
-    };
+    } as Item;
     next.items.push(item);
     next.threads.push({ id: threadId, owner: { type: 'item', itemId: item.id } });
     added.push({ id: item.id, rev: item.rev });
@@ -123,7 +128,7 @@ export function updateItem(run: RunState, itemId: string, patch: unknown): { run
   assertOpen(run);
   const next = clone(run);
   const item = findItem(next, itemId);
-  item.fields = parseFields(item.kind, merge(item.fields, patch));
+  setFields(item, merge(item.fields, patch));
   delete item.edits;
   revise(item);
   return { run: touch(next), rev: item.rev };
@@ -191,16 +196,17 @@ export function applyEdit(run: RunState, itemId: string, path: string, text: str
     throw new WorkbenchError('invalid', `item ${itemId} has no text field at "${path}"`);
   }
   (target as Record<string, unknown>)[last] = text;
-  item.fields = parseFields(item.kind, item.fields);
+  setFields(item, item.fields);
   item.edits = { ...(item.edits ?? {}), [path]: text };
   revise(item);
   return touch(next);
 }
 
 export function markDone(run: RunState, itemId: string, note: string, now: string): RunState {
+  assertOpen(run);
   const next = clone(run);
   const item = findItem(next, itemId);
-  if (item.verdict?.value !== 'approved' || item.verdict.rev !== item.rev) {
+  if (currentVerdict(item) !== 'approved') {
     throw new WorkbenchError('invalid', `item ${itemId} is not approved at its current revision, so it can't be marked done`);
   }
   item.done = { at: now, note };
@@ -224,6 +230,7 @@ export function addMessage(
     }
     threadId = fromEvent;
   }
+  assertOpen(run);
   if (threadId === undefined) throw new WorkbenchError('invalid', 'a message needs replyTo or threadId');
   if (!run.threads.some((t) => t.id === threadId)) throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
   const next = clone(run);
@@ -249,16 +256,6 @@ export function rememberEventThread(run: RunState, seq: number, threadId: string
   return { ...run, eventThreads: { ...run.eventThreads, [seq]: threadId } };
 }
 
-/** Items without an outcome: not approved-and-done, not rejected, not left pending by the user. */
-export function itemsWithoutOutcome(run: RunState): Item[] {
-  return run.items.filter((i) => {
-    const v = i.verdict?.rev === i.rev ? i.verdict.value : undefined;
-    if (v === 'rejected' || v === 'pending') return false;
-    if (v === 'approved') return !i.done;
-    return true;
-  });
-}
-
 /**
  * Ending a run. `paused` is always allowed: it keeps everything and stays
  * resumable, whatever state the items are in. `closed` is final, so it needs
@@ -267,15 +264,10 @@ export function itemsWithoutOutcome(run: RunState): Item[] {
  */
 export function close(run: RunState, status: Exclude<RunStatus, 'open'>, outcome: string, now: string): RunState {
   assertOpen(run);
-  if (status === 'closed') {
-    const missing = itemsWithoutOutcome(run);
-    if (missing.length) {
-      throw new WorkbenchError('open-items', `${missing.length} item(s) have no outcome yet: pause the run instead`, missing.map((i) => ({ id: i.id, rev: i.rev })));
-    }
-    const pending = run.items.filter((i) => i.verdict?.rev === i.rev && i.verdict.value === 'pending');
-    if (pending.length) {
-      throw new WorkbenchError('open-items', `${pending.length} item(s) were left pending: pause the run instead`, pending.map((i) => ({ id: i.id, rev: i.rev })));
-    }
+  const open = run.items.filter((i) => !isFinal(i));
+  if (status === 'closed' && open.length) {
+    throw new WorkbenchError('open-items', `${open.length} item(s) aren't rejected, or approved and done: pause the run instead`,
+      open.map((i) => ({ id: i.id, rev: i.rev })));
   }
   return touch({ ...clone(run), status, closedOutcome: outcome, closedAt: now, turn: 'claude' });
 }
@@ -285,6 +277,7 @@ export function reopen(run: RunState): RunState {
 }
 
 export function setStatusLine(run: RunState, line: string | undefined): RunState {
+  assertOpen(run);
   const next = clone(run);
   if (line === undefined) delete next.statusLine;
   else next.statusLine = line;
@@ -295,11 +288,8 @@ export function setTurn(run: RunState, turn: RunState['turn']): RunState {
   return run.turn === turn ? run : touch({ ...run, turn });
 }
 
-/** How many things wait on the user: open questions plus items ready for a verdict. */
-export function waitingOnUser(run: RunState): number {
-  return run.items.reduce((n, i) => {
-    const open = openQuestions(i).length;
-    const ready = open === 0 && !(i.verdict && i.verdict.rev === i.rev) ? 1 : 0;
-    return n + open + ready;
-  }, 0);
+/** Adds a diagram the run's messages and items can embed. */
+export function addDiagram(run: RunState, diagram: Diagram): RunState {
+  assertOpen(run);
+  return touch({ ...clone(run), diagrams: [...run.diagrams, diagram] });
 }

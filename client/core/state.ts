@@ -17,43 +17,46 @@ export type Connection =
   /** No goodbye and reconnecting keeps failing. */
   | { kind: 'lost' };
 
-export interface PageState {
+/** Whether Claude is listening, and when it last did anything: sent with every state and keep-alive. */
+export interface Presence {
+  claudeListening: boolean;
+  /** When Claude last called a tool on the run (ms since epoch); null if not since the server started. */
+  claudeActiveAt: number | null;
+}
+
+export interface PageState extends Presence {
   run?: RunState;
-  /** Whether Claude is holding wait_for_events: it's the user's turn. */
-  waiting: boolean;
   connection: Connection;
-  /** Events this page sent that the state hasn't reflected yet. */
-  sending: number;
 }
 
 export type PageAction =
-  | { type: 'state'; run: RunState; waiting: boolean }
-  | { type: 'waiting'; waiting: boolean }
-  | { type: 'connection'; connection: Connection }
-  | { type: 'sent' }
-  | { type: 'send-failed' };
+  | { type: 'state'; run: RunState; presence: Presence }
+  | { type: 'presence'; presence: Presence }
+  | { type: 'connection'; connection: Connection };
 
-export const initialState: PageState = { waiting: false, connection: { kind: 'connecting' }, sending: 0 };
+export const initialState: PageState = { claudeListening: false, claudeActiveAt: null, connection: { kind: 'connecting' } };
+
+const samePresence = (s: PageState, p: Presence) => s.claudeListening === p.claudeListening && s.claudeActiveAt === p.claudeActiveAt;
 
 export function reduce(s: PageState, a: PageAction): PageState {
   switch (a.type) {
-    case 'state': {
+    case 'state':
       // Never go backwards: a late, older snapshot must not undo a newer one.
-      if (s.run && a.run.id === s.run.id && a.run.version < s.run.version) return { ...s, waiting: a.waiting };
-      return { ...s, run: a.run, waiting: a.waiting, sending: 0, connection: s.connection.kind === 'ended' ? s.connection : { kind: 'live' } };
-    }
-    case 'waiting':
-      return { ...s, waiting: a.waiting };
+      if (s.run && a.run.id === s.run.id && a.run.version < s.run.version) return samePresence(s, a.presence) ? s : { ...s, ...a.presence };
+      return { ...s, ...a.presence, run: a.run };
+    case 'presence':
+      // Keep-alives repeat the same values every 15 s: returning the same state skips a re-render.
+      return samePresence(s, a.presence) ? s : { ...s, ...a.presence };
     case 'connection':
-      // A goodbye is final for this page; only a fresh state from a resumed run lifts it.
+      // A goodbye sticks through the retries that follow it; only a newly proven, connected
+      // stream ('live', sent by the follow loop) lifts it.
       if (s.connection.kind === 'ended' && a.connection.kind !== 'live') return s;
       return { ...s, connection: a.connection };
-    case 'sent':
-      return { ...s, sending: s.sending + 1 };
-    case 'send-failed':
-      return { ...s, sending: Math.max(0, s.sending - 1) };
   }
 }
 
 /** How long reconnecting may fail before the page says the session is lost. */
 export const LOST_AFTER_MS = 15_000;
+
+/** How long after Claude's last tool call the page still says it is working. */
+export const ACTIVE_FOR_MS = 60_000;

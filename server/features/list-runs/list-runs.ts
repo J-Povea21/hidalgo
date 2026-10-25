@@ -4,7 +4,7 @@
  */
 import type { RunState } from '../../../shared/contract.ts';
 import type { LiveIndex, RunStore } from '../../kernel/ports.ts';
-import { waitingOnUser } from '../../kernel/run.ts';
+import { currentVerdict, itemTitle, pendingForUser } from '../../../shared/rules.ts';
 
 export interface RunSummary {
   id: string;
@@ -14,7 +14,8 @@ export interface RunSummary {
   startedAt: string;
   /** Whether a workbench server is serving it right now (another session, maybe). */
   live: boolean;
-  waiting: number;
+  /** Open questions plus items ready for a verdict. */
+  pendingForUser: number;
   items: { id: string; kind: string; title: string; verdict?: string }[];
 }
 
@@ -30,12 +31,10 @@ export async function listRuns(deps: { store: RunStore; live: LiveIndex }, input
       status: r.status,
       startedAt: r.startedAt,
       live: liveIds.has(r.id),
-      waiting: waitingOnUser(r),
-      items: r.items.map((i) => ({
-        id: i.id,
-        kind: i.kind,
-        title: typeof i.fields['title'] === 'string' ? i.fields['title'] : i.id,
-        ...(i.verdict && i.verdict.rev === i.rev ? { verdict: i.done ? 'done' : i.verdict.value } : {}),
-      })),
+      pendingForUser: pendingForUser(r),
+      items: r.items.map((i) => {
+        const verdict = currentVerdict(i);
+        return { id: i.id, kind: i.kind, title: itemTitle(i), ...(verdict ? { verdict: i.done ? 'done' : verdict } : {}) };
+      }),
     }));
 }

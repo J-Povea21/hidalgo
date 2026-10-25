@@ -6,6 +6,7 @@
 import { DiagramSpec } from '../../../shared/contract.ts';
 import { WorkbenchError } from '../../kernel/errors.ts';
 import type { Ids } from '../../kernel/ports.ts';
+import { addDiagram } from '../../kernel/run.ts';
 import { changeRun, type RunDeps } from '../../kernel/unit-of-work.ts';
 import { toMermaid, toOutline } from './mermaid.ts';
 
@@ -17,7 +18,7 @@ export function createDiagram(deps: RunDeps & { ids: Ids }, input: { runId: stri
   return changeRun(deps, input.runId, (run) => {
     const id = deps.ids.next('d');
     return {
-      run: { ...run, diagrams: [...run.diagrams, { id, mermaid, outline }], version: run.version + 1 },
+      run: addDiagram(run, { id, mermaid, outline }),
       result: { diagramId: id, embed: `{{diagram:${id}}}` },
     };
   });

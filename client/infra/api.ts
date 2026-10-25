@@ -7,7 +7,7 @@
  */
 import { BUILD, TOKEN_HEADER } from '../../shared/constants.ts';
 import type { LiveEntry, PageEvent, RunState } from '../../shared/contract.ts';
-import type { Connection } from '../core/state.ts';
+import { LOST_AFTER_MS, type Connection, type Presence } from '../core/state.ts';
 
 export interface Session { runId: string; token: string }
 
@@ -75,24 +75,40 @@ export function createApi(s: Session) {
     }
   }
 
+  /** Image names are content hashes, so one blob URL per name serves every view for the tab's life. */
+  const blobs = new Map<string, Promise<string>>();
+  async function fetchImage(name: string): Promise<string> {
+    if (!proven) throw new ApiError(0, 'not connected');
+    const res = await fetch(`/api/image?${q}&name=${encodeURIComponent(name)}`, { headers });
+    if (!res.ok) throw new ApiError(res.status, 'image unavailable');
+    return URL.createObjectURL(await res.blob());
+  }
+
   return {
     hello,
     sendEvent: (event: PageEvent) =>
       call<{ seq: number; imageWarning?: string }>('event', { method: 'POST', body: JSON.stringify(event), headers: { 'content-type': 'application/json' } }),
     liveRuns: () => call<{ runs: LiveEntry[] }>('runs').then((r) => r.runs),
-    /** Fetches an image with the token (an <img> can't send headers) and returns a blob URL. */
-    imageBlob: async (name: string) => {
-      if (!proven) throw new ApiError(0, 'not connected');
-      return URL.createObjectURL(await (await fetch(`/api/image?${q}&name=${encodeURIComponent(name)}`, { headers })).blob());
+    /** An image as a blob URL (an <img> can't send the token header); cached, retried if it failed. */
+    imageBlob(name: string): Promise<string> {
+      const cached = blobs.get(name);
+      if (cached) return cached;
+      const loading = fetchImage(name);
+      blobs.set(name, loading);
+      loading.catch(() => blobs.delete(name));
+      return loading;
     },
 
     /**
-     * Follows the server's live updates. Reconnects on its own; reports how the
-     * connection stands so the page can say so. Returns a function that stops it.
+     * Follows the server's live updates. Reconnects on its own and never gives up: a
+     * session that ended, a server that moved or crashed may all come back (a /mcp
+     * reconnect, a resume), and the tab should find it without a reload. The proof runs
+     * on every attempt, so a stranger on the port is knocked on but never handed the
+     * token. Reports how the connection stands so the page can say so; returns a stop function.
      */
     follow(on: {
-      state: (run: RunState, waiting: boolean) => void;
-      waiting: (waiting: boolean) => void;
+      state: (run: RunState, presence: Presence) => void;
+      presence: (presence: Presence) => void;
       connection: (c: Connection) => void;
       nudge?: (text: string) => void;
     }, retry: { baseMs: number; maxMs: number } = { baseMs: 1500, maxMs: 15_000 }): () => void {
@@ -100,53 +116,65 @@ export function createApi(s: Session) {
       let controller: AbortController | undefined;
       let downSince = 0;
       let failures = 0;
-      // Retry gaps grow from 1.5 s to 15 s and never stop: a session that ended, a server
-      // that moved or crashed may all come back (a /mcp reconnect, a resume), and the tab
-      // should find it without a reload. The proof runs on every attempt, so a stranger
-      // on the port is knocked on but never handed the token.
-      const pause = () => new Promise((r) => setTimeout(r, Math.min(retry.baseMs * 2 ** Math.min(failures++, 4), retry.maxMs)));
+
+      /** Gaps grow from baseMs, doubling, up to maxMs. */
+      const pause = () => {
+        const gap = Math.min(retry.baseMs * 2 ** Math.min(failures, 4), retry.maxMs);
+        failures += 1;
+        return new Promise((r) => setTimeout(r, gap));
+      };
+
+      /** The server didn't prove itself: either nothing is there, or something that isn't this run. */
+      const reportUnproven = async () => {
+        const reachable = await fetch('/', { method: 'HEAD' }).then(() => true, () => false);
+        if (reachable && downSince === 0) return on.connection({ kind: 'moved' });
+        downSince ||= Date.now();
+        on.connection(Date.now() - downSince > LOST_AFTER_MS ? { kind: 'lost' } : { kind: 'reconnecting', since: downSince });
+      };
+
+      /** Reads one stream until it ends; true if it ended with a goodbye. */
+      const stream = async (): Promise<boolean> => {
+        controller = new AbortController();
+        let goodbye = false;
+        const presence = (m: Presence): Presence => ({ claudeListening: m.claudeListening, claudeActiveAt: m.claudeActiveAt });
+        try {
+          const res = await fetch(`/api/stream?${q}`, { headers, signal: controller.signal });
+          if (!res.ok || !res.body) return false;
+          // A proven server and an open stream: the page is live again, even after a goodbye.
+          on.connection({ kind: 'live' });
+          await readSse(res.body, (event, data) => {
+            const msg = JSON.parse(data);
+            if (event === 'state') on.state(msg.state, presence(msg));
+            else if (event === 'ping') on.presence(presence(msg));
+            else if (event === 'nudge') on.nudge?.(msg.text);
+            else if (event === 'goodbye') {
+              goodbye = true;
+              on.connection({ kind: 'ended', reason: msg.reason });
+              controller?.abort();
+            }
+          });
+        } catch {
+          // dropped, aborted, or the server went away
+        }
+        return goodbye;
+      };
 
       const loop = async () => {
         while (!stopped) {
           const identity = await hello();
-          if (identity === 'stale') {
-            on.connection({ kind: 'stale' });
-            await pause();
-            continue;
-          }
-          if (identity === 'no') {
-            const reachable = await fetch('/', { method: 'HEAD' }).then(() => true, () => false);
-            if (reachable && downSince === 0) on.connection({ kind: 'moved' });
-            else {
+          if (identity === 'stale') on.connection({ kind: 'stale' });
+          else if (identity === 'no') await reportUnproven();
+          else {
+            downSince = 0;
+            failures = 0;
+            const goodbye = await stream();
+            if (stopped) return;
+            // The stream ended: prove the server again before the token goes anywhere.
+            proven = false;
+            if (!goodbye) {
               downSince ||= Date.now();
-              on.connection(Date.now() - downSince > 15_000 ? { kind: 'lost' } : { kind: 'reconnecting', since: downSince });
+              on.connection({ kind: 'reconnecting', since: downSince });
             }
-            await pause();
-            continue;
-          }
-          downSince = 0;
-          failures = 0;
-          controller = new AbortController();
-          let saidGoodbye = false;
-          try {
-            const res = await fetch(`/api/stream?${q}`, { headers, signal: controller.signal });
-            if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
-            await readSse(res.body, (event, data) => {
-              const msg = JSON.parse(data);
-              if (event === 'state') on.state(msg.state, msg.waiting);
-              else if (event === 'ping') on.waiting(msg.waiting);
-              else if (event === 'nudge') on.nudge?.(msg.text);
-              else if (event === 'goodbye') { saidGoodbye = true; on.connection({ kind: 'ended', reason: msg.reason }); controller?.abort(); }
-            });
-          } catch {
-            // dropped, aborted, or the server went away
-          }
-          if (stopped) return;
-          // The stream ended: prove the server again before the token goes anywhere.
-          proven = false;
-          if (!saidGoodbye) {
-            downSince ||= Date.now();
-            on.connection({ kind: 'reconnecting', since: downSince });
           }
           await pause();
         }

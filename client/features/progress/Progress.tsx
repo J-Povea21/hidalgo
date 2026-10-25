@@ -1,14 +1,14 @@
 /** The header: what this run is, whose turn it is, what Claude is doing, and where each item stands. */
 import type { ComponentChildren } from 'preact';
 import type { RunState } from '../../../shared/contract.ts';
-import { itemStatus, itemTitle, type ItemStatus, type Turn } from '../../core/selectors.ts';
+import { itemStatus, itemTitle, type ItemStatus, type TurnView } from '../../core/selectors.ts';
 
 const FILL: Record<ItemStatus, [string, string]> = {
   questions: ['35%', 'var(--warn)'], ready: ['75%', 'var(--accent)'], approved: ['90%', 'var(--ok)'],
   done: ['100%', 'var(--ok)'], rejected: ['100%', 'var(--bad)'], pending: ['100%', 'var(--faint)'],
 };
 
-export function Progress(props: { run: RunState; turn: Turn; current: number; onGo: (i: number) => void; actions: ComponentChildren }) {
+export function Progress(props: { run: RunState; turn: TurnView; current: number; onGo: (i: number) => void; actions: ComponentChildren }) {
   const { run, turn } = props;
   const approved = run.items.filter((i) => ['approved', 'done'].includes(itemStatus(i))).length;
   return (
@@ -45,10 +45,11 @@ export function Progress(props: { run: RunState; turn: Turn; current: number; on
   );
 }
 
-function TurnLine(props: { turn: Turn; line?: string | undefined; status: RunState['status'] }) {
+function TurnLine(props: { turn: TurnView; line?: string | undefined; status: RunState['status'] }) {
   if (props.turn === 'yours') return <span class="status yours" role="status"><span class="dotpulse" />Your turn</span>;
   if (props.turn === 'working') return <span class="status working" role="status"><span class="dotpulse" />{props.line ?? 'Claude is working'}</span>;
   if (props.turn === 'done') return <span class="status" role="status">{props.status === 'paused' ? 'Paused · resumable' : 'Run ended'}</span>;
+  if (props.turn === 'idle') return <span class="status" role="status">Claude isn't listening</span>;
   if (props.turn === 'offline') return <span class="status" role="status">Not connected</span>;
   return null;
 }

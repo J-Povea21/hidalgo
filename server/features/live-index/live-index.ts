@@ -6,17 +6,17 @@
  * picks finished runs past retention; unfinished runs are never removed here.
  */
 import type { LiveEntry, RunState } from '../../../shared/contract.ts';
-import { waitingOnUser } from '../../kernel/run.ts';
+import { pendingForUser } from '../../../shared/rules.ts';
 
 export function liveEntry(
   run: RunState,
-  server: { port: number; pid: number; processStartedAt: string; url: string; ownerPid: number; awaiting: boolean },
+  server: { port: number; pid: number; processStartedAt: string; url: string; ownerPid: number; claudeListening: boolean },
   now: string,
 ): LiveEntry {
   return {
     status: run.status,
     ownerPid: server.ownerPid,
-    awaiting: server.awaiting,
+    claudeListening: server.claudeListening,
     runId: run.id,
     project: run.project,
     skill: run.skill,
@@ -25,7 +25,7 @@ export function liveEntry(
     pid: server.pid,
     processStartedAt: server.processStartedAt,
     heartbeat: now,
-    waiting: waitingOnUser(run),
+    pendingForUser: pendingForUser(run),
     url: server.url,
   };
 }

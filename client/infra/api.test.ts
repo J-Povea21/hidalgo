@@ -46,7 +46,7 @@ describe('following the session', () => {
       }
       if (url.startsWith('/api/stream')) {
         if (phase === 'first') { phase = 'down'; return new Response('event: goodbye\ndata: {"reason":"session ended"}\n\n'); }
-        return new Response(`event: state\ndata: ${JSON.stringify({ state: { id: 'r1', version: 9 }, waiting: true })}\n\n`);
+        return new Response(`event: state\ndata: ${JSON.stringify({ state: { id: 'r1', version: 9 }, claudeListening: true, claudeActiveAt: 1 })}\n\n`);
       }
       return new Response('{}');
     });
@@ -54,11 +54,11 @@ describe('following the session', () => {
     const states: number[] = [];
     const stop = createApi(session).follow({
       state: (run) => states.push(run.version),
-      waiting: () => {},
+      presence: () => {},
       connection: (c) => seen.push(c.kind),
     }, { baseMs: 2, maxMs: 10 });
     await until(() => seen.includes('ended') && seen.length > 3);
-    expect(seen[0]).toBe('ended');
+    expect(seen.slice(0, 2)).toEqual(['live', 'ended']);
     expect(states).toEqual([]);
     phase = 'back';
     await until(() => states.includes(9));

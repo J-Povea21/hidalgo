@@ -16,7 +16,7 @@ export function OpenReviews(props: { currentRunId: string; load: () => Promise<L
               <li key={r.runId}>
                 <a href={r.url} target="_blank" rel="noopener">
                   <span><b>{r.project}</b> · {r.skill} · {r.subject}</span>
-                  <span class="meta">{r.awaiting ? `${r.waiting} waiting on you` : 'Claude is working'}</span>
+                  <span class="meta">{r.claudeListening ? `${r.pendingForUser} waiting on you` : 'Claude is working'}</span>
                 </a>
               </li>
             ))}

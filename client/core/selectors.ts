@@ -1,49 +1,42 @@
-/** Derived facts the views share. Pure. */
-import type { Item, Message, RunState } from '../../shared/contract.ts';
-import type { PageState } from './state.ts';
+/** What the page derives from its state. Item and run rules come from shared/rules, written once for both halves. */
+import type { Message, RunState } from '../../shared/contract.ts';
+import { pendingForUser } from '../../shared/rules.ts';
+import { ACTIVE_FOR_MS, type PageState } from './state.ts';
 
-export const openQuestions = (item: Item) => item.questions.filter((q) => !q.answer);
+export { itemStatus, itemTitle, openQuestions, runThreadId, type ItemStatus } from '../../shared/rules.ts';
 
-export type ItemStatus = 'questions' | 'ready' | 'approved' | 'done' | 'rejected' | 'pending';
+/**
+ * How the page presents whose turn it is (the run's own `turn` is just user or claude).
+ * `working` is shown only while Claude has called a tool recently; past that, without a
+ * wait in place, it is `idle`: Claude isn't listening, and the page says so.
+ */
+export type TurnView = 'yours' | 'working' | 'idle' | 'done' | 'offline';
 
-/** A verdict counts only when it names the item's current revision. */
-export function itemStatus(item: Item): ItemStatus {
-  if (openQuestions(item).length) return 'questions';
-  const v = item.verdict && item.verdict.rev === item.rev ? item.verdict.value : undefined;
-  if (v === 'approved') return item.done ? 'done' : 'approved';
-  if (v === 'rejected' || v === 'pending') return v;
-  return 'ready';
-}
+const OFFLINE = new Set<PageState['connection']['kind']>(['ended', 'lost', 'moved', 'stale']);
 
-/** Things waiting on the user: open questions plus items ready for a verdict. */
-export function waitingCount(run: RunState): number {
-  return run.items.reduce((n, i) => n + openQuestions(i).length + (itemStatus(i) === 'ready' ? 1 : 0), 0);
-}
-
-export type Turn = 'yours' | 'working' | 'done' | 'offline';
-
-export function turn(s: PageState): Turn {
+export function turnView(s: PageState, now: number): TurnView {
   if (!s.run) return 'working';
   if (s.run.status !== 'open') return 'done';
-  if (['ended', 'lost', 'moved', 'stale'].includes(s.connection.kind)) return 'offline';
-  return s.waiting ? 'yours' : 'working';
+  if (OFFLINE.has(s.connection.kind)) return 'offline';
+  if (s.claudeListening) return 'yours';
+  return s.claudeActiveAt !== null && now - s.claudeActiveAt < ACTIVE_FOR_MS ? 'working' : 'idle';
 }
 
+const PREFIX: Record<TurnView, (run: RunState) => string> = {
+  yours: (run) => `(${pendingForUser(run)}) `,
+  working: () => '… ',
+  idle: () => '○ ',
+  done: (run) => (run.status === 'paused' ? '⏸ ' : '✓ '),
+  offline: () => '○ ',
+};
+
+const TITLE_MAX = 60;
+
 /** `<turn> <project> · <skill> · <subject>`, at most 60 characters. */
-export function tabTitle(s: PageState, sameSubjectStart?: string): string {
-  const run = s.run;
-  if (!run) return 'Workbench';
-  const t = turn(s);
-  const prefix = t === 'working' ? '… ' : t === 'done' ? (run.status === 'paused' ? '⏸ ' : '✓ ') : t === 'offline' ? '○ ' : `(${waitingCount(run)}) `;
-  const time = sameSubjectStart ? ` · ${sameSubjectStart}` : '';
-  const title = `${prefix}${run.project} · ${run.skill} · ${run.subject}${time}`;
-  return title.length > 60 ? `${title.slice(0, 59)}…` : title;
+export function tabTitle(s: PageState, now: number): string {
+  if (!s.run) return 'Workbench';
+  const title = `${PREFIX[turnView(s, now)](s.run)}${s.run.project} · ${s.run.skill} · ${s.run.subject}`;
+  return title.length > TITLE_MAX ? `${title.slice(0, TITLE_MAX - 1)}…` : title;
 }
 
 export const threadMessages = (run: RunState, threadId: string): Message[] => run.messages.filter((m) => m.threadId === threadId);
-
-export function runThreadId(run: RunState): string | undefined {
-  return run.threads.find((t) => t.owner.type === 'run')?.id;
-}
-
-export const itemTitle = (item: Item) => (typeof item.fields['title'] === 'string' ? (item.fields['title'] as string) : item.id);

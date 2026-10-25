@@ -66,6 +66,7 @@ export class Workbench {
   private readonly startedAt = ownStart();
   private readonly tokens = new Map<string, string>();
   private readonly served = new Set<string>();
+  private readonly activeAt = new Map<string, number>();
   private http?: ServerType;
   /** Bound once; concurrent first calls to serve() share this instead of each binding a server. */
   private listening?: Promise<number>;
@@ -139,7 +140,8 @@ export class Workbench {
         recordEvent: this.recordEvent,
         imageFile: async (id, name) => { await this.images.open(id); return this.images.path(id, name); },
         liveRuns: () => this.live.alive(),
-        waiting: (id) => this.signal.waiting(id),
+        claudeListening: (id) => this.signal.waiting(id),
+        claudeActiveAt: (id) => this.activeAt.get(id),
         clientDir: this.config.clientDir,
       });
       const server = serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, (info: AddressInfo) => {
@@ -156,7 +158,7 @@ export class Workbench {
     try {
       await this.live.write(liveEntry(run, {
         port: this.port, pid: process.pid, processStartedAt: this.startedAt, url: this.urlOf(run.id),
-        ownerPid: this.ownerPid, awaiting: this.signal.waiting(run.id),
+        ownerPid: this.ownerPid, claudeListening: this.signal.waiting(run.id),
       }, this.clock.now()));
     } catch {
       // the next heartbeat tries again
@@ -188,6 +190,11 @@ export class Workbench {
     const ids = await this.store.ownedBy(this.ownerPid);
     for (const id of ids) await this.serve(id).catch(() => undefined);
     return ids;
+  }
+
+  /** Claude just called a tool on the run: the page shows "working" for a while after. */
+  markActive(runId: string): void {
+    this.activeAt.set(runId, Date.now());
   }
 
   open(url: string): void {

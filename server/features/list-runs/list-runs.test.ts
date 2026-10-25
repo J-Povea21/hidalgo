@@ -13,7 +13,7 @@ describe('list-runs', () => {
       [{ kind: 'card', fields: card('Formulación - Export activities to Excel') }], ids).run;
     const elsewhere = newRun({ id: 'r3', skill: 'card', project: 'Mi Titulo', subject: 'x', now: T0, threadId: ids('t') });
     for (const r of [mine, theirs, elsewhere]) await w.store.save(r);
-    await w.live.write({ runId: 'r2', project: 'MiPlan', skill: 'card', subject: 'export', port: 1, pid: 1, processStartedAt: T0, heartbeat: T0, waiting: 1, url: '', status: 'open', ownerPid: 1, awaiting: false });
+    await w.live.write({ runId: 'r2', project: 'MiPlan', skill: 'card', subject: 'export', port: 1, pid: 1, processStartedAt: T0, heartbeat: T0, pendingForUser: 1, url: '', status: 'open', ownerPid: 1, claudeListening: false });
 
     const list = await listRuns(w, { project: 'MiPlan' });
     expect(list.map((r) => r.id).sort()).toEqual(['r1', 'r2']);

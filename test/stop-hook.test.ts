@@ -14,7 +14,7 @@ const dirs: string[] = [];
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
 
 /** Runs the hook N times from one parent; returns what each run printed. */
-function asOwner(entry: { status: string; awaiting: boolean; owner: 'self' | 'other' }, runs = 1): string[] {
+function asOwner(entry: { status: string; claudeListening: boolean; owner: 'self' | 'other' }, runs = 1): string[] {
   const data = mkdtempSync(join(tmpdir(), 'wb-hook-'));
   dirs.push(data);
   const parent = `
@@ -24,8 +24,8 @@ function asOwner(entry: { status: string; awaiting: boolean; owner: 'self' | 'ot
     mkdirSync(live, { recursive: true });
     writeFileSync(live + '/r1.json', JSON.stringify({
       runId: 'r1', project: 'MiPlan', skill: 'card', subject: 'validator', port: 1, pid: process.pid,
-      processStartedAt: '', heartbeat: new Date().toISOString(), waiting: 1, url: '',
-      status: ${JSON.stringify(entry.status)}, awaiting: ${entry.awaiting},
+      processStartedAt: '', heartbeat: new Date().toISOString(), pendingForUser: 1, url: '',
+      status: ${JSON.stringify(entry.status)}, claudeListening: ${entry.claudeListening},
       ownerPid: ${entry.owner === 'self' ? 'process.pid' : '1'},
     }));
     const out = [];
@@ -37,25 +37,25 @@ function asOwner(entry: { status: string; awaiting: boolean; owner: 'self' | 'ot
 
 describe('stop hook', () => {
   it("blocks ending the turn while this session's run is open and nobody waits on it", () => {
-    const [out] = asOwner({ status: 'open', awaiting: false, owner: 'self' });
+    const [out] = asOwner({ status: 'open', claudeListening: false, owner: 'self' });
     expect(JSON.parse(out!)).toMatchObject({ decision: 'block' });
     expect(JSON.parse(out!).reason).toContain('wait_for_events');
   });
 
   it('allows it while a wait is pending', () => {
-    expect(asOwner({ status: 'open', awaiting: true, owner: 'self' })).toEqual(['']);
+    expect(asOwner({ status: 'open', claudeListening: true, owner: 'self' })).toEqual(['']);
   });
 
   it('allows it once the run is paused or closed', () => {
-    expect(asOwner({ status: 'paused', awaiting: false, owner: 'self' })).toEqual(['']);
+    expect(asOwner({ status: 'paused', claudeListening: false, owner: 'self' })).toEqual(['']);
   });
 
   it("ignores another session's runs", () => {
-    expect(asOwner({ status: 'open', awaiting: false, owner: 'other' })).toEqual(['']);
+    expect(asOwner({ status: 'open', claudeListening: false, owner: 'other' })).toEqual(['']);
   });
 
   it('blocks at most three times in a row, so a session is never trapped', () => {
-    const outs = asOwner({ status: 'open', awaiting: false, owner: 'self' }, 4);
+    const outs = asOwner({ status: 'open', claudeListening: false, owner: 'self' }, 4);
     expect(outs.map((o) => (o ? JSON.parse(o).decision : 'allow'))).toEqual(['block', 'block', 'block', 'allow']);
   });
 });

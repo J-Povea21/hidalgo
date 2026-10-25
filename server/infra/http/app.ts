@@ -29,7 +29,9 @@ export interface HttpDeps {
   imageFile: (runId: string, name: string) => Promise<string>;
   liveRuns: () => Promise<LiveEntry[]>;
   /** Whether Claude currently holds a wait for the run: decides "your turn". */
-  waiting: (runId: string) => boolean;
+  claudeListening: (runId: string) => boolean;
+  /** When Claude last called a tool on the run (ms since epoch), so the page can tell working from gone quiet. */
+  claudeActiveAt: (runId: string) => number | undefined;
   clientDir: string;
 }
 
@@ -54,6 +56,8 @@ const sameToken = (a: string, b: string) => {
 export function createApp(deps: HttpDeps): Hono {
   const app = new Hono();
   const own = () => [`127.0.0.1:${deps.port()}`, `localhost:${deps.port()}`];
+  /** What the page needs to say whose turn it is, sent with every state and keep-alive. */
+  const presence = (runId: string) => ({ claudeListening: deps.claudeListening(runId), claudeActiveAt: deps.claudeActiveAt(runId) ?? null });
 
   app.use('*', async (c, next) => {
     if (!own().includes(c.req.header('host') ?? '')) return c.text('wrong host', 421);
@@ -90,7 +94,7 @@ export function createApp(deps: HttpDeps): Hono {
     const runId = c.req.query('run')!;
     await deps.ensureState(runId);
     const state = deps.hub.current(runId);
-    return state ? c.json({ state, waiting: deps.waiting(runId) }) : c.json({ error: 'no such run' }, 404);
+    return state ? c.json({ state, ...presence(runId) }) : c.json({ error: 'no such run' }, 404);
   });
 
   app.get('/api/stream', async (c) => {
@@ -100,13 +104,13 @@ export function createApp(deps: HttpDeps): Hono {
       let open = true;
       const off = deps.hub.subscribe(runId, (msg) => {
         if (!open) return;
-        const payload = msg.type === 'state' ? { ...msg, waiting: deps.waiting(runId) } : msg;
+        const payload = msg.type === 'state' ? { ...msg, ...presence(runId) } : msg;
         void stream.writeSSE({ event: msg.type, data: JSON.stringify(payload) });
       });
       stream.onAbort(() => { open = false; off(); });
       while (open) {
         await stream.sleep(15_000);
-        if (open) await stream.writeSSE({ event: 'ping', data: JSON.stringify({ waiting: deps.waiting(runId) }) });
+        if (open) await stream.writeSSE({ event: 'ping', data: JSON.stringify(presence(runId)) });
       }
     });
   });

@@ -44,6 +44,7 @@ export function registerTools(server: McpServer, wb: Workbench): void {
     try {
       // A run touched after a restart is served again, so its open page sees the change.
       await wb.ensureServed(runId);
+      wb.markActive(runId);
       const result = await act();
       const events = await takeEvents(deps, runId);
       return ok(events.length ? { ...(result as object), events } : result);
@@ -64,6 +65,7 @@ export function registerTools(server: McpServer, wb: Workbench): void {
     try {
       const { run, resumed } = await openSession(deps, input);
       await wb.serve(run.id);
+      wb.markActive(run.id);
       // A page already connected to this run is the one the user has: tell it, don't open another.
       const viewers = wb.hub.viewers(run.id);
       const alreadyOpen = resumed && viewers > 0;
@@ -124,7 +126,10 @@ export function registerTools(server: McpServer, wb: Workbench): void {
   }, async (input) => {
     try {
       await wb.ensureServed(input.runId);
-      return ok(await waitForEvents(deps, input.runId));
+      const result = await waitForEvents(deps, input.runId);
+      // Woken by the user: Claude is working on it from this moment.
+      wb.markActive(input.runId);
+      return ok(result);
     } catch (e) {
       return err(e);
     }

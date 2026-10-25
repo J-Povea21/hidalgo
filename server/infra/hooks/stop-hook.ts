@@ -30,8 +30,10 @@ export function openRunsNobodyWaitsOn(liveDir: string, ownerPid: number): LiveEn
   const out: LiveEntry[] = [];
   for (const n of names) {
     try {
-      const e = JSON.parse(readFileSync(join(liveDir, n), 'utf8')) as LiveEntry;
-      if (e.ownerPid === ownerPid && e.status === 'open' && !e.awaiting && pidAlive(e.pid)) out.push(e);
+      const e = JSON.parse(readFileSync(join(liveDir, n), 'utf8')) as LiveEntry & { awaiting?: boolean };
+      // `awaiting` is the field's name before 0.6.0's rename; drop it once no older server can be running.
+      const listening = e.claudeListening ?? e.awaiting;
+      if (e.ownerPid === ownerPid && e.status === 'open' && !listening && pidAlive(e.pid)) out.push(e);
     } catch {
       // A torn or foreign file is not a reason to block anyone.
     }

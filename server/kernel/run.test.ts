@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { card, counterIds, question, T0 } from '../../test/fixtures.ts';
 import { WorkbenchError } from './errors.ts';
 import {
-  addItems, addMessage, applyAnswers, applyEdit, applyVerdict, ask, close, itemsWithoutOutcome,
-  markDone, newRun, rememberEventThread, runThreadId, updateItem, waitingOnUser,
+  addItems, addMessage, applyAnswers, applyEdit, applyVerdict, ask, close,
+  markDone, newRun, rememberEventThread, runThreadId, updateItem,
 } from './run.ts';
+import { isFinal, pendingForUser } from '../../shared/rules.ts';
 
 const start = () => {
   const ids = counterIds();
@@ -148,7 +149,7 @@ describe('ending a run', () => {
   it('one approval never closes a run', () => {
     const run = applyVerdict(two(), 'i1', 1, 'approved', T0);
     const done = markDone(run, 'i1', 'created 86e3', T0);
-    expect(itemsWithoutOutcome(done).map((i) => i.id)).toEqual(['i2']);
+    expect(done.items.filter((i) => !isFinal(i)).map((i) => i.id)).toEqual(['i2']);
     expect(code(() => close(done, 'closed', 'created', T0))).toBe('open-items');
   });
 
@@ -181,9 +182,9 @@ describe('ending a run', () => {
   it('counts what waits on the user: open questions plus items ready for a verdict', () => {
     const { ids } = start();
     const run = two();
-    expect(waitingOnUser(run)).toBe(2);
+    expect(pendingForUser(run)).toBe(2);
     const asked = ask(run, 'i1', [question(), question()], ids).run;
-    expect(waitingOnUser(asked)).toBe(3);
+    expect(pendingForUser(asked)).toBe(3);
   });
 });
 

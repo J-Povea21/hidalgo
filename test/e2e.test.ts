@@ -82,7 +82,7 @@ describe('workbench end to end', () => {
     const waiting = call('wait_for_events', { runId });
     await new Promise((r) => setTimeout(r, 100));
     const state = await http(port, `/api/state?run=${runId}`, { token });
-    expect(state.json.waiting).toBe(true);
+    expect(state.json.claudeListening).toBe(true);
     expect(state.json.state.turn).toBe('user');
 
     const posted = await http(port, `/api/event?run=${runId}`, {
@@ -99,7 +99,7 @@ describe('workbench end to end', () => {
     const { call, opened } = await boot();
     const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
     const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
-    const pushed: { waiting: boolean }[] = [];
+    const pushed: { claudeListening: boolean }[] = [];
     const req = request({ host: '127.0.0.1', port, path: `/api/stream?run=${runId}`, headers: { host: `127.0.0.1:${port}`, 'x-workbench-token': token } }, (res) => {
       let buf = '';
       res.on('data', (c) => {
@@ -114,7 +114,7 @@ describe('workbench end to end', () => {
     // Left pending on purpose; cleanup closes the client, which rejects it.
     call('wait_for_events', { runId }).catch(() => undefined);
     await new Promise((r) => setTimeout(r, 300));
-    expect(pushed.at(-1)?.waiting).toBe(true);
+    expect(pushed.at(-1)?.claudeListening).toBe(true);
   });
 
   it('events ride along on the next tool result, exactly once', async () => {
