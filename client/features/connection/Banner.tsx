@@ -4,7 +4,7 @@ import type { Connection } from '../../core/state.ts';
 
 export function ConnectionBanner(props: { connection: Connection; listening: boolean; idle: boolean; runStatus?: RunStatus | undefined }) {
   const c = props.connection;
-  if (c.kind === 'reconnecting') return <div class="banner warn" role="status">Reconnecting to Claude's session… Anything you write is kept and sent when it's back.</div>;
+  if (c.kind === 'reconnecting') return <div class="banner warn" role="status">Reconnecting to Claude's session… Your drafts are kept; you can send again once it's back.</div>;
   if (c.kind === 'ended') return <div class="banner info" role="status">{c.reason}</div>;
   if (c.kind === 'stale') {
     return (

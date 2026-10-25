@@ -104,6 +104,20 @@ export class FsRunStore implements RunStore {
     this.files.set(runId, next);
   }
 
+  /**
+   * When a page was last seen connected to the run, in its own small file: it is written on
+   * every heartbeat, and run.json is not, so the state file never churns for it.
+   */
+  async noteViewer(runId: string, at: string): Promise<void> {
+    const dir = await this.dirOf(runId);
+    if (dir) await writeAtomic(join(dir, 'viewer.json'), JSON.stringify({ at }));
+  }
+
+  async lastViewer(runId: string): Promise<string | undefined> {
+    const dir = await this.dirOf(runId);
+    return dir ? (await readJson<{ at: string }>(join(dir, 'viewer.json')))?.at : undefined;
+  }
+
   /** Runs not closed that this Claude Code process was serving before its workbench restarted. */
   async ownedBy(ownerPid: number): Promise<string[]> {
     const ids: string[] = [];

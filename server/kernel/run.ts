@@ -86,10 +86,10 @@ export function addItems(
   run: RunState,
   inputs: { kind: string; fields: unknown; questions?: unknown[] | undefined }[],
   ids: IdGen,
-): { run: RunState; added: { id: string; rev: number }[] } {
+): { run: RunState; added: { id: string; rev: number; threadId: string }[] } {
   assertOpen(run);
   const next = clone(run);
-  const added: { id: string; rev: number }[] = [];
+  const added: { id: string; rev: number; threadId: string }[] = [];
   for (const input of inputs) {
     if (!(input.kind in ItemKinds)) {
       throw new WorkbenchError('invalid', `unknown item kind "${input.kind}"; known kinds: ${Object.keys(ItemKinds).join(', ')}`);
@@ -106,7 +106,7 @@ export function addItems(
     } as Item;
     next.items.push(item);
     next.threads.push({ id: threadId, owner: { type: 'item', itemId: item.id } });
-    added.push({ id: item.id, rev: item.rev });
+    added.push({ id: item.id, rev: item.rev, threadId });
   }
   return { run: touch(next), added };
 }

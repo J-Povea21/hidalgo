@@ -16,8 +16,21 @@ describe('Questions', () => {
   it('marks the recommendation and moves to the next question after a pick', async () => {
     render(<Questions runId="r1" item={item([q('q1', 'First?'), q('q2', 'Second?')])} disabled={false} onSend={async () => true} />);
     expect(screen.getByText('RECOMMENDED')).toBeTruthy();
-    fireEvent.click(screen.getByLabelText(/Here/));
+    // A pointer click carries a click count.
+    fireEvent.click(screen.getByLabelText(/Here/), { detail: 1 });
     await waitFor(() => expect(screen.getByText('Second?')).toBeTruthy());
+  });
+
+  it('arrow keys move between options without moving on; Enter commits and focus follows', async () => {
+    render(<Questions runId="r1" item={item([q('q1', 'First?'), q('q2', 'Second?')])} disabled={false} onSend={async () => true} />);
+    const here = screen.getByLabelText(/Here/) as HTMLInputElement;
+    // The click a browser fires for an arrow key has no click count.
+    fireEvent.click(here, { detail: 0 });
+    await new Promise((r) => setTimeout(r, 400));
+    expect(screen.getByText('First?')).toBeTruthy();
+    fireEvent.keyDown(here, { key: 'Enter' });
+    await waitFor(() => expect(screen.getByText('Second?')).toBeTruthy());
+    await waitFor(() => expect((document.activeElement as HTMLInputElement | null)?.name).toBe('q2'));
   });
 
   it('sends the chosen answers with their notes', async () => {

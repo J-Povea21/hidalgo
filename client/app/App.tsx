@@ -41,6 +41,8 @@ export function App(props: { api: Api; session: Session }) {
   const run = state.run;
   useEffect(() => { if (state.claudeListening) setTypingIn(undefined); }, [state.claudeListening]);
   useEffect(() => { sessionStorage.setItem(`wb:${session.runId}:cur`, String(cur)); }, [cur]);
+  // For tests and styling: the connection state apart from its wording.
+  useEffect(() => { document.documentElement.dataset['connection'] = state.connection.kind; }, [state.connection.kind]);
 
   const t = turnView(state, now);
   useTab(tabTitle(state, now), t);
@@ -91,7 +93,7 @@ export function App(props: { api: Api; session: Session }) {
     return (
       <>
         <ConnectionBanner connection={state.connection} listening={false} idle={false} />
-        <div class="empty">Connecting to Claude's session…</div>
+        {state.connection.kind === 'connecting' && <div class="empty">Connecting to Claude's session…</div>}
       </>
     );
   }
@@ -122,7 +124,7 @@ export function App(props: { api: Api; session: Session }) {
           </button>
           <button class={`iconbtn ${drawer === 'run' ? 'on' : ''}`} aria-expanded={drawer === 'run'} onClick={() => setDrawer(drawer === 'run' ? undefined : 'run')}>
             <ChatIcon /><span>Run</span>
-            {drawer !== 'run' && unreadRun > seenRun.current && <span class="unread" aria-label="new messages" />}
+            {drawer !== 'run' && unreadRun > seenRun.current && <span class="unread" role="img" aria-label="new messages" />}
           </button>
         </>
       } />
@@ -172,7 +174,7 @@ export function App(props: { api: Api; session: Session }) {
         )}
       </main>
       {run.items.length > 1 && (
-        <nav class="bar" aria-label="Items">
+        <nav class="bar" aria-label="Previous and next item">
           <div class="in">
             <button disabled={index === 0} onClick={() => go(index - 1)}>← Previous</button>
             <span class="meta">{itemTitle(run.items[index]!)}</span>

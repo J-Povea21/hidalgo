@@ -1,12 +1,12 @@
 :root {
-  --bg:#f6f5f2; --panel:#ffffff; --ink:#1c1c1a; --muted:#6c6b66; --faint:#9b9a94; --line:#e4e2dc;
+  --bg:#f6f5f2; --panel:#ffffff; --ink:#1c1c1a; --muted:#5e5d58; --faint:#6f6e68; --line:#e4e2dc; --on-accent:#fff;
   --accent:#2f5bd3; --accent-soft:#e8eefc; --ok:#1f7a4d; --ok-soft:#e3f3ea; --warn:#9a5b00; --warn-soft:#fbf0dc;
   --bad:#b3261e; --bad-soft:#fbe5e3; --code:#f1f0ec; --shimmer:#ecebe6;
   --ease:cubic-bezier(.2,.8,.2,1);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg:#141413; --panel:#1d1d1b; --ink:#ecebe6; --muted:#a3a29c; --faint:#77766f; --line:#32322e;
+  --bg:#141413; --panel:#1d1d1b; --ink:#ecebe6; --muted:#a8a7a1; --faint:#9a9993; --line:#32322e; --on-accent:#10131c;
   --accent:#86a2f7; --accent-soft:#1f2740; --ok:#62c796; --ok-soft:#173226; --warn:#e6b25c; --warn-soft:#382a12;
   --bad:#f08b83; --bad-soft:#3a1b19; --code:#262624; --shimmer:#2b2b28;
   color-scheme: dark;
@@ -24,8 +24,8 @@ button { font:inherit; font-size:14px; border-radius:8px; padding:7px 14px; bord
   transition:transform .12s var(--ease), background .2s, border-color .2s, opacity .2s; }
 button:hover:not(:disabled) { border-color:var(--faint); }
 button:active:not(:disabled) { transform:scale(.96); }
-button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-button.good { background:var(--ok); border-color:var(--ok); color:#fff; }
+button.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+button.good { background:var(--ok); border-color:var(--ok); color:var(--on-accent); }
 button.ghost { background:transparent; }
 button.link { border:0; background:none; padding:0; color:var(--accent); font-size:13px; }
 button:disabled { opacity:.4; cursor:not-allowed; }
@@ -112,9 +112,12 @@ textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px 
 .rec { font-size:10.5px; font-weight:700; color:var(--accent); margin-left:6px; letter-spacing:.03em; }
 .qnav { display:flex; align-items:center; justify-content:space-between; padding:0 16px 14px; gap:8px; }
 .dots { display:flex; gap:6px; }
-.dot { width:9px; height:9px; border-radius:50%; background:var(--line); border:0; padding:0; cursor:pointer; transition:background .3s, transform .2s var(--ease); }
-.dot.answered { background:var(--warn); }
-.dot.on { transform:scale(1.35); outline:2px solid var(--accent); outline-offset:1px; }
+/* A 24px target around a 9px dot. */
+.dots { gap:0; }
+.dot { width:24px; height:24px; border-radius:50%; background:none; border:0; padding:0; cursor:pointer; display:grid; place-items:center; }
+.dot::before { content:''; width:9px; height:9px; border-radius:50%; background:var(--line); transition:background .3s, transform .2s var(--ease); }
+.dot.answered::before { background:var(--warn); }
+.dot.on::before { transform:scale(1.35); outline:2px solid var(--accent); outline-offset:1px; }
 .ruling { font-size:13px; color:var(--muted); margin:6px 0; animation:fadeUp .4s var(--ease) both; }
 .ruling b { color:var(--ink); font-weight:600; }
 .allset { display:flex; align-items:center; gap:10px; color:var(--ok); font-weight:600; }
@@ -195,3 +198,13 @@ textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px 
 @keyframes fadeIn { from { opacity:0; } }
 .askbtn { position:absolute; z-index:15; font-size:13px; padding:5px 10px; border-radius:999px; background:var(--ink); color:var(--bg); border:0; box-shadow:0 4px 14px rgba(0,0,0,.2); animation:pop .25s var(--ease); }
 .empty { padding:60px 16px; text-align:center; color:var(--muted); }
+
+/* buttons that wrap media: no button chrome, still focusable */
+button.diagram { display:block; width:100%; font:inherit; color:inherit; text-align:inherit; }
+button.stored { display:block; padding:0; border:0; background:none; margin-top:6px; cursor:zoom-in; }
+button.stored img { margin-top:0; }
+.lightbox:focus { outline:none; }
+.lightbox-close { position:fixed; top:16px; right:16px; }
+.verdict:focus { outline:none; }
+.verdict:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.edit-actions { display:flex; gap:6px; margin-top:6px; }

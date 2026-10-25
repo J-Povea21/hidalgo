@@ -18,13 +18,13 @@ import { card, question } from './fixtures.ts';
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
-async function boot(dataRoot?: string, ownerPid?: number) {
+async function boot(dataRoot?: string, ownerPid?: number, reattachWaitMs = 0) {
   const root = dataRoot ?? mkdtempSync(join(tmpdir(), 'wb-e2e-'));
   const clientDir = mkdtempSync(join(tmpdir(), 'wb-client-'));
   writeFileSync(join(clientDir, 'index.html'), '<!doctype html><title>t</title>');
   const opened: string[] = [];
   const wb = new Workbench({
-    dataRoot: root, clientDir, retentionDays: 7, heartbeatMs: 60_000, goodbyeGraceMs: 0,
+    dataRoot: root, clientDir, retentionDays: 7, heartbeatMs: 60_000, goodbyeGraceMs: 0, reattachWaitMs,
     limits: { imageBytesPerRun: 1_000_000, imageWarnBytes: 800_000, waitTimeoutMs: 3_000 },
     openBrowser: (u) => opened.push(u),
     ...(ownerPid ? { ownerPid } : {}),
@@ -353,5 +353,67 @@ describe('durability', () => {
     expect(resumed.events.map((e: any) => e.verdict)).toEqual(['rejected']);
     const list = await second.call('list_runs', { project: 'MiPlan' });
     expect(list.runs[0].items[0].verdict).toBe('rejected');
+  });
+});
+
+describe('resume after a restart', () => {
+  /** Opens the page's stream, retrying while the port is still being bound; resolves once connected. */
+  function connect(port: number, runId: string, token: string): Promise<() => void> {
+    return new Promise((resolve) => {
+      const attempt = () => {
+        const req = request({ host: '127.0.0.1', port, path: `/api/stream?run=${runId}`, headers: { host: `127.0.0.1:${port}`, 'x-workbench-token': token } }, (res) => {
+          if (res.statusCode === 200) return resolve(() => req.destroy());
+          res.resume();
+          setTimeout(attempt, 50);
+        });
+        req.on('error', () => setTimeout(attempt, 50));
+        req.end();
+      };
+      attempt();
+    });
+  }
+
+  it('waits for a page that was connected before the restart, and reuses it instead of opening another', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'wb-reattach-'));
+    cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+    const first = await boot(root, 5151);
+    const { runId } = await first.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const [port, token] = [portOf(first.opened[0]!), tokenOf(first.opened[0]!)];
+    const drop = await connect(port, runId, token);
+    await new Promise((r) => setTimeout(r, 100));
+    drop();
+    await first.wb.shutdown('restart');
+
+    const second = await boot(root, 5151, 5_000);
+    const resuming = second.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId });
+    // The old tab, between retries, comes back a moment later.
+    const back = await connect(port, runId, token);
+    cleanups.push(back);
+    expect(await resuming).toMatchObject({ resumed: true, opened: false, alreadyOpen: 1 });
+    expect(second.opened).toHaveLength(0);
+  });
+
+  it('opens a new tab when no page comes back in time', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'wb-reattach-'));
+    cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+    const first = await boot(root, 5252);
+    const { runId, threadId } = await first.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    expect(threadId).toMatch(/^t/);
+    const drop = await connect(portOf(first.opened[0]!), runId, tokenOf(first.opened[0]!));
+    await new Promise((r) => setTimeout(r, 100));
+    drop();
+    await first.wb.shutdown('restart');
+
+    const second = await boot(root, 5252, 200);
+    expect(await second.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId })).toMatchObject({ resumed: true, opened: true });
+    expect(second.opened).toHaveLength(1);
+  });
+
+  it('Claude can start a conversation in the run thread and in an item thread', async () => {
+    const { call } = await boot();
+    const { runId, threadId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { added } = await call('add_items', { runId, items: [{ kind: 'card', fields: card() }] });
+    expect(await call('send_message', { runId, threadId, text: 'Starting.' })).not.toMatchObject({ isError: true });
+    expect(await call('send_message', { runId, threadId: added[0].threadId, text: 'About this card.' })).not.toMatchObject({ isError: true });
   });
 });

@@ -18,12 +18,21 @@ import { createApp } from './http/app.ts';
 import { PageHub } from './http/hub.ts';
 import { MemoryRunLock, MemorySignal, randomIds, systemClock } from './runtime.ts';
 
+/** A page seen connected within this long is probably still open and retrying. */
+const RECENT_VIEWER_MS = 10 * 60_000;
+const REATTACH_WAIT_MS = 17_000;
+
 export interface WorkbenchConfig {
   dataRoot: string;
   clientDir: string;
   limits: Limits;
   retentionDays: number;
   heartbeatMs: number;
+  /**
+   * How long a resume waits for a page that was connected recently to come back on its own
+   * before opening a new tab. Covers the page's longest gap between retries (15 s).
+   */
+  reattachWaitMs?: number;
   /** How long shutdown waits for the goodbye to reach the pages. 0 in tests. */
   goodbyeGraceMs?: number;
   /** Open the page in the browser; replaced in tests. */
@@ -101,6 +110,7 @@ export class Workbench {
       },
     };
     this.page = { publish: (run) => { this.hub.publish(run); void this.beatRun(run); } };
+    this.hub.onViewer = (id) => void this.noteViewer(id);
     this.address = { url: (runId) => this.urlOf(runId) };
     this.recordEvent = (runId, body) => recordPageEvent(this, runId, body);
   }
@@ -168,6 +178,24 @@ export class Workbench {
   private async beat(runId: string): Promise<void> {
     const run = this.hub.current(runId) ?? (await this.store.load(runId));
     if (run) await this.beatRun(run);
+    if (this.hub.viewers(runId) > 0) await this.noteViewer(runId);
+  }
+
+  private noteViewer(runId: string): Promise<void> {
+    return this.store.noteViewer(runId, this.clock.now()).catch(() => undefined);
+  }
+
+  /**
+   * How many pages are connected to the run, giving one that was connected recently (before
+   * this server started, say) the time to reconnect by itself: a resume should reuse that tab,
+   * not open a second one while the first sits between retries.
+   */
+  async reattach(runId: string): Promise<number> {
+    if (this.hub.viewers(runId) > 0) return this.hub.viewers(runId);
+    const seen = await this.store.lastViewer(runId);
+    if (!seen || Date.parse(this.clock.now()) - Date.parse(seen) > RECENT_VIEWER_MS) return 0;
+    await this.hub.waitForViewer(runId, this.config.reattachWaitMs ?? REATTACH_WAIT_MS);
+    return this.hub.viewers(runId);
   }
 
   /**

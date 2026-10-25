@@ -29,6 +29,20 @@ describe('Verdict', () => {
     expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
   });
 
+  it('an item left pending can still be approved or rejected', () => {
+    const onVerdict = vi.fn();
+    render(<Verdict item={item({ verdict: { value: 'pending', rev: 3, at: '' } })} disabled={false} onVerdict={onVerdict} />);
+    expect(screen.getByText('Left pending')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(onVerdict).toHaveBeenCalledWith('approved', 3);
+    expect(screen.queryByRole('button', { name: 'Leave pending' })).toBeNull();
+  });
+
+  it('ties the blocked reason to Approve', () => {
+    render(<Verdict item={item({ questions: [openQ] })} disabled={false} onVerdict={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Approve' }).getAttribute('aria-describedby')).toBe('blocked-i1');
+  });
+
   it('shows a done item with its note, and no buttons', () => {
     render(<Verdict item={item({ verdict: { value: 'approved', rev: 3, at: '' }, done: { at: '', note: 'created 86e3' } })} disabled={false} onVerdict={() => {}} />);
     expect(screen.getByText('created 86e3')).toBeTruthy();

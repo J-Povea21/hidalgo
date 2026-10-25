@@ -13,6 +13,9 @@ type Listener = (msg: PageMessage) => void;
 export class PageHub implements PagePublisher {
   private listeners = new Map<string, Set<Listener>>();
   private latest = new Map<string, RunState>();
+  private arrivals = new Map<string, Set<() => void>>();
+  /** Told whenever a page connects to a run. */
+  onViewer?: (runId: string) => void;
 
   publish(run: RunState): void {
     this.latest.set(run.id, run);
@@ -29,7 +32,22 @@ export class PageHub implements PagePublisher {
     this.listeners.set(runId, set);
     const now = this.latest.get(runId);
     if (now) l({ type: 'state', state: now });
+    this.onViewer?.(runId);
+    for (const arrived of this.arrivals.get(runId) ?? []) arrived();
     return () => set.delete(l);
+  }
+
+  /** Resolves true as soon as a page connects to the run, false if none does within `ms`. */
+  waitForViewer(runId: string, ms: number): Promise<boolean> {
+    if (this.viewers(runId) > 0) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const set = this.arrivals.get(runId) ?? new Set();
+      this.arrivals.set(runId, set);
+      const done = (seen: boolean) => { clearTimeout(timer); set.delete(arrived); resolve(seen); };
+      const arrived = () => done(true);
+      const timer = setTimeout(() => done(false), ms);
+      set.add(arrived);
+    });
   }
 
   /** Pages connected to the run right now. A closed tab or a sleeping laptop drops out on the next keep-alive. */

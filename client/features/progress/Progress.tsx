@@ -23,7 +23,7 @@ export function Progress(props: { run: RunState; turn: TurnView; current: number
           {props.actions}
         </div>
         {run.items.length > 1 && (
-          <nav class="progress" aria-label="Items">
+          <nav class="progress" aria-label="Items in this run">
             {run.items.map((item, i) => {
               const [fill, color] = FILL[itemStatus(item)];
               return (
@@ -45,11 +45,14 @@ export function Progress(props: { run: RunState; turn: TurnView; current: number
   );
 }
 
+/** `data-turn` lets tests assert the state apart from its wording. */
 function TurnLine(props: { turn: TurnView; line?: string | undefined; status: RunState['status'] }) {
-  if (props.turn === 'yours') return <span class="status yours" role="status"><span class="dotpulse" />Your turn</span>;
-  if (props.turn === 'working') return <span class="status working" role="status"><span class="dotpulse" />{props.line ?? 'Claude is working'}</span>;
-  if (props.turn === 'done') return <span class="status" role="status">{props.status === 'paused' ? 'Paused · resumable' : 'Run ended'}</span>;
-  if (props.turn === 'idle') return <span class="status" role="status">Claude isn't listening</span>;
-  if (props.turn === 'offline') return <span class="status" role="status">Not connected</span>;
-  return null;
+  const [cls, pulse, text] = {
+    yours: ['yours', true, 'Your turn'],
+    working: ['working', true, props.line ?? 'Claude is working'],
+    idle: ['', false, "Claude isn't listening"],
+    done: ['', false, props.status === 'paused' ? 'Paused · resumable' : 'Run ended'],
+    offline: ['', false, 'Not connected'],
+  }[props.turn] as [string, boolean, string];
+  return <span class={`status ${cls}`} role="status" aria-label="Turn" data-turn={props.turn}>{pulse && <span class="dotpulse" />}{text}</span>;
 }

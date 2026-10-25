@@ -21,7 +21,7 @@ describe('items', () => {
   it('adds a valid card with its own thread at rev 1', () => {
     const { ids, run } = start();
     const { run: r, added } = addItems(run, [{ kind: 'card', fields: card() }], ids);
-    expect(added).toEqual([{ id: 'i1', rev: 1 }]);
+    expect(added).toEqual([{ id: 'i1', rev: 1, threadId: 't2' }]);
     expect(r.threads.map((t) => t.owner)).toEqual([{ type: 'run' }, { type: 'item', itemId: 'i1' }]);
     expect(r.version).toBe(run.version + 1);
   });

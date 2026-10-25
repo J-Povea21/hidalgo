@@ -129,5 +129,5 @@ export function Thread(p: ThreadProps) {
 function StoredImage(p: { name: string; load: (name: string) => Promise<string>; onZoom: (src: string) => void }) {
   const [src, setSrc] = useState<string>();
   useEffect(() => { let live = true; p.load(p.name).then((s) => live && setSrc(s), () => undefined); return () => { live = false; }; }, [p.name]);
-  return src ? <img src={src} alt="Attached image" onClick={() => p.onZoom(src)} /> : null;
+  return src ? <button type="button" class="stored" aria-label="Attached image. Open full size" onClick={() => p.onZoom(src)}><img src={src} alt="" /></button> : null;
 }

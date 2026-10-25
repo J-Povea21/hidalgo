@@ -6,6 +6,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { DiagramSpec, ItemKinds, QuestionSpec, type ItemKind } from '../../../shared/contract.ts';
+import { runThreadId } from '../../../shared/rules.ts';
 import { addItems } from '../../features/add-items/add-items.ts';
 import { ask } from '../../features/ask/ask.ts';
 import { closeSession } from '../../features/close-session/close-session.ts';
@@ -54,7 +55,7 @@ export function registerTools(server: McpServer, wb: Workbench): void {
   };
 
   server.registerTool('open_session', {
-    description: 'Start a workbench run (or resume one) and open its page in the browser. Returns the run id. Resuming replays anything the user did while no server was running; if the run\'s page is already open, that tab is told instead of opening another (opened:false, alreadyOpen).',
+    description: 'Start a workbench run (or resume one) and open its page in the browser. Returns the run id and the whole-run thread id (for send_message). Resuming replays anything the user did while no server was running; if the run\'s page is already open, that tab is told instead of opening another (opened:false, alreadyOpen).',
     inputSchema: {
       skill: z.string().describe('The skill using the page, e.g. "card".'),
       project: z.string().describe('Project name from references/projects.json, e.g. "MiPlan".'),
@@ -66,13 +67,16 @@ export function registerTools(server: McpServer, wb: Workbench): void {
       const { run, resumed } = await openSession(deps, input);
       await wb.serve(run.id);
       wb.markActive(run.id);
-      // A page already connected to this run is the one the user has: tell it, don't open another.
-      const viewers = wb.hub.viewers(run.id);
-      const alreadyOpen = resumed && viewers > 0;
+      // A page already connected to this run (or about to reconnect) is the one the user has: tell it, don't open another.
+      const viewers = resumed ? await wb.reattach(run.id) : 0;
+      const alreadyOpen = viewers > 0;
       if (alreadyOpen) wb.hub.nudge(run.id, 'Claude resumed this run.');
       else wb.open(wb.address.url(run.id));
       const events = resumed ? await takeEvents(deps, run.id) : [];
-      return ok({ runId: run.id, resumed, opened: !alreadyOpen, ...(alreadyOpen ? { alreadyOpen: viewers } : {}), ...(events.length ? { events } : {}) });
+      return ok({
+        runId: run.id, threadId: runThreadId(run), resumed, opened: !alreadyOpen,
+        ...(alreadyOpen ? { alreadyOpen: viewers } : {}), ...(events.length ? { events } : {}),
+      });
     } catch (e) {
       return err(e);
     }
@@ -86,7 +90,7 @@ export function registerTools(server: McpServer, wb: Workbench): void {
   });
 
   server.registerTool('add_items', {
-    description: "Add items to the run's page in one call. Each is checked against its kind's schema; a failure names the reason and adds nothing.",
+    description: "Add items to the run's page in one call. Each is checked against its kind's schema; a failure names the reason and adds nothing. Returns each item's id, revision and threadId (its conversation, for send_message).",
     inputSchema: { runId: RunId, items: z.array(ItemInput).min(1).max(20) },
   }, (input) => withEvents(input.runId, () => addItems(deps, input).then((added) => ({ added }))));
 
@@ -101,7 +105,7 @@ export function registerTools(server: McpServer, wb: Workbench): void {
   }, (input) => withEvents(input.runId, () => ask(deps, input)));
 
   server.registerTool('send_message', {
-    description: 'Post a Markdown message. To answer the user, pass replyTo (the event seq) and the server puts it in that event\'s thread; pass threadId only for a new message. Embed a diagram with {{diagram:<id>}}.',
+    description: 'Post a Markdown message. To answer the user, pass replyTo (the event seq) and the server puts it in that event\'s thread; to start a conversation, pass threadId (the run\'s from open_session, or an item\'s from add_items). Embed a diagram with {{diagram:<id>}}.',
     inputSchema: {
       runId: RunId,
       text: z.string().min(1).max(20_000),

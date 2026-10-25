@@ -4,9 +4,9 @@
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { CardFields, Item } from '../../../shared/contract.ts';
-import { toSafeHtml } from '../../ui/markdown.tsx';
+import { toInlineHtml, toSafeHtml } from '../../ui/markdown.tsx';
 
-const inline = (s: string) => ({ __html: toSafeHtml(s).replace(/^<p>|<\/p>\s*$/g, '') });
+const inline = (s: string) => ({ __html: toInlineHtml(s) });
 
 export function CardView(props: { item: Item; editable: boolean; onEdit: (path: string, text: string) => void }) {
   const f = props.item.fields as unknown as CardFields;
@@ -59,16 +59,24 @@ export function CardView(props: { item: Item; editable: boolean; onEdit: (path: 
 function Criterion(p: { prefix?: string; text: string; path: string; fresh: boolean; edited: boolean; editable: boolean; onEdit: (path: string, text: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(p.text);
-  useEffect(() => setValue(p.text), [p.text]);
+  const box = useRef<HTMLTextAreaElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  // While editing, the user's text is theirs: a new revision from Claude only replaces it once they're done.
+  useEffect(() => { if (!editing) setValue(p.text); }, [p.text, editing]);
+  useEffect(() => { if (editing) box.current?.focus(); }, [editing]);
+  const stop = () => { setEditing(false); setTimeout(() => opener.current?.focus()); };
+  const cancel = () => { setValue(p.text); stop(); };
   return (
     <li class={p.fresh ? 'fresh' : ''}>
       {p.prefix && <span class="mode">{p.prefix}</span>}
       {editing ? (
         <span class="txt">
-          <textarea rows={2} aria-label="Edit criterion" value={value} onInput={(e) => setValue((e.target as HTMLTextAreaElement).value)} />
-          <span style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-            <button class="primary" disabled={!value.trim() || value === p.text} onClick={() => { p.onEdit(p.path, value); setEditing(false); }}>Save edit</button>
-            <button class="ghost" onClick={() => { setValue(p.text); setEditing(false); }}>Cancel</button>
+          <textarea rows={2} aria-label="Edit criterion" ref={box} value={value}
+            onInput={(e) => setValue((e.target as HTMLTextAreaElement).value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); cancel(); } }} />
+          <span class="edit-actions">
+            <button class="primary" disabled={!value.trim() || value === p.text} onClick={() => { p.onEdit(p.path, value); stop(); }}>Save edit</button>
+            <button class="ghost" onClick={cancel}>Cancel</button>
           </span>
         </span>
       ) : (
@@ -77,7 +85,7 @@ function Criterion(p: { prefix?: string; text: string; path: string; fresh: bool
           {p.edited && <span class="edited">edited by you · will be re-probed</span>}
         </span>
       )}
-      {p.editable && !editing && <button class="link" onClick={() => setEditing(true)}>Edit</button>}
+      {p.editable && !editing && <button class="link" ref={opener} onClick={() => setEditing(true)}>Edit</button>}
     </li>
   );
 }
