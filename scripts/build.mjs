@@ -1,5 +1,5 @@
 // Builds dist/: the MCP server, the Stop hook, and the page. Deterministic, so
-// `npm run check` can rebuild into a temp folder and compare byte for byte.
+// `pnpm run check` can rebuild into a temp folder and compare byte for byte.
 //   node scripts/build.mjs [--out <dir>]
 import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';

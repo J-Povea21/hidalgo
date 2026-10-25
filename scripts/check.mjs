@@ -1,17 +1,17 @@
-// The single definition of every check (docs/workbench/design.md). Run by
-// `npm run check` and by the pre-push hook. Stops at the first failure.
+// The single definition of every check. Run by `pnpm run check` and by the
+// pre-push hook. Stops at the first failure.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 const bin = (name) => join(root, 'node_modules', '.bin', name);
-const run = (label, cmd, args) => {
+const run = (label, cmd, args, options = {}) => {
   process.stdout.write(`• ${label}… `);
   try {
-    execFileSync(cmd, args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync(cmd, args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], ...options });
     console.log('ok');
   } catch (e) {
     console.log('FAILED');
@@ -30,9 +30,11 @@ const loose = Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })
 if (loose.length) fail(`not exact: ${loose.map(([n, v]) => `${n}@${v}`).join(', ')}`);
 console.log('ok');
 
-// 2. Install scripts stay off.
+// 2. Install scripts stay off, and installs come from the committed lockfile.
 process.stdout.write('• install scripts disabled… ');
 if (!/^ignore-scripts=true$/m.test(readFileSync(join(root, '.npmrc'), 'utf8'))) fail('.npmrc must set ignore-scripts=true');
+if (!existsSync(join(root, 'pnpm-lock.yaml'))) fail('pnpm-lock.yaml is missing: install with pnpm, never npm');
+if (existsSync(join(root, 'package-lock.json'))) fail('package-lock.json found: this package is installed with pnpm only');
 console.log('ok');
 
 // 3. Architecture rules. A cruise that reads nothing passes vacuously (it did once,
@@ -61,7 +63,8 @@ run('types', bin('tsc'), ['--noEmit', '-p', 'tsconfig.json']);
 run('tests', bin('vitest'), ['run']);
 
 // 6. Known vulnerabilities.
-run('audit', 'npm', ['audit', '--audit-level=high']);
+// One fixed command string through the shell, so Windows finds pnpm.cmd too.
+run('audit', 'pnpm audit --audit-level high', [], { shell: true });
 
 // 7. The committed bundle is exactly what the lockfile and sources produce.
 process.stdout.write('• bundle reproducible… ');
@@ -72,9 +75,9 @@ try {
     .map(String).filter((p) => statSync(join(dir, p)).isFile()).sort();
   const dist = join(root, 'dist');
   const a = list(dist), b = list(out);
-  if (a.join('\n') !== b.join('\n')) fail(`dist/ files differ from a fresh build.\n committed: ${a.join(', ')}\n fresh:     ${b.join(', ')}\nRun npm run build and commit dist/.`);
+  if (a.join('\n') !== b.join('\n')) fail(`dist/ files differ from a fresh build.\n committed: ${a.join(', ')}\n fresh:     ${b.join(', ')}\nRun pnpm run build and commit dist/.`);
   const changed = a.filter((p) => !readFileSync(join(dist, p)).equals(readFileSync(join(out, p))));
-  if (changed.length) fail(`dist/ is stale or edited by hand: ${changed.join(', ')}\nRun npm run build and commit dist/.`);
+  if (changed.length) fail(`dist/ is stale or edited by hand: ${changed.join(', ')}\nRun pnpm run build and commit dist/.`);
   console.log('ok');
 
   // 8. Size budget: what the page loads before any diagram appears. app.js plus

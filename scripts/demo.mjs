@@ -1,7 +1,7 @@
 // Runs the real bundled server over stdio with a demo run, for trying the page
 // by hand or driving it headless. Prints each page event and answers it.
-//   npm run demo            opens the page in your browser
-//   WORKBENCH_OPEN=0 npm run demo   prints the address instead
+//   pnpm run demo            opens the page in your browser
+//   WORKBENCH_OPEN=0 pnpm run demo   prints the address instead
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
