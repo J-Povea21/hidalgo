@@ -26,12 +26,19 @@ npm ci              # scripts stay off (.npmrc): no dependency runs code at inst
 npm run check       # everything below, the same checks the pre-push hook runs
 npm test            # vitest: kernel, slices, end to end over real HTTP + MCP
 npm run build       # rebuilds dist/; commit it with your change
+npm run test:browser  # Playwright against the real server and page; run it before pushing
 npm run demo        # the real server with a demo run, opened in your browser
 ```
 
 The first `npm run build`, `test` or `check` also points git at
 `.githooks/pre-push`, which runs `npm run check` before any push that touches
 this folder. It can't happen on `npm install` because install scripts are off.
+
+`npm run test:browser` is not part of `check` (it needs Chromium:
+`npx playwright install chromium` once). It covers the page end to end: every
+connection state, crash and restart, resume reusing the open tab, a stale page,
+two sessions, images, diagrams, axe in light and dark, and keyboard-only use.
+Every page in it fails the test on an uncaught error or a CSP violation.
 There is no CI yet, so this hook is the gate, and `git push --no-verify` skips it.
 
 ## Layout
