@@ -1,5 +1,5 @@
 /** Answering Claude's questions and deciding on each item: the main path through a run. */
-import { cardAsking, expect, FAVICON, plainCard, test } from './support/index.ts';
+import { cardAsking, expect, FAVICON, plainCard, test } from './support';
 
 test.describe('answering questions', () => {
   test('the answers reach Claude with their notes, and then Approve unlocks', async ({ claude, user }) => {

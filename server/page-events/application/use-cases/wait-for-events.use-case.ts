@@ -1,21 +1,27 @@
-/**
- * The mailbox's other side, when Claude has nothing left to do: takes whatever
- * is undelivered and, when the mailbox is empty, marks it the user's turn and
- * sleeps until the bell rings.
- */
 import type { RunState } from '@shared/contract.ts';
 import type { RunChanges } from '@server/common/application/run-changes.ts';
-import { setTurn } from '@server/common/domain/run.ts';
+import { setTurn } from '@server/common/domain/run.rules.ts';
 import type { EventLog } from '@server/common/ports/event-log.port.ts';
 import type { Limits } from '@server/page-events/domain/limits.ts';
 import type { EventSignal } from '@server/page-events/domain/ports/event-signal.port.ts';
-import type { DeliveredEvent, TakeEventsUseCase } from './take-events.use-case.ts';
+import type { TakeEventsUseCase, TakenEvents } from './take-events.use-case.ts';
 import { PARTY } from '@shared/values.ts';
 
 export interface WaitForEventsInput {
   runId: string;
 }
 
+export interface WaitedEvents {
+  taken: TakenEvents;
+  /** The wait ran out with nothing from the user. */
+  timedOut: boolean;
+}
+
+/**
+ * The mailbox's other side, when Claude has nothing left to do: takes whatever
+ * is undelivered and, when the mailbox is empty, marks it the user's turn and
+ * sleeps until the bell rings.
+ */
 export class WaitForEventsUseCase {
   constructor(
     private readonly takeEvents: TakeEventsUseCase,
@@ -25,10 +31,10 @@ export class WaitForEventsUseCase {
     private readonly limits: Limits,
   ) {}
 
-  async execute({ runId }: WaitForEventsInput): Promise<{ events: DeliveredEvent[]; timedOut: boolean }> {
+  async execute({ runId }: WaitForEventsInput): Promise<WaitedEvents> {
     const ready = await this.takeEvents.execute({ runId });
-    if (ready.length) {
-      return { events: ready, timedOut: false };
+    if (ready.events.length) {
+      return { taken: ready, timedOut: false };
     }
 
     // Register the wait BEFORE handing over the turn, then look once more: an event recorded
@@ -44,8 +50,8 @@ export class WaitForEventsUseCase {
     } finally {
       await this.setTurn(runId, PARTY.claude);
     }
-    const events = await this.takeEvents.execute({ runId });
-    return { events, timedOut: outcome === 'timeout' && events.length === 0 };
+    const taken = await this.takeEvents.execute({ runId });
+    return { taken, timedOut: outcome === 'timeout' && taken.events.length === 0 };
   }
 
   private setTurn(runId: string, turn: RunState['turn']): Promise<void> {

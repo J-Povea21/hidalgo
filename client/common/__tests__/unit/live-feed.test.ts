@@ -25,7 +25,7 @@ function followAndRecord(server: HttpWorkbenchServer) {
   running.push(
     server.follow({
       state: (run) => versions.push(run.version),
-      presence: () => {},
+      claudeActivity: () => {},
       connection: (connection) => connections.push(connection.kind),
     }),
   );
@@ -59,7 +59,7 @@ describe('following the session', () => {
     running.push(
       new HttpWorkbenchServer(SESSION, QUICK_RETRIES).follow({
         state: () => {},
-        presence: () => {},
+        claudeActivity: () => {},
         connection: (connection) => {
           if (connection.kind === 'ended') {
             reasons.push(connection.reason);

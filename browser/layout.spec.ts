@@ -1,6 +1,6 @@
 /** The page fits the screen, its buttons can be hit, and animations never cover them. */
 import type { Page } from '@playwright/test';
-import { expect, plainCard, SCREENS, test } from './support/index.ts';
+import { expect, plainCard, SCREENS, test } from './support';
 
 /** The space between the header and the stuck item panel (client/common/interface/ui/styles.css, `.sticky`). */
 const PANEL_GAP_PX = 12;

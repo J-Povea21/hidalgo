@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { RunMapper } from '@server/runs/application/mappers/run.mapper.ts';
 import { card, counterIds, T0 } from '@test/fixtures.ts';
 import { useCases, world } from '@test/fakes.ts';
-import { addItems, newRun } from '@server/common/domain/run.ts';
+import { addItems } from '@server/common/domain/item.rules.ts';
+import { newRun } from '@server/common/domain/run.rules.ts';
 
 describe('list-runs', () => {
   it("shows another session's drafts in the same project, read-only, and marks which are live", async () => {
@@ -48,7 +50,7 @@ describe('list-runs', () => {
       claudeListening: false,
     });
 
-    const list = await cases.runs.listRuns.execute({ project: 'MiPlan' });
+    const list = RunMapper.toList(await cases.runs.listRuns.execute({ project: 'MiPlan' })).runs;
     expect(list.map((summary) => summary.id).sort()).toEqual(['r1', 'r2']);
     const other = list.find((summary) => summary.id === 'r2')!;
     expect(other.live).toBe(true);
@@ -63,7 +65,7 @@ describe('list-runs', () => {
       ...newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 's', now: T0, threadId: 't1' }),
       status: 'closed',
     });
-    expect(await cases.runs.listRuns.execute({ project: 'MiPlan' })).toHaveLength(0);
-    expect(await cases.runs.listRuns.execute({ project: 'MiPlan', includeClosed: true })).toHaveLength(1);
+    expect((await cases.runs.listRuns.execute({ project: 'MiPlan' })).runs).toHaveLength(0);
+    expect((await cases.runs.listRuns.execute({ project: 'MiPlan', includeClosed: true })).runs).toHaveLength(1);
   });
 });

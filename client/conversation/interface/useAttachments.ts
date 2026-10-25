@@ -1,9 +1,9 @@
-/** The images attached to the message being written: at most MAX_PER_MESSAGE, each shrunk before it's kept. */
 import { useState } from 'preact/hooks';
-import { compress, MAX_PER_MESSAGE } from '@client/conversation/infrastructure/images.ts';
 import { toast } from '@client/common/interface/ui/parts.tsx';
+import { MAX_PER_MESSAGE } from '@client/conversation/domain/attachment.rules.ts';
 
-export function useAttachments() {
+/** The images attached to the message being written: at most MAX_PER_MESSAGE, each shrunk before it's kept. */
+export function useAttachments(shrinkImages: (files: File[]) => Promise<string[]>) {
   const [images, setImages] = useState<string[]>([]);
 
   const attach = async (files: FileList | File[]) => {
@@ -16,7 +16,7 @@ export function useAttachments() {
       toast(`Up to ${MAX_PER_MESSAGE} images per message`);
       return;
     }
-    const shrunk = await Promise.all(imageFiles.slice(0, roomLeft).map(compress));
+    const shrunk = await shrinkImages(imageFiles.slice(0, roomLeft));
     // Two quick pastes can both be shrinking at once: the limit is applied again to what's attached by then.
     let kept = 0;
     setImages((attached) => {

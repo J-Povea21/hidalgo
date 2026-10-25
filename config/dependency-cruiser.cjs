@@ -100,6 +100,13 @@ module.exports = {
       to: { path: '^client/[^/]+/(infrastructure|interface)/' },
     },
     {
+      name: 'page-views-do-not-touch-adapters',
+      comment: 'views reach the browser and the server through ports and use cases the app hands them',
+      severity: 'error',
+      from: { path: '^client/[^/]+/interface/' },
+      to: { path: '^client/[^/]+/infrastructure/' },
+    },
+    {
       name: 'only-app-wires-everything',
       comment: 'nothing but client/app imports client/app',
       severity: 'error',

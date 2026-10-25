@@ -3,9 +3,12 @@
  * the domain; these tests check the wiring: saved, shown, result.
  */
 import { describe, expect, it } from 'vitest';
+import { ConversationMapper } from '@server/conversation/application/mappers/conversation.mapper.ts';
+import { ItemMapper } from '@server/items/application/mappers/item.mapper.ts';
+import { RunMapper } from '@server/runs/application/mappers/run.mapper.ts';
 import { card, question } from '@test/fixtures.ts';
 import { useCases, world } from '@test/fakes.ts';
-import { applyVerdict } from '@server/common/domain/run.ts';
+import { applyVerdict } from '@server/common/domain/item.rules.ts';
 
 async function setup() {
   const fakes = world();
@@ -33,25 +36,25 @@ describe("the use cases that change a run from Claude's side", () => {
 
   it('update-item returns the new revision', async () => {
     const { fakes, cases, runId, itemId } = await setup();
-    expect(await cases.items.updateItem.execute({ runId, itemId, patch: { tags: ['bug'] } })).toEqual({
-      rev: 2,
-    });
+    const item = await cases.items.updateItem.execute({ runId, itemId, patch: { tags: ['bug'] } });
+
+    expect(ItemMapper.toRevision(item)).toEqual({ rev: 2 });
   });
 
   it('ask returns question ids and the new revision', async () => {
     const { fakes, cases, runId, itemId } = await setup();
-    const result = await cases.items.ask.execute({ runId, itemId, questions: [question()] });
-    expect(result).toEqual({ questionIds: ['q1'], rev: 2 });
+    const asked = await cases.items.ask.execute({ runId, itemId, questions: [question()] });
+
+    expect(ItemMapper.toAsked(asked)).toEqual({ questionIds: ['q1'], rev: 2 });
     expect(fakes.page.last!.items[0]!.questions[0]!.id).toBe('q1');
   });
 
   it('send-message posts to the named thread and reports where it landed', async () => {
     const { fakes, cases, runId, itemId } = await setup();
     const threadId = (await fakes.store.load(runId))!.items.find((item) => item.id === itemId)!.threadId;
-    expect(await cases.conversation.sendMessage.execute({ runId, text: 'criteria ready', threadId })).toEqual({
-      messageId: 'm1',
-      threadId,
-    });
+    const message = await cases.conversation.sendMessage.execute({ runId, text: 'criteria ready', threadId });
+
+    expect(ConversationMapper.toSent(message)).toEqual({ messageId: 'm1', threadId });
   });
 
   it('set-status shows the live line and clears it when empty', async () => {
@@ -72,9 +75,8 @@ describe("the use cases that change a run from Claude's side", () => {
       code: 'open-items',
     });
     await cases.items.markDone.execute({ runId, itemId, note: 'created 86e3' });
-    expect(await cases.runs.closeSession.execute({ runId, status: 'closed', outcome: 'created 1' })).toEqual({
-      status: 'closed',
-    });
+    const closed = await cases.runs.closeSession.execute({ runId, status: 'closed', outcome: 'created 1' });
+    expect(RunMapper.toClosed(closed)).toEqual({ status: 'closed' });
     expect(fakes.page.last!.status).toBe('closed');
   });
 });

@@ -4,13 +4,13 @@ import { CONNECTION, type Connection } from './connection.ts';
 
 export { CONNECTION, LOST_AFTER_MS, type Connection, type ConnectionKind } from './connection.ts';
 
-export interface PageState extends Presence {
+export interface PageState extends ClaudeActivity {
   run?: RunState;
   connection: Connection;
 }
 
 /** How Claude is, sent with every state and keep-alive. */
-export interface Presence {
+export interface ClaudeActivity {
   claudeListening: boolean;
   /** When Claude last called a tool on the run (ms since epoch); null if not since the server started. */
   claudeActiveAt: number | null;
@@ -22,9 +22,9 @@ export const ACTIVE_FOR_MS = 60_000;
 export function reduce(state: PageState, action: PageAction): PageState {
   switch (action.type) {
     case ACTION.state:
-      return takeState(state, action.run, action.presence);
-    case ACTION.presence:
-      return takePresence(state, action.presence);
+      return takeState(state, action.run, action.activity);
+    case ACTION.claudeActivity:
+      return takeClaudeActivity(state, action.activity);
     case ACTION.connection:
       return takeConnection(state, action.connection);
   }
@@ -36,34 +36,34 @@ export const initialState: PageState = {
   connection: { kind: CONNECTION.connecting },
 };
 
-/** What the server's updates become: `dispatch(actions.state(run, presence))`. */
+/** What the server's updates become: `dispatch(actions.state(run, activity))`. */
 export const actions = {
-  state: (run: RunState, presence: Presence): PageAction => ({ type: ACTION.state, run, presence }),
-  presence: (presence: Presence): PageAction => ({ type: ACTION.presence, presence }),
+  state: (run: RunState, activity: ClaudeActivity): PageAction => ({ type: ACTION.state, run, activity }),
+  claudeActivity: (activity: ClaudeActivity): PageAction => ({ type: ACTION.claudeActivity, activity }),
   connection: (connection: Connection): PageAction => ({ type: ACTION.connection, connection }),
 };
 
-export const ACTION = { state: 'state', presence: 'presence', connection: 'connection' } as const;
+export const ACTION = { state: 'state', claudeActivity: 'claudeActivity', connection: 'connection' } as const;
 
 export type PageAction =
-  | { type: typeof ACTION.state; run: RunState; presence: Presence }
-  | { type: typeof ACTION.presence; presence: Presence }
+  | { type: typeof ACTION.state; run: RunState; activity: ClaudeActivity }
+  | { type: typeof ACTION.claudeActivity; activity: ClaudeActivity }
   | { type: typeof ACTION.connection; connection: Connection };
 
-function takeState(state: PageState, run: RunState, presence: Presence): PageState {
+function takeState(state: PageState, run: RunState, activity: ClaudeActivity): PageState {
   // A late, older snapshot must not undo a newer one.
   const isOlderSnapshot = state.run !== undefined && run.id === state.run.id && run.version < state.run.version;
   if (isOlderSnapshot) {
-    return takePresence(state, presence);
+    return takeClaudeActivity(state, activity);
   }
-  return { ...state, ...presence, run };
+  return { ...state, ...activity, run };
 }
 
-function takePresence(state: PageState, presence: Presence): PageState {
+function takeClaudeActivity(state: PageState, activity: ClaudeActivity): PageState {
   // Keep-alives repeat the same values: returning the same state skips a re-render.
   const unchanged =
-    state.claudeListening === presence.claudeListening && state.claudeActiveAt === presence.claudeActiveAt;
-  return unchanged ? state : { ...state, ...presence };
+    state.claudeListening === activity.claudeListening && state.claudeActiveAt === activity.claudeActiveAt;
+  return unchanged ? state : { ...state, ...activity };
 }
 
 function takeConnection(state: PageState, connection: Connection): PageState {

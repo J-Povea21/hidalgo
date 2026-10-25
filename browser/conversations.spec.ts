@@ -1,5 +1,5 @@
 /** Talking with Claude: the item's thread, the whole-run thread, quoting the card, and what Markdown may do. */
-import { expect, test } from './support/index.ts';
+import { expect, test } from './support';
 
 const HOSTILE_MARKDOWN = [
   'img <img src=x onerror="window.__ran=1">',

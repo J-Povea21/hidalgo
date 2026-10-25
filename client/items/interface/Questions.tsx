@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Item, Question } from '@shared/contract.ts';
 import { openQuestions } from '@client/common/domain/selectors.ts';
-import { BrowserDraftStore } from '@client/common/infrastructure/drafts.ts';
+import type { DraftStore } from '@client/common/ports/draft-store.port.ts';
 import { CLASS, classes, slideToward } from '@client/common/interface/ui/classes.ts';
 import { toInlineHtml } from '@client/common/interface/ui/markdown.tsx';
 
@@ -17,6 +17,8 @@ type Answers = Record<string, { choice: number; note?: string }>;
 
 interface QuestionsProps {
   runId: string;
+  /** Where unsent picks and notes are kept, so a reload loses nothing. */
+  drafts: DraftStore;
   item: Item;
   disabled: boolean;
   onSend: (answers: Answers) => Promise<boolean>;
@@ -29,7 +31,7 @@ const FIRST_QUESTION = 0;
 export function Questions(props: QuestionsProps) {
   const { item } = props;
   const open = openQuestions(item);
-  const drafts = useMemo(() => new BrowserDraftStore(props.runId), [props.runId]);
+  const { drafts } = props;
   const draftKey = `answers:${item.id}`;
   const [draft, setDraft] = useState<Draft>(() => drafts.load(draftKey, {}));
   const [shownIndex, setShownIndex] = useState(FIRST_QUESTION);

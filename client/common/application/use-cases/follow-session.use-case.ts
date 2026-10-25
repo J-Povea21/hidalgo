@@ -14,8 +14,8 @@ export class FollowSessionUseCase {
   /** Returns the function that stops following. */
   execute(input: FollowSessionInput): () => void {
     return this.server.follow({
-      state: (run, presence) => input.dispatch(actions.state(run, presence)),
-      presence: (presence) => input.dispatch(actions.presence(presence)),
+      state: (run, activity) => input.dispatch(actions.state(run, activity)),
+      claudeActivity: (activity) => input.dispatch(actions.claudeActivity(activity)),
       connection: (connection) => input.dispatch(actions.connection(connection)),
       nudge: input.nudge,
     });

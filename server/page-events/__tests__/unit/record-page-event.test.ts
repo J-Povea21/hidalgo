@@ -91,12 +91,12 @@ describe('record-page-event', () => {
         images: [png, png],
       },
     });
-    expect(first.imageWarning).toBeUndefined();
+    expect(first.nearImageLimit).toBe(false);
     const second = await cases.pageEvents.recordPageEvent.execute({
       runId: 'r1',
       event: { type: 'message', threadId: thread, text: 'b', images: [png] },
     });
-    expect(second.imageWarning).toBeDefined();
+    expect(second.nearImageLimit).toBe(true);
     await expect(
       cases.pageEvents.recordPageEvent.execute({
         runId: 'r1',

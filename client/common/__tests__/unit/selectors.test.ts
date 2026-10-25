@@ -10,7 +10,7 @@ import {
   CONNECTION,
   initialState,
   reduce,
-  type Presence,
+  type ClaudeActivity,
 } from '@client/common/domain/state.ts';
 
 const NOW = 1_000_000;
@@ -20,10 +20,10 @@ const CLAUDE = {
   working: { claudeListening: false, claudeActiveAt: NOW - 1_000 },
   quiet: { claudeListening: false, claudeActiveAt: NOW - ACTIVE_FOR_MS - 1 },
   neverSeen: { claudeListening: false, claudeActiveAt: null },
-} satisfies Record<string, Presence>;
+} satisfies Record<string, ClaudeActivity>;
 
 /** A connected page showing `run`, with Claude in the given state. */
-const aLivePage = (claude: Presence, run: RunState = aRun()) =>
+const aLivePage = (claude: ClaudeActivity, run: RunState = aRun()) =>
   [actions.state(run, claude), actions.connection({ kind: CONNECTION.live })].reduce(reduce, initialState);
 
 describe("an item's status", () => {

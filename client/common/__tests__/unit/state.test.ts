@@ -7,11 +7,11 @@ import {
   reduce,
   type PageAction,
   type PageState,
-  type Presence,
+  type ClaudeActivity,
 } from '@client/common/domain/state.ts';
 
-const LISTENING: Presence = { claudeListening: true, claudeActiveAt: 0 };
-const NOT_LISTENING: Presence = { claudeListening: false, claudeActiveAt: 0 };
+const LISTENING: ClaudeActivity = { claudeListening: true, claudeActiveAt: 0 };
+const NOT_LISTENING: ClaudeActivity = { claudeListening: false, claudeActiveAt: 0 };
 
 const after = (...steps: PageAction[]): PageState => steps.reduce(reduce, initialState);
 
@@ -24,7 +24,7 @@ describe('the page state', () => {
     expect(state.run?.version).toBe(5);
   });
 
-  it('never goes back to an older snapshot that arrives late, but still takes its presence', () => {
+  it('never goes back to an older snapshot that arrives late, but still takes what it says about Claude', () => {
     const state = after(
       actions.state(aRun({ version: 5 }), NOT_LISTENING),
       actions.state(aRun({ version: 4, subject: 'old' }), LISTENING),
@@ -35,11 +35,11 @@ describe('the page state', () => {
 
   it('a keep-alive that changes nothing returns the same state, so nothing re-renders', () => {
     const state = after(actions.state(aRun(), LISTENING));
-    expect(reduce(state, actions.presence({ ...LISTENING }))).toBe(state);
+    expect(reduce(state, actions.claudeActivity({ ...LISTENING }))).toBe(state);
   });
 
-  it('a keep-alive that changes presence is taken', () => {
-    const state = after(actions.state(aRun(), LISTENING), actions.presence(NOT_LISTENING));
+  it('a keep-alive that changes what Claude is doing is taken', () => {
+    const state = after(actions.state(aRun(), LISTENING), actions.claudeActivity(NOT_LISTENING));
     expect(state.claudeListening).toBe(false);
   });
 

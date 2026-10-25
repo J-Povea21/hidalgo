@@ -7,8 +7,9 @@
 import { describe, expect, it } from 'vitest';
 import type { RunState } from '@shared/contract.ts';
 import { card, counterIds, question, T0 } from '@test/fixtures.ts';
-import { MemoryLog, MemoryStore, useCases, world } from '@test/fakes.ts';
-import { addItems, ask, newRun } from '@server/common/domain/run.ts';
+import { delivered, MemoryLog, MemoryStore, useCases, waited, world } from '@test/fakes.ts';
+import { addItems, ask } from '@server/common/domain/item.rules.ts';
+import { newRun } from '@server/common/domain/run.rules.ts';
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -56,10 +57,7 @@ describe('concurrency on one run', () => {
       runId: 'r1',
       event: { type: 'message', threadId: thread, text: 'once' },
     });
-    const [first, second] = await Promise.all([
-      cases.pageEvents.takeEvents.execute({ runId: 'r1' }),
-      cases.pageEvents.takeEvents.execute({ runId: 'r1' }),
-    ]);
+    const [first, second] = await Promise.all([delivered(cases), delivered(cases)]);
     expect([...first, ...second].map((event) => event.text)).toEqual(['once']);
   });
 
@@ -67,7 +65,7 @@ describe('concurrency on one run', () => {
     const { w, cases, thread } = await seeded();
     const limits = { ...w.limits, waitTimeoutMs: 5_000 };
     const started = Date.now();
-    const waiting = useCases({ ...w, limits }).pageEvents.waitForEvents.execute({ runId: 'r1' });
+    const waiting = waited(useCases({ ...w, limits }));
     // While the empty check is still running: the event takes the lock before the turn change,
     // so it rings before any wait exists. Only a wait registered first, then re-checked, sees it.
     await pause(5);

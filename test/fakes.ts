@@ -9,10 +9,12 @@ import type { PagePublisher } from '@server/common/ports/page-publisher.port.ts'
 import type { RunStore } from '@server/common/ports/run-store.port.ts';
 import type { LiveIndex } from '@server/runs/domain/ports/live-index.port.ts';
 import { buildModules, type Adapters, type Modules } from '@server/app/modules.ts';
+import { PageEventMapper } from '@server/page-events/application/mappers/page-event.mapper.ts';
 import { MemoryRunLock } from '@server/common/infrastructure/runtime.ts';
 import { MemorySignal } from '@server/page-events/infrastructure/memory-signal.ts';
-import { sequenced } from '@server/common/domain/events.ts';
-import { addItems, ask, newRun } from '@server/common/domain/run.ts';
+import { sequenced } from '@server/common/domain/page-event.rules.ts';
+import { addItems, ask } from '@server/common/domain/item.rules.ts';
+import { newRun } from '@server/common/domain/run.rules.ts';
 import { card, counterIds, question, T0 } from './fixtures.ts';
 
 export class MemoryStore implements RunStore {
@@ -129,6 +131,16 @@ export function world() {
 /** The use cases, wired to the given fakes exactly as the server wires them to its adapters. */
 export function useCases(fakes: Adapters): Modules {
   return buildModules(fakes);
+}
+
+/** The page events Claude receives with a tool result: taken, then mapped as the tools map them. */
+export async function delivered(cases: Modules, runId = 'r1') {
+  return PageEventMapper.toDelivered(await cases.pageEvents.takeEvents.execute({ runId }));
+}
+
+/** What wait_for_events returns to Claude: waited for, then mapped as the tool maps it. */
+export async function waited(cases: Modules, runId = 'r1') {
+  return PageEventMapper.toWaited(await cases.pageEvents.waitForEvents.execute({ runId }));
 }
 
 /** A world holding run r1 with one card (i1) that has one open question. */

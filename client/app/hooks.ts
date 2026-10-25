@@ -1,6 +1,7 @@
 /** What the page shell keeps between renders: sending, which item is on screen, what's unread, the clock. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { PageEvent } from '@shared/contract.ts';
+import { PageEventMapper } from '@client/common/application/mappers/page-event.mapper.ts';
 import type { SendPageEventUseCase } from '@client/common/application/use-cases/send-page-event.use-case.ts';
 import { BrowserDraftStore } from '@client/common/infrastructure/drafts.ts';
 import { slideToward } from '@client/common/interface/ui/classes.ts';
@@ -12,12 +13,12 @@ import { toast } from '@client/common/interface/ui/parts.tsx';
  */
 export function useSend(sendPageEvent: SendPageEventUseCase, onSent: (fromThread: string | undefined) => void) {
   return useCallback(async (event: PageEvent, fromThread: string | undefined, sentNotice: string) => {
-    const { sent, notice } = await sendPageEvent.execute({ event, sentNotice });
-    if (sent) {
+    const outcome = await sendPageEvent.execute({ event });
+    if (outcome.sent) {
       onSent(fromThread);
     }
-    toast(notice);
-    return sent;
+    toast(PageEventMapper.toNotice(outcome, sentNotice));
+    return outcome.sent;
   }, []);
 }
 

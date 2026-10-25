@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/pr
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Item, Question } from '@shared/contract.ts';
 import { anItem, anOpenQuestion } from '@test/builders.ts';
+import { BrowserDraftStore } from '@client/common/infrastructure/drafts.ts';
 import { Questions } from '@client/items/interface/Questions.tsx';
 
 afterEach(() => {
@@ -17,6 +18,7 @@ describe('Questions', () => {
     render(
       <Questions
         runId="r1"
+        drafts={new BrowserDraftStore('r1')}
         item={item([question('q1', 'First?'), question('q2', 'Second?')])}
         disabled={false}
         onSend={async () => true}
@@ -32,6 +34,7 @@ describe('Questions', () => {
     render(
       <Questions
         runId="r1"
+        drafts={new BrowserDraftStore('r1')}
         item={item([question('q1', 'First?'), question('q2', 'Second?')])}
         disabled={false}
         onSend={async () => true}
@@ -49,7 +52,15 @@ describe('Questions', () => {
 
   it('sends the chosen answers with their notes', async () => {
     const onSend = vi.fn(async () => true);
-    render(<Questions runId="r1" item={item([question('q1', 'Only?')])} disabled={false} onSend={onSend} />);
+    render(
+      <Questions
+        runId="r1"
+        drafts={new BrowserDraftStore('r1')}
+        item={item([question('q1', 'Only?')])}
+        disabled={false}
+        onSend={onSend}
+      />,
+    );
     fireEvent.click(screen.getByLabelText(/Separately/));
     fireEvent.input(screen.getByLabelText('Note for Claude (optional)'), { target: { value: 'keep it small' } });
     fireEvent.click(screen.getByRole('button', { name: /Send 1 answer/ }));
@@ -58,17 +69,39 @@ describe('Questions', () => {
 
   it('keeps unsent picks across a reload', () => {
     const { unmount } = render(
-      <Questions runId="r1" item={item([question('q1', 'Only?')])} disabled={false} onSend={async () => true} />,
+      <Questions
+        runId="r1"
+        drafts={new BrowserDraftStore('r1')}
+        item={item([question('q1', 'Only?')])}
+        disabled={false}
+        onSend={async () => true}
+      />,
     );
     fireEvent.click(screen.getByLabelText(/Here/));
     unmount();
-    render(<Questions runId="r1" item={item([question('q1', 'Only?')])} disabled={false} onSend={async () => true} />);
+    render(
+      <Questions
+        runId="r1"
+        drafts={new BrowserDraftStore('r1')}
+        item={item([question('q1', 'Only?')])}
+        disabled={false}
+        onSend={async () => true}
+      />,
+    );
     expect(screen.getByLabelText(/Here/)).toHaveProperty('checked', true);
   });
 
   it('shows the rulings once every question is answered', () => {
     const answered = { ...question('q1', 'Done?'), answer: { choice: 1, at: '', note: 'agreed' } };
-    render(<Questions runId="r1" item={item([answered])} disabled={false} onSend={async () => true} />);
+    render(
+      <Questions
+        runId="r1"
+        drafts={new BrowserDraftStore('r1')}
+        item={item([answered])}
+        disabled={false}
+        onSend={async () => true}
+      />,
+    );
     expect(screen.getByText('Nothing left to decide on this item')).toBeTruthy();
     expect(screen.getByText('Here')).toBeTruthy();
   });

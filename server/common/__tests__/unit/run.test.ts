@@ -3,18 +3,15 @@ import { card, counterIds, question, T0 } from '@test/fixtures.ts';
 import { WorkbenchError } from '@server/common/domain/errors.ts';
 import {
   addItems,
-  addMessage,
   applyAnswers,
   applyEdit,
   applyVerdict,
   ask,
-  close,
   markDone,
-  newRun,
-  rememberEventThread,
-  runThreadId,
   updateItem,
-} from '@server/common/domain/run.ts';
+} from '@server/common/domain/item.rules.ts';
+import { addMessage, rememberEventThread } from '@server/common/domain/conversation.rules.ts';
+import { close, newRun, runThreadId } from '@server/common/domain/run.rules.ts';
 import { isFinal, pendingForUser } from '@shared/rules.ts';
 
 const start = () => {
@@ -35,7 +32,7 @@ describe('items', () => {
   it('adds a valid card with its own thread at rev 1', () => {
     const { ids, run } = start();
     const { run: next, added } = addItems(run, [{ kind: 'card', fields: card() }], ids);
-    expect(added).toEqual([{ id: 'i1', rev: 1, threadId: 't2' }]);
+    expect(added).toMatchObject([{ id: 'i1', rev: 1, threadId: 't2' }]);
     expect(next.threads.map((thread) => thread.owner)).toEqual([{ type: 'run' }, { type: 'item', itemId: 'i1' }]);
     expect(next.version).toBe(run.version + 1);
   });
@@ -56,9 +53,9 @@ describe('items', () => {
   it('a patch changes only the given fields and bumps the revision', () => {
     const { ids, run } = start();
     const r1 = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
-    const { run: r2, rev } = updateItem(r1, 'i1', { proposal: { priority: 'normal' } });
+    const { run: r2, item } = updateItem(r1, 'i1', { proposal: { priority: 'normal' } });
     const { fields } = r2.items[0]!;
-    expect(rev).toBe(2);
+    expect(item.rev).toBe(2);
     expect(fields.proposal).toEqual({ ...card().proposal, priority: 'normal' });
     expect(fields.title).toBe(card().title);
   });
@@ -83,18 +80,18 @@ describe('the approval gate', () => {
 
   it('refuses Approve while questions are open, and allows it once answered', () => {
     const { ids, run } = ready();
-    const { run: asked, questionIds, rev } = ask(run, 'i1', [question()], ids);
-    expect(code(() => applyVerdict(asked, 'i1', rev, 'approved', T0))).toBe('open-questions');
-    const answered = applyAnswers(asked, 'i1', { [questionIds[0]!]: { choice: 1, note: 'do it here' } }, T0);
+    const { run: withQuestion, item, asked } = ask(run, 'i1', [question()], ids);
+    expect(code(() => applyVerdict(withQuestion, 'i1', item.rev, 'approved', T0))).toBe('open-questions');
+    const answered = applyAnswers(withQuestion, 'i1', { [asked[0]!.id]: { choice: 1, note: 'do it here' } }, T0);
     expect(answered.items[0]!.questions[0]!.answer).toEqual({ choice: 1, note: 'do it here', at: T0 });
-    expect(applyVerdict(answered, 'i1', rev, 'approved', T0).items[0]!.verdict?.value).toBe('approved');
+    expect(applyVerdict(answered, 'i1', item.rev, 'approved', T0).items[0]!.verdict?.value).toBe('approved');
   });
 
   it('allows Reject and Leave pending even with open questions', () => {
     const { ids, run } = ready();
-    const { run: asked, rev } = ask(run, 'i1', [question()], ids);
-    expect(applyVerdict(asked, 'i1', rev, 'rejected', T0).items[0]!.verdict?.value).toBe('rejected');
-    expect(applyVerdict(asked, 'i1', rev, 'pending', T0).items[0]!.verdict?.value).toBe('pending');
+    const { run: withQuestion, item } = ask(run, 'i1', [question()], ids);
+    expect(applyVerdict(withQuestion, 'i1', item.rev, 'rejected', T0).items[0]!.verdict?.value).toBe('rejected');
+    expect(applyVerdict(withQuestion, 'i1', item.rev, 'pending', T0).items[0]!.verdict?.value).toBe('pending');
   });
 
   it('any later change voids an approval', () => {
@@ -116,9 +113,9 @@ describe('the approval gate', () => {
 
   it('rejects answers to unknown questions or options', () => {
     const { ids, run } = ready();
-    const { run: asked, questionIds } = ask(run, 'i1', [question()], ids);
-    expect(code(() => applyAnswers(asked, 'i1', { nope: { choice: 0 } }, T0))).toBe('not-found');
-    expect(code(() => applyAnswers(asked, 'i1', { [questionIds[0]!]: { choice: 5 } }, T0))).toBe('invalid');
+    const { run: withQuestion, asked } = ask(run, 'i1', [question()], ids);
+    expect(code(() => applyAnswers(withQuestion, 'i1', { nope: { choice: 0 } }, T0))).toBe('not-found');
+    expect(code(() => applyAnswers(withQuestion, 'i1', { [asked[0]!.id]: { choice: 5 } }, T0))).toBe('invalid');
   });
 
   it('rejects a question whose recommendation is not one of its options', () => {
@@ -143,8 +140,8 @@ describe('message addressing', () => {
 
   it('a reply lands in the thread of the event it answers', () => {
     const run = twoThreads();
-    const withMessage = addMessage(run, { text: 'done', from: 'claude', now: T0, id: 'm1', replyTo: 42 });
-    expect(withMessage.messages[0]!.threadId).toBe(run.items[0]!.threadId);
+    const { message } = addMessage(run, { text: 'done', from: 'claude', now: T0, id: 'm1', replyTo: 42 });
+    expect(message.threadId).toBe(run.items[0]!.threadId);
   });
 
   it('a reply whose explicit thread disagrees with its event posts nothing', () => {
@@ -169,7 +166,7 @@ describe('message addressing', () => {
       'not-found',
     );
     expect(
-      addMessage(run, { text: 'hi', from: 'claude', now: T0, id: 'm1', threadId: runThreadId(run) }).messages,
+      addMessage(run, { text: 'hi', from: 'claude', now: T0, id: 'm1', threadId: runThreadId(run) }).run.messages,
     ).toHaveLength(1);
   });
 
@@ -194,7 +191,7 @@ describe('ending a run', () => {
 
   it('one approval never closes a run', () => {
     const run = applyVerdict(two(), 'i1', 1, 'approved', T0);
-    const done = markDone(run, 'i1', 'created 86e3', T0);
+    const done = markDone(run, 'i1', 'created 86e3', T0).run;
     expect(done.items.filter((item) => !isFinal(item)).map((item) => item.id)).toEqual(['i2']);
     expect(code(() => close(done, 'closed', 'created', T0))).toBe('open-items');
   });
@@ -202,7 +199,7 @@ describe('ending a run', () => {
   it('an approved item needs to be done before it counts as an outcome', () => {
     const run = applyVerdict(applyVerdict(two(), 'i1', 1, 'approved', T0), 'i2', 1, 'rejected', T0);
     expect(code(() => close(run, 'closed', 'x', T0))).toBe('open-items');
-    expect(close(markDone(run, 'i1', 'created', T0), 'closed', 'created 1, rejected 1', T0).status).toBe('closed');
+    expect(close(markDone(run, 'i1', 'created', T0).run, 'closed', 'created 1, rejected 1', T0).status).toBe('closed');
   });
 
   it('a run with undecided items can always be paused, but not closed', () => {

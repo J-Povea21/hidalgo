@@ -16,7 +16,7 @@ import {
   test,
   type UserInPage,
   WITHIN_A_RECONNECT,
-} from './support/index.ts';
+} from './support';
 
 test.describe('whose turn it is', () => {
   test('the title, turn line and favicon follow a wait at once, and survive a reload', async ({ claude, user }) => {

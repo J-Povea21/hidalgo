@@ -1,10 +1,12 @@
 /**
- * Applying a recorded page event to a run. Used when the event arrives and
- * when logged events are replayed after a crash, so both paths agree.
+ * Applying what the user did on the page to a run. Used when the event arrives and when
+ * logged events are replayed after a crash, so both paths agree. In common/ because a
+ * resume (runs/) replays them as well as page-events/ applying them.
  */
 import type { RecordedEvent, RunState, UnsequencedEvent } from '@shared/contract.ts';
-import { addMessage, applyAnswers, applyEdit, applyVerdict, rememberEventThread, threadOfItem } from './run.ts';
 import { PARTY } from '@shared/values.ts';
+import { addMessage, rememberEventThread, threadOfItem } from './conversation.rules.ts';
+import { applyAnswers, applyEdit, applyVerdict } from './item.rules.ts';
 
 /** The thread an event belongs to, or undefined for events that have none (a diagram failure). */
 export function threadOfEvent(run: RunState, ev: RecordedEvent): string | undefined {
@@ -44,7 +46,7 @@ export function applyEvent(run: RunState, ev: RecordedEvent): RunState {
         id: `u${ev.seq}`,
         threadId: ev.threadId,
         images: ev.images,
-      });
+      }).run;
       break;
     case 'diagram-failed':
       next = run;

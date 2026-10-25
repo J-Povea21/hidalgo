@@ -1,15 +1,7 @@
-/**
- * The mailbox's slot: everything the page sends comes through here.
- *   1. checks it's well-formed and that it can apply to the run as it is now;
- *   2. stores images and appends the event to the log on disk, before anything else;
- *   3. applies it to the run, saves, shows it on the page, and rings the bell.
- * An event that can't apply (a stale revision, an open question) is refused
- * with the reason and never logged, so the user sees why at once.
- */
 import { PageEvent, type UnsequencedEvent } from '@shared/contract.ts';
 import type { RunChanges } from '@server/common/application/run-changes.ts';
 import { WorkbenchError } from '@server/common/domain/errors.ts';
-import { applyEvent, sequenced } from '@server/common/domain/events.ts';
+import { applyEvent, sequenced } from '@server/common/domain/page-event.rules.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { EventLog } from '@server/common/ports/event-log.port.ts';
 import type { PagePublisher } from '@server/common/ports/page-publisher.port.ts';
@@ -18,6 +10,13 @@ import type { RunStore } from '@server/common/ports/run-store.port.ts';
 import type { Limits } from '@server/page-events/domain/limits.ts';
 import type { EventSignal } from '@server/page-events/domain/ports/event-signal.port.ts';
 import type { ImageStore } from '@server/page-events/domain/ports/image-store.port.ts';
+
+export interface RecordedPageEvent {
+  /** The event's place in the run's log. */
+  seq: number;
+  /** The run's images now take most of what it may store. */
+  nearImageLimit: boolean;
+}
 
 export interface RecordPageEventInput {
   runId: string;
@@ -35,6 +34,14 @@ const formatBytes = (bytes: number) =>
 const toRecorded = (event: PageEvent, images: string[], at: string): UnsequencedEvent =>
   event.type === 'message' ? { ...event, images, at } : { ...event, at };
 
+/**
+ * The mailbox's slot: everything the page sends comes through here.
+ *   1. checks it's well-formed and that it can apply to the run as it is now;
+ *   2. stores images and appends the event to the log on disk, before anything else;
+ *   3. applies it to the run, saves, shows it on the page, and rings the bell.
+ * An event that can't apply (a stale revision, an open question) is refused
+ * with the reason and never logged, so the user sees why at once.
+ */
 export class RecordPageEventUseCase {
   constructor(
     private readonly runs: RunChanges,
@@ -48,7 +55,7 @@ export class RecordPageEventUseCase {
     private readonly limits: Limits,
   ) {}
 
-  async execute(input: RecordPageEventInput): Promise<{ seq: number; imageWarning?: string }> {
+  async execute(input: RecordPageEventInput): Promise<RecordedPageEvent> {
     const parsed = PageEvent.safeParse(input.event);
     if (!parsed.success) {
       throw new WorkbenchError('invalid', 'event is not valid', parsed.error.issues);
@@ -71,7 +78,7 @@ export class RecordPageEventUseCase {
       await this.store.save(next);
       this.page.publish(next);
       this.signal.ring(runId);
-      return { seq, ...(nearLimit ? { imageWarning: 'This run is close to its image limit.' } : {}) };
+      return { seq, nearImageLimit: nearLimit };
     });
   }
 

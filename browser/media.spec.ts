@@ -1,7 +1,7 @@
 /** Images in and out of a conversation, and diagrams: drawn, enlarged, or failing gracefully. */
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
-import { DIAGRAM_DRAWN, expect, smallFlow, test } from './support/index.ts';
+import { DIAGRAM_DRAWN, expect, smallFlow, test } from './support';
 
 /** A 1×1 PNG. */
 const TINY_PNG = Buffer.from(

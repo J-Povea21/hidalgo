@@ -11,6 +11,7 @@ import { err, guarded, ok, type ToolResult } from '@server/common/interface/mcp/
 import { registerConversationTools } from '@server/conversation/interface/mcp/conversation.tools.ts';
 import { registerItemsTools } from '@server/items/interface/mcp/items.tools.ts';
 import { registerPageEventsTools } from '@server/page-events/interface/mcp/page-events.tools.ts';
+import { PageEventMapper } from '@server/page-events/application/mappers/page-event.mapper.ts';
 import type { WaitHost } from '@server/page-events/interface/mcp/wait-host.port.ts';
 import type { RunPages } from '@server/runs/interface/mcp/run-pages.port.ts';
 import { registerRunsTools } from '@server/runs/interface/mcp/runs.tools.ts';
@@ -25,7 +26,7 @@ class WorkbenchHost implements ToolHost, WaitHost, RunPages {
       await this.wb.ensureServed(runId);
       this.wb.markActive(runId);
       const result = await act();
-      const events = await this.wb.modules.pageEvents.takeEvents.execute({ runId });
+      const events = PageEventMapper.toDelivered(await this.wb.modules.pageEvents.takeEvents.execute({ runId }));
       return ok(events.length ? { ...result, events } : result);
     } catch (error) {
       return err(error);
@@ -53,7 +54,9 @@ class WorkbenchHost implements ToolHost, WaitHost, RunPages {
     } else {
       this.wb.open(this.wb.pageUrl(run.id));
     }
-    const events = resumed ? await this.wb.modules.pageEvents.takeEvents.execute({ runId: run.id }) : [];
+    const events = resumed
+      ? PageEventMapper.toDelivered(await this.wb.modules.pageEvents.takeEvents.execute({ runId: run.id }))
+      : [];
     return {
       opened: !alreadyOpen,
       ...(alreadyOpen ? { alreadyOpen: viewers } : {}),

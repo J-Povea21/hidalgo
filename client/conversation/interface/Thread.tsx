@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Diagram, Message } from '@shared/contract.ts';
 import { PARTY } from '@shared/values.ts';
-import { BrowserDraftStore } from '@client/common/infrastructure/drafts.ts';
+import type { DraftStore } from '@client/common/ports/draft-store.port.ts';
 import { CLASS, classes } from '@client/common/interface/ui/classes.ts';
 import { Markdown } from '@client/common/interface/ui/markdown.tsx';
 import { time, Typing } from '@client/common/interface/ui/parts.tsx';
@@ -13,6 +13,8 @@ import { useAttachments } from './useAttachments.ts';
 
 export interface ThreadProps {
   runId: string;
+  /** Where the unsent text is kept, so a reload loses nothing. */
+  drafts: DraftStore;
   threadId: string;
   title: string;
   hint: string;
@@ -24,6 +26,8 @@ export interface ThreadProps {
   /** A quote to insert; a new nonce inserts it again. */
   quote?: { text: string; nonce: number } | undefined;
   imageSrc: (name: string) => Promise<string>;
+  /** Shrinks attached images before they're kept. */
+  shrinkImages: (files: File[]) => Promise<string[]>;
   onSend: (text: string, images: string[]) => Promise<boolean>;
   onDiagramFailed: (id: string, error: string) => void;
   onZoom: (html?: string, src?: string) => void;
@@ -35,10 +39,10 @@ const SEND_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.p
 const COMPOSER_MAX_HEIGHT_PX = 140;
 
 export function Thread(props: ThreadProps) {
-  const drafts = useMemo(() => new BrowserDraftStore(props.runId), [props.runId]);
+  const { drafts } = props;
   const draftKey = `text:${props.threadId}`;
   const [text, setText] = useState<string>(() => drafts.load(draftKey, ''));
-  const { images, setImages, attach, remove } = useAttachments();
+  const { images, setImages, attach, remove } = useAttachments(props.shrinkImages);
   const [dragging, setDragging] = useState(false);
   const feed = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);

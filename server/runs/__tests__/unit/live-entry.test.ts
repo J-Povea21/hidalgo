@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveEntry } from '@shared/contract.ts';
 import { T0 } from '@test/fixtures.ts';
-import { newRun } from '@server/common/domain/run.ts';
-import { expired, isDead, liveEntry } from '@server/runs/domain/live-entry.ts';
+import { newRun } from '@server/common/domain/run.rules.ts';
+import { expired, isDead, liveEntry } from '@server/runs/domain/live-entry.rules.ts';
 
 const entry = (heartbeat: string): LiveEntry => ({
   runId: 'r1',

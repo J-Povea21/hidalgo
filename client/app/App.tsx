@@ -25,6 +25,7 @@ import { CLASS, classes } from '@client/common/interface/ui/classes.ts';
 import { ChatIcon, LayersIcon, Lightbox, Toaster, toast } from '@client/common/interface/ui/parts.tsx';
 import { useItemNavigation, useNow, useSend, useUnread } from './hooks.ts';
 import type { PageModules } from './modules.ts';
+import type { DraftStore } from '@client/common/ports/draft-store.port.ts';
 import { ItemNav, ItemPanel } from '@client/items/interface/ItemPanel.tsx';
 
 /** How often the page re-checks time-based state ("Claude went quiet"). */
@@ -48,10 +49,12 @@ const SENT = {
 
 interface AppProps {
   modules: PageModules;
+  /** Where what the user hasn't sent yet is kept. */
+  drafts: DraftStore;
   session: Session;
 }
 
-export function App({ modules, session }: AppProps) {
+export function App({ modules, drafts, session }: AppProps) {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [drawer, setDrawer] = useState<Drawer | undefined>();
   /** The thread something was last sent from: it shows Claude working until Claude listens again. */
@@ -84,12 +87,13 @@ export function App({ modules, session }: AppProps) {
 
   const reportDiagram = useCallback((diagramId: string, error: string) => {
     // Claude hears about it if it can; the user needn't, the diagram already shows its own failure.
-    void modules.sendPageEvent.execute({ event: { type: 'diagram-failed', diagramId, error }, sentNotice: '' });
+    void modules.sendPageEvent.execute({ event: { type: 'diagram-failed', diagramId, error } });
   }, []);
   const zoomIn = useCallback((html?: string, src?: string) => setZoom({ html, src }), []);
   // Handed to children as callbacks, so they're bound to the use cases here.
   const loadImage = useCallback((name: string) => modules.conversation.loadImage.execute({ name }), []);
   const loadOpenReviews = useCallback(() => modules.run.listOpenReviews.execute(), []);
+  const shrinkImages = useCallback((files: File[]) => modules.conversation.shrinkImages.execute({ files }), []);
 
   if (!run) {
     return (
@@ -105,6 +109,8 @@ export function App({ modules, session }: AppProps) {
   const typing = (threadId: string) => typingIn(state, now, sentFrom, threadId);
   const threadProps = {
     runId: run.id,
+    drafts,
+    shrinkImages,
     diagrams: run.diagrams,
     disabled: busy,
     imageSrc: loadImage,
@@ -177,6 +183,7 @@ export function App({ modules, session }: AppProps) {
             <div class="col">
               <Questions
                 runId={run.id}
+                drafts={drafts}
                 item={item}
                 disabled={busy}
                 onSend={(answers) => send({ type: 'answers', itemId: item.id, answers }, item.threadId, SENT.answers)}

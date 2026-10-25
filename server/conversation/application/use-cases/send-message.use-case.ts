@@ -1,9 +1,6 @@
-/**
- * Claude's message in a thread. A reply names the event it answers and the
- * domain derives the thread from it; only a new message names a thread.
- */
+import type { Message } from '@shared/contract.ts';
 import type { RunChanges } from '@server/common/application/run-changes.ts';
-import { addMessage } from '@server/common/domain/run.ts';
+import { addMessage } from '@server/common/domain/conversation.rules.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { Ids } from '@server/common/ports/ids.port.ts';
 import { PARTY } from '@shared/values.ts';
@@ -15,6 +12,10 @@ export interface SendMessageInput {
   threadId?: string | undefined;
 }
 
+/**
+ * Claude's message in a thread. A reply names the event it answers and the
+ * domain derives the thread from it; only a new message names a thread.
+ */
 export class SendMessageUseCase {
   constructor(
     private readonly runs: RunChanges,
@@ -22,18 +23,17 @@ export class SendMessageUseCase {
     private readonly clock: Clock,
   ) {}
 
-  execute(input: SendMessageInput) {
+  execute(input: SendMessageInput): Promise<Message> {
     return this.runs.change(input.runId, (run) => {
-      const id = this.ids.next('m');
-      const next = addMessage(run, {
+      const { run: next, message } = addMessage(run, {
         text: input.text,
         from: PARTY.claude,
         now: this.clock.now(),
-        id,
+        id: this.ids.next('m'),
         replyTo: input.replyTo,
         threadId: input.threadId,
       });
-      return { run: next, result: { messageId: id, threadId: next.messages.at(-1)!.threadId } };
+      return { run: next, result: message };
     });
   }
 }

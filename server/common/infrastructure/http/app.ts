@@ -76,7 +76,7 @@ export function createApp(deps: HttpDeps): Hono {
   const app = new Hono();
   const own = () => [`127.0.0.1:${deps.port()}`, `localhost:${deps.port()}`];
   /** What the page needs to say whose turn it is, sent with every state and keep-alive. */
-  const presence = (runId: string) => ({
+  const claudeActivity = (runId: string) => ({
     claudeListening: deps.claudeListening(runId),
     claudeActiveAt: deps.claudeActiveAt(runId) ?? null,
   });
@@ -129,7 +129,7 @@ export function createApp(deps: HttpDeps): Hono {
     const runId = context.req.query('run')!;
     await deps.ensureState(runId);
     const state = deps.hub.current(runId);
-    return state ? context.json({ state, ...presence(runId) }) : context.json({ error: 'no such run' }, 404);
+    return state ? context.json({ state, ...claudeActivity(runId) }) : context.json({ error: 'no such run' }, 404);
   });
 
   app.get('/api/stream', async (context) => {
@@ -141,7 +141,7 @@ export function createApp(deps: HttpDeps): Hono {
         if (!open) {
           return;
         }
-        const payload = msg.type === STREAM_EVENT.state ? { ...msg, ...presence(runId) } : msg;
+        const payload = msg.type === STREAM_EVENT.state ? { ...msg, ...claudeActivity(runId) } : msg;
         void stream.writeSSE({ event: msg.type, data: JSON.stringify(payload) });
       });
       stream.onAbort(() => {
@@ -151,7 +151,7 @@ export function createApp(deps: HttpDeps): Hono {
       while (open) {
         await stream.sleep(15_000);
         if (open) {
-          await stream.writeSSE({ event: STREAM_EVENT.ping, data: JSON.stringify(presence(runId)) });
+          await stream.writeSSE({ event: STREAM_EVENT.ping, data: JSON.stringify(claudeActivity(runId)) });
         }
       }
     });

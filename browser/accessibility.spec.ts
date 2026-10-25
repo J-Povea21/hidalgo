@@ -14,7 +14,7 @@ import {
   smallFlow,
   test,
   WCAG,
-} from './support/index.ts';
+} from './support';
 
 for (const colorScheme of ['light', 'dark'] as const) {
   test.describe(`axe finds nothing, ${colorScheme}`, () => {

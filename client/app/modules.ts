@@ -1,9 +1,15 @@
-/** Every use case on the page, built over the one server port. */
 import { FollowSessionUseCase } from '@client/common/application/use-cases/follow-session.use-case.ts';
 import { SendPageEventUseCase } from '@client/common/application/use-cases/send-page-event.use-case.ts';
 import type { WorkbenchServer } from '@client/common/ports/workbench-server.port.ts';
 import { conversationModule, type ConversationModule } from '@client/conversation/conversation.module.ts';
+import type { ImageShrinker } from '@client/conversation/domain/ports/image-shrinker.port.ts';
 import { runModule, type RunModule } from '@client/run/run.module.ts';
+
+/** The adapters the page's use cases run over; main.tsx builds the browser's. */
+export interface PageAdapters {
+  server: WorkbenchServer;
+  shrinker: ImageShrinker;
+}
 
 export interface PageModules {
   sendPageEvent: SendPageEventUseCase;
@@ -12,11 +18,12 @@ export interface PageModules {
   conversation: ConversationModule;
 }
 
-export function buildModules(server: WorkbenchServer): PageModules {
+/** Every use case on the page, built over its adapters. */
+export function buildModules(adapters: PageAdapters): PageModules {
   return {
-    sendPageEvent: new SendPageEventUseCase(server),
-    followSession: new FollowSessionUseCase(server),
-    run: runModule(server),
-    conversation: conversationModule(server),
+    sendPageEvent: new SendPageEventUseCase(adapters.server),
+    followSession: new FollowSessionUseCase(adapters.server),
+    run: runModule(adapters.server),
+    conversation: conversationModule(adapters),
   };
 }

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { DiagramSpec } from '@shared/contract.ts';
 import type { ToolHost } from '@server/common/interface/mcp/tool-host.port.ts';
 import { RunId } from '@server/common/interface/mcp/tool-result.ts';
+import { ConversationMapper } from '@server/conversation/application/mappers/conversation.mapper.ts';
 import type { ConversationModule } from '@server/conversation/conversation.module.ts';
 
 export function registerConversationTools(server: McpServer, conversation: ConversationModule, host: ToolHost): void {
@@ -19,7 +20,8 @@ export function registerConversationTools(server: McpServer, conversation: Conve
         threadId: z.string().optional(),
       },
     },
-    (input) => host.onRun(input.runId, () => conversation.sendMessage.execute(input)),
+    (input) =>
+      host.onRun(input.runId, async () => ConversationMapper.toSent(await conversation.sendMessage.execute(input))),
   );
 
   server.registerTool(
@@ -29,6 +31,9 @@ export function registerConversationTools(server: McpServer, conversation: Conve
         'Build a diagram from structure (flow: nodes, groups, edges; sequence: participants, steps). The server writes and escapes the Mermaid, so labels can contain any text. Returns an id to embed as {{diagram:<id>}}.',
       inputSchema: { runId: RunId, spec: DiagramSpec },
     },
-    (input) => host.onRun(input.runId, () => conversation.createDiagram.execute(input)),
+    (input) =>
+      host.onRun(input.runId, async () =>
+        ConversationMapper.toDiagram(await conversation.createDiagram.execute(input)),
+      ),
   );
 }

@@ -5,8 +5,8 @@
  */
 import type { RunState } from '@shared/contract.ts';
 import { WorkbenchError } from '@server/common/domain/errors.ts';
-import { replay } from '@server/common/domain/events.ts';
-import { newRun, reopen } from '@server/common/domain/run.ts';
+import { replay } from '@server/common/domain/page-event.rules.ts';
+import { newRun, reopen } from '@server/common/domain/run.rules.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { EventLog } from '@server/common/ports/event-log.port.ts';
 import type { Ids } from '@server/common/ports/ids.port.ts';

@@ -2,7 +2,7 @@
 import type { Item, VerdictValue } from '@shared/contract.ts';
 import { ITEM_STATUS, itemStatus, itemTitle } from '@client/common/domain/selectors.ts';
 import { Verdict } from './Verdict.tsx';
-import { KIND_VIEWS } from '@client/items/interface/kinds/index.ts';
+import { KIND_VIEWS } from '@client/items/interface/kinds';
 import { CLASS, classes } from '@client/common/interface/ui/classes.ts';
 import { StatusBadge } from '@client/common/interface/ui/parts.tsx';
 

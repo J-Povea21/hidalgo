@@ -1,5 +1,5 @@
 /** More than one: two Claude sessions on the machine, and one run open in two tabs. */
-import { expect, plainCard, test, UserInPage } from './support/index.ts';
+import { expect, plainCard, test, UserInPage } from './support';
 
 test("Open reviews lists another session's run and opens it; what happens in one never reaches the other", async ({
   claude,

@@ -1,9 +1,9 @@
 /** The runs module as MCP tools. */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { runThreadId } from '@shared/rules.ts';
 import type { ToolHost } from '@server/common/interface/mcp/tool-host.port.ts';
 import { guarded, RunId } from '@server/common/interface/mcp/tool-result.ts';
+import { RunMapper } from '@server/runs/application/mappers/run.mapper.ts';
 import type { RunPages } from '@server/runs/interface/mcp/run-pages.port.ts';
 import type { RunsModule } from '@server/runs/runs.module.ts';
 import { RUN_STATUS } from '@shared/values.ts';
@@ -23,9 +23,9 @@ export function registerRunsTools(server: McpServer, runs: RunsModule, host: Too
     },
     (input) =>
       guarded(async () => {
-        const { run, resumed } = await runs.openSession.execute(input);
-        const shown = await pages.show(run, resumed);
-        return { runId: run.id, threadId: runThreadId(run), resumed, ...shown };
+        const opened = await runs.openSession.execute(input);
+        const shown = await pages.show(opened.run, opened.resumed);
+        return { ...RunMapper.toOpened(opened), ...shown };
       }),
   );
 
@@ -36,7 +36,7 @@ export function registerRunsTools(server: McpServer, runs: RunsModule, host: Too
         "The project's runs that aren't closed, with their items' titles, read-only. Use it to offer a resume and, before drafting, to catch drafts another session hasn't put on the board yet.",
       inputSchema: { project: z.string(), includeClosed: z.boolean().optional() },
     },
-    (input) => guarded(async () => ({ runs: await runs.listRuns.execute(input) })),
+    (input) => guarded(async () => RunMapper.toList(await runs.listRuns.execute(input))),
   );
 
   server.registerTool(
@@ -45,7 +45,7 @@ export function registerRunsTools(server: McpServer, runs: RunsModule, host: Too
       description: 'The live line the page shows while you work, e.g. "adversary round 1 of 2". Omit line to clear it.',
       inputSchema: { runId: RunId, line: z.string().max(120).optional() },
     },
-    (input) => host.onRun(input.runId, () => runs.setStatus.execute(input)),
+    (input) => host.onRun(input.runId, async () => RunMapper.toStatusLine(await runs.setStatus.execute(input))),
   );
 
   server.registerTool(
@@ -59,6 +59,6 @@ export function registerRunsTools(server: McpServer, runs: RunsModule, host: Too
         outcome: z.string().min(1).max(300),
       },
     },
-    (input) => host.onRun(input.runId, () => runs.closeSession.execute(input)),
+    (input) => host.onRun(input.runId, async () => RunMapper.toClosed(await runs.closeSession.execute(input))),
   );
 }

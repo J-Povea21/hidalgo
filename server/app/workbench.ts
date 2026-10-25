@@ -7,11 +7,12 @@ import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { serve, type ServerType } from '@hono/node-server';
 import type { RunState } from '@shared/contract.ts';
-import { expired, liveEntry } from '@server/runs/domain/live-entry.ts';
+import { expired, liveEntry } from '@server/runs/domain/live-entry.rules.ts';
 import type { PagePublisher } from '@server/common/ports/page-publisher.port.ts';
 import type { Limits } from '@server/page-events/domain/limits.ts';
 import type { EventSignal } from '@server/page-events/domain/ports/event-signal.port.ts';
 import { MemorySignal } from '@server/page-events/infrastructure/memory-signal.ts';
+import { PageEventMapper } from '@server/page-events/application/mappers/page-event.mapper.ts';
 import { buildModules, type Modules } from './modules.ts';
 import { FsEventLog } from '@server/common/infrastructure/fs/event-log.ts';
 import { FsImageStore } from '@server/page-events/infrastructure/fs/image-store.ts';
@@ -180,7 +181,8 @@ export class Workbench {
             this.hub.publish(run);
           }
         },
-        recordEvent: (id, event) => this.modules.pageEvents.recordPageEvent.execute({ runId: id, event }),
+        recordEvent: async (id, event) =>
+          PageEventMapper.toRecorded(await this.modules.pageEvents.recordPageEvent.execute({ runId: id, event })),
         imageFile: (id, name) => this.images.path(id, name),
         liveRuns: () => this.live.alive(),
         claudeListening: (id) => this.signal.waiting(id),

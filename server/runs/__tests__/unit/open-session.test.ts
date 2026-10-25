@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { card } from '@test/fixtures.ts';
 import { useCases, world } from '@test/fakes.ts';
-import { addItems } from '@server/common/domain/run.ts';
+import { addItems } from '@server/common/domain/item.rules.ts';
 
 describe('open-session', () => {
   it('starts a run, saves it, shows it, and returns its page', async () => {

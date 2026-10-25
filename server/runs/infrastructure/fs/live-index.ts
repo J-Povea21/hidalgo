@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { LiveEntry } from '@shared/contract.ts';
-import { isDead } from '@server/runs/domain/live-entry.ts';
+import { isDead } from '@server/runs/domain/live-entry.rules.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { LiveIndex } from '@server/runs/domain/ports/live-index.port.ts';
 import { isErrno, readJson, writeAtomic } from '@server/common/infrastructure/fs/files.ts';

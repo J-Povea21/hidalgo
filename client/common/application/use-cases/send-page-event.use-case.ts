@@ -1,28 +1,27 @@
-/**
- * Sends what the user did to Claude, and says what to tell them about it. Never throws:
- * a refusal carries the server's reason, and anything else means the session is unreachable.
- */
 import type { PageEvent } from '@shared/contract.ts';
 import { ApiError } from '@client/common/domain/errors.ts';
 import type { WorkbenchServer } from '@client/common/ports/workbench-server.port.ts';
 
-const UNREACHABLE = "Not sent: Claude's session is unreachable. Your text is kept.";
-
 export interface SendPageEventInput {
   event: PageEvent;
-  /** What to tell the user once it reached Claude. */
-  sentNotice: string;
 }
 
+/** How sending went: the server's warning when it was sent, its reason when it refused. */
+export type SendOutcome =
+  | { sent: true; imageWarning: string | undefined }
+  /** `refusal` is undefined when the request never reached the server. */
+  | { sent: false; refusal: string | undefined };
+
+/** Sends what the user did to Claude. Never throws: every way it can go is an outcome. */
 export class SendPageEventUseCase {
   constructor(private readonly server: WorkbenchServer) {}
 
-  async execute(input: SendPageEventInput): Promise<{ sent: boolean; notice: string }> {
+  async execute(input: SendPageEventInput): Promise<SendOutcome> {
     try {
       const result = await this.server.sendEvent(input.event);
-      return { sent: true, notice: result.imageWarning ?? input.sentNotice };
+      return { sent: true, imageWarning: result.imageWarning };
     } catch (error) {
-      return { sent: false, notice: error instanceof ApiError ? error.message : UNREACHABLE };
+      return { sent: false, refusal: error instanceof ApiError ? error.message : undefined };
     }
   }
 }

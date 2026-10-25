@@ -8,7 +8,7 @@
 import { STREAM_EVENT } from '@shared/constants.ts';
 import type { RunState } from '@shared/contract.ts';
 import type { FeedListener } from '@client/common/ports/workbench-server.port.ts';
-import { CONNECTION, type Connection, LOST_AFTER_MS, type Presence } from '@client/common/domain/state.ts';
+import { CONNECTION, type Connection, LOST_AFTER_MS, type ClaudeActivity } from '@client/common/domain/state.ts';
 import { IDENTITY, type Identity } from './identity.ts';
 import { readSse } from './sse.ts';
 
@@ -28,7 +28,7 @@ export interface ProvableServer {
 }
 
 /** Any message on the stream; which fields it carries depends on its event. */
-interface StreamMessage extends Presence {
+interface StreamMessage extends ClaudeActivity {
   state: RunState;
   text: string;
   reason: string;
@@ -80,10 +80,24 @@ export class LiveFeed {
     }
   }
 
+  /** Opens one stream from a proven server and reads it until it ends. */
   private async followStream(): Promise<void> {
     this.downSince = 0;
     this.failures = 0;
-    const endedWithGoodbye = await this.readStream();
+    this.controller = new AbortController();
+    let endedWithGoodbye = false;
+    try {
+      const response = await this.server.openStream(this.controller.signal);
+      if (response.ok && response.body) {
+        // A proven server and an open stream: the page is live again, even after a goodbye.
+        this.report({ kind: CONNECTION.live });
+        await readSse(response.body, (event, data) => {
+          endedWithGoodbye ||= this.handle(event, JSON.parse(data));
+        });
+      }
+    } catch {
+      // Dropped, aborted, or the server went away: the loop tries again.
+    }
     // The stream ended: the server proves itself again before the token goes anywhere.
     this.server.forget();
     if (!endedWithGoodbye && !this.stopped) {
@@ -92,35 +106,15 @@ export class LiveFeed {
     }
   }
 
-  /** Reads one stream until it ends; true if it ended with a goodbye. */
-  private async readStream(): Promise<boolean> {
-    this.controller = new AbortController();
-    let endedWithGoodbye = false;
-    try {
-      const response = await this.server.openStream(this.controller.signal);
-      if (!response.ok || !response.body) {
-        return false;
-      }
-      // A proven server and an open stream: the page is live again, even after a goodbye.
-      this.report({ kind: CONNECTION.live });
-      await readSse(response.body, (event, data) => {
-        endedWithGoodbye ||= this.handle(event, JSON.parse(data));
-      });
-    } catch {
-      // Dropped, aborted, or the server went away: the loop tries again.
-    }
-    return endedWithGoodbye;
-  }
-
   /** Passes one message on; true if it was the goodbye. */
   private handle(event: string, message: StreamMessage): boolean {
-    const presence = { claudeListening: message.claudeListening, claudeActiveAt: message.claudeActiveAt };
+    const activity = { claudeListening: message.claudeListening, claudeActiveAt: message.claudeActiveAt };
     switch (event) {
       case STREAM_EVENT.state:
-        this.listener.state(message.state, presence);
+        this.listener.state(message.state, activity);
         return false;
       case STREAM_EVENT.ping:
-        this.listener.presence(presence);
+        this.listener.claudeActivity(activity);
         return false;
       case STREAM_EVENT.nudge:
         this.listener.nudge?.(message.text);

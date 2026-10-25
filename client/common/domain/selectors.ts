@@ -42,9 +42,8 @@ export function turnView(state: PageState, now: number): TurnView {
   if (state.claudeListening) {
     return TURN_VIEW.yours;
   }
-  return state.claudeActiveAt !== null && now - state.claudeActiveAt < ACTIVE_FOR_MS
-    ? TURN_VIEW.working
-    : TURN_VIEW.idle;
+  const claudeCalledAToolRecently = state.claudeActiveAt !== null && now - state.claudeActiveAt < ACTIVE_FOR_MS;
+  return claudeCalledAToolRecently ? TURN_VIEW.working : TURN_VIEW.idle;
 }
 
 const PREFIX: Record<TurnView, (run: RunState) => string> = {
