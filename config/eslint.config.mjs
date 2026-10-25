@@ -11,6 +11,12 @@ export default defineConfig(
     plugins: { '@typescript-eslint': tseslint.plugin },
     rules: {
       '@typescript-eslint/no-shadow': 'error',
+      // A guard clause's body goes on its own line: `if (done) {\n return; }`, never `if (done) return;`.
+      curly: ['error', 'all'],
+      // A ternary is for a short either-or; anything longer is an if/else or a lookup.
+      'no-nested-ternary': 'error',
+      // No `x as T`: types come from declarations, parsers and type guards (`as const` stays allowed).
+      '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
       // Names say what a value is: no `s`, `a`, `e`. `_` marks a value that is deliberately unused.
       'id-length': ['error', { min: 2, exceptions: ['_'], properties: 'never' }],
     },

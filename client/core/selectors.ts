@@ -30,10 +30,18 @@ const OFFLINE = new Set<PageState['connection']['kind']>([
 ]);
 
 export function turnView(state: PageState, now: number): TurnView {
-  if (!state.run) return TURN_VIEW.working;
-  if (state.run.status !== RUN_STATUS.open) return TURN_VIEW.done;
-  if (OFFLINE.has(state.connection.kind)) return TURN_VIEW.offline;
-  if (state.claudeListening) return TURN_VIEW.yours;
+  if (!state.run) {
+    return TURN_VIEW.working;
+  }
+  if (state.run.status !== RUN_STATUS.open) {
+    return TURN_VIEW.done;
+  }
+  if (OFFLINE.has(state.connection.kind)) {
+    return TURN_VIEW.offline;
+  }
+  if (state.claudeListening) {
+    return TURN_VIEW.yours;
+  }
   return state.claudeActiveAt !== null && now - state.claudeActiveAt < ACTIVE_FOR_MS
     ? TURN_VIEW.working
     : TURN_VIEW.idle;
@@ -51,7 +59,9 @@ const TITLE_MAX = 60;
 
 /** `<turn> <project> · <skill> · <subject>`, at most 60 characters. */
 export function tabTitle(state: PageState, now: number): string {
-  if (!state.run) return 'Workbench';
+  if (!state.run) {
+    return 'Workbench';
+  }
   const title = `${PREFIX[turnView(state, now)](state.run)}${state.run.project} · ${state.run.skill} · ${state.run.subject}`;
   return title.length > TITLE_MAX ? `${title.slice(0, TITLE_MAX - 1)}…` : title;
 }
@@ -66,8 +76,12 @@ export function typingIn(
   sentFrom: string | undefined,
   threadId: string,
 ): string | undefined {
-  if (!state.run || sentFrom !== threadId || state.connection.kind !== CONNECTION.live) return undefined;
-  if (turnView(state, now) !== TURN_VIEW.working) return undefined;
+  if (!state.run || sentFrom !== threadId || state.connection.kind !== CONNECTION.live) {
+    return undefined;
+  }
+  if (turnView(state, now) !== TURN_VIEW.working) {
+    return undefined;
+  }
   return state.run.statusLine ? `Claude: ${state.run.statusLine}` : 'Claude is thinking…';
 }
 

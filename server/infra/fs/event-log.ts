@@ -6,7 +6,7 @@ import { readFile, truncate } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { RecordedEvent, UnsequencedEvent } from '@shared/contract.ts';
 import type { EventLog } from '@server/kernel/ports.ts';
-import { appendLine, readJson, writeAtomic } from './files.ts';
+import { appendLine, isErrno, readJson, writeAtomic } from './files.ts';
 
 /**
  * Appends are serialised by the caller: every change to a run, the append included, runs under
@@ -18,7 +18,9 @@ export class FsEventLog implements EventLog {
 
   private async dir(runId: string): Promise<string> {
     const folder = await this.folderOf(runId);
-    if (!folder) throw new Error(`no folder for run ${runId}`);
+    if (!folder) {
+      throw new Error(`no folder for run ${runId}`);
+    }
     return folder;
   }
 
@@ -26,7 +28,9 @@ export class FsEventLog implements EventLog {
     try {
       return await readFile(join(await this.dir(runId), 'events.log'), 'utf8');
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '';
+      if (isErrno(error, 'ENOENT')) {
+        return '';
+      }
       throw error;
     }
   }
@@ -37,7 +41,8 @@ export class FsEventLog implements EventLog {
     lines.pop();
     return lines.filter(Boolean).flatMap((line, index) => {
       try {
-        return [JSON.parse(line) as RecordedEvent];
+        const event: RecordedEvent = JSON.parse(line);
+        return [event];
       } catch {
         console.error(`workbench: events.log of run ${runId}, line ${index + 1} is not valid JSON; skipped`);
         return [];
@@ -49,8 +54,9 @@ export class FsEventLog implements EventLog {
     const file = join(await this.dir(runId), 'events.log');
     const text = await this.read(runId);
     // A torn last line from a crash: cut it off, or the new line would be glued to it and lost.
-    if (text && !text.endsWith('\n'))
+    if (text && !text.endsWith('\n')) {
       await truncate(file, Buffer.byteLength(text.slice(0, text.lastIndexOf('\n') + 1)));
+    }
     const seq = (await this.all(runId)).at(-1)?.seq ?? 0;
     await appendLine(file, JSON.stringify({ ...event, seq: seq + 1 }));
     return seq + 1;
@@ -68,6 +74,8 @@ export class FsEventLog implements EventLog {
   async markDelivered(runId: string, seq: number): Promise<void> {
     const file = join(await this.dir(runId), 'delivered.json');
     const cur = (await readJson<{ seq: number }>(file))?.seq ?? 0;
-    if (seq > cur) await writeAtomic(file, JSON.stringify({ seq }));
+    if (seq > cur) {
+      await writeAtomic(file, JSON.stringify({ seq }));
+    }
   }
 }

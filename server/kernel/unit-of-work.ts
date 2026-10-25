@@ -15,7 +15,9 @@ export interface RunDeps {
 
 export async function loadRun(store: RunStore, runId: string): Promise<RunState> {
   const run = await store.load(runId);
-  if (!run) throw new WorkbenchError('not-found', `no run ${runId}`);
+  if (!run) {
+    throw new WorkbenchError('not-found', `no run ${runId}`);
+  }
   return run;
 }
 

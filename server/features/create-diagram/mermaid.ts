@@ -35,27 +35,34 @@ function validate(spec: DiagramSpec): void {
     const nodes = spec.nodes.map((node) => node.id);
     const groups = spec.groups.map((group) => group.id);
     const repeated = dupes([...nodes, ...groups]);
-    if (repeated.length)
+    if (repeated.length) {
       throw new WorkbenchError('invalid', `diagram ids must be unique: ${[...new Set(repeated)].join(', ')}`);
+    }
     for (const node of spec.nodes) {
-      if (node.group && !groups.includes(node.group))
+      if (node.group && !groups.includes(node.group)) {
         throw new WorkbenchError('invalid', `node ${node.id} is in unknown group ${node.group}`);
+      }
     }
     for (const edge of spec.edges) {
       for (const end of [edge.from, edge.to]) {
-        if (!nodes.includes(end) && !groups.includes(end))
+        if (!nodes.includes(end) && !groups.includes(end)) {
           throw new WorkbenchError('invalid', `edge ${edge.from} -> ${edge.to} names unknown node ${end}`);
+        }
       }
     }
   } else {
     const ids = spec.participants.map((participant) => participant.id);
     const repeated = dupes(ids);
-    if (repeated.length)
+    if (repeated.length) {
       throw new WorkbenchError('invalid', `participant ids must be unique: ${[...new Set(repeated)].join(', ')}`);
+    }
     for (const step of spec.steps) {
       const used = 'note' in step ? step.over : [step.from, step.to];
-      for (const id of used)
-        if (!ids.includes(id)) throw new WorkbenchError('invalid', `step names unknown participant ${id}`);
+      for (const id of used) {
+        if (!ids.includes(id)) {
+          throw new WorkbenchError('invalid', `step names unknown participant ${id}`);
+        }
+      }
     }
   }
 }
@@ -64,11 +71,15 @@ export function toMermaid(spec: DiagramSpec): string {
   validate(spec);
   if (spec.type === 'sequence') {
     const lines = ['sequenceDiagram'];
-    for (const participant of spec.participants)
+    for (const participant of spec.participants) {
       lines.push(`    participant ${participant.id} as ${escapeLabel(participant.label)}`);
+    }
     for (const step of spec.steps) {
-      if ('note' in step) lines.push(`    Note over ${step.over.join(',')}: ${escapeLabel(step.note)}`);
-      else lines.push(`    ${step.from}${step.reply ? '-->>' : '->>'}${step.to}: ${escapeLabel(step.text)}`);
+      if ('note' in step) {
+        lines.push(`    Note over ${step.over.join(',')}: ${escapeLabel(step.note)}`);
+      } else {
+        lines.push(`    ${step.from}${step.reply ? '-->>' : '->>'}${step.to}: ${escapeLabel(step.text)}`);
+      }
     }
     return lines.join('\n');
   }
@@ -77,11 +88,14 @@ export function toMermaid(spec: DiagramSpec): string {
     `${indent}${flowNode.id}["${escapeLabel(flowNode.label)}"]`;
   for (const group of spec.groups) {
     lines.push(`    subgraph ${group.id}["${escapeLabel(group.label)}"]`);
-    for (const member of spec.nodes.filter((flowNode) => flowNode.group === group.id))
+    for (const member of spec.nodes.filter((flowNode) => flowNode.group === group.id)) {
       lines.push(nodeLine(member, '      '));
+    }
     lines.push('    end');
   }
-  for (const loose of spec.nodes.filter((flowNode) => !flowNode.group)) lines.push(nodeLine(loose, '    '));
+  for (const loose of spec.nodes.filter((flowNode) => !flowNode.group)) {
+    lines.push(nodeLine(loose, '    '));
+  }
   for (const edge of spec.edges) {
     const arrow = edge.dashed ? '-.->' : '-->';
     lines.push(`    ${edge.from} ${arrow}${edge.label ? `|"${escapeLabel(edge.label)}"|` : ''} ${edge.to}`);

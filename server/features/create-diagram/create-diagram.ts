@@ -12,7 +12,9 @@ import { toMermaid, toOutline } from './mermaid.ts';
 
 export function createDiagram(deps: RunDeps & { ids: Ids }, input: { runId: string; spec: unknown }) {
   const parsed = DiagramSpec.safeParse(input.spec);
-  if (!parsed.success) throw new WorkbenchError('invalid', 'diagram spec is not valid', parsed.error.issues);
+  if (!parsed.success) {
+    throw new WorkbenchError('invalid', 'diagram spec is not valid', parsed.error.issues);
+  }
   const mermaid = toMermaid(parsed.data);
   const outline = toOutline(parsed.data);
   return changeRun(deps, input.runId, (run) => {

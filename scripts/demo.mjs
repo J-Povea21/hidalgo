@@ -23,7 +23,9 @@ await client.connect(transport);
 const call = async (name, args) => {
   const result = await client.callTool({ name, arguments: args }, undefined, { timeout: 30 * 60 * 1000 });
   const body = JSON.parse(result.content[0].text);
-  if (result.isError) throw new Error(`${name}: ${body.message}`);
+  if (result.isError) {
+    throw new Error(`${name}: ${body.message}`);
+  }
   return body;
 };
 
@@ -116,7 +118,9 @@ console.log(`demo run ${runId} ready (data in ${data})`);
 let first = true;
 for (;;) {
   const { events, timedOut } = await call('wait_for_events', { runId });
-  if (timedOut) continue;
+  if (timedOut) {
+    continue;
+  }
   for (const event of events) {
     console.log('event', JSON.stringify(event));
     if (first && event.thread) {
@@ -128,13 +132,15 @@ for (;;) {
       });
       continue;
     }
-    if (event.thread)
+    if (event.thread) {
       await call('send_message', {
         runId,
         replyTo: event.seq,
         text: `Received: “${event.text}”${event.images ? ` with ${event.images.length} image(s)` : ''}.`,
       });
-    if (event.type === 'answers')
+    }
+    if (event.type === 'answers') {
       await call('set_status', { runId, line: 'applying your answers' }).then(() => call('set_status', { runId }));
+    }
   }
 }

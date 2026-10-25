@@ -28,8 +28,10 @@ export class FsRunStore implements RunStore {
 
   private async dirOf(runId: string): Promise<string | undefined> {
     const known = this.dirs.get(runId);
-    if (known) return known;
-    for (const project of await readdir(join(this.root, 'runs')).catch(() => [] as string[])) {
+    if (known) {
+      return known;
+    }
+    for (const project of await readdir(join(this.root, 'runs')).catch((): string[] => [])) {
       const dir = join(this.root, 'runs', project, runId);
       if (
         await access(join(dir, 'run.json')).then(
@@ -50,10 +52,14 @@ export class FsRunStore implements RunStore {
 
   private async file(runId: string): Promise<RunFile | undefined> {
     const cached = this.files.get(runId);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
     const dir = await this.dirOf(runId);
     const runFile = dir ? await readJson<RunFile>(join(dir, 'run.json')) : undefined;
-    if (runFile) this.files.set(runId, runFile);
+    if (runFile) {
+      this.files.set(runId, runFile);
+    }
     return runFile;
   }
 
@@ -77,12 +83,14 @@ export class FsRunStore implements RunStore {
   }
 
   async list(project?: string): Promise<RunState[]> {
-    const projects = project ? [slug(project)] : await readdir(join(this.root, 'runs')).catch(() => [] as string[]);
+    const projects = project ? [slug(project)] : await readdir(join(this.root, 'runs')).catch((): string[] => []);
     const runs: RunState[] = [];
     for (const folder of projects) {
-      for (const id of await readdir(join(this.root, 'runs', folder)).catch(() => [] as string[])) {
+      for (const id of await readdir(join(this.root, 'runs', folder)).catch((): string[] => [])) {
         const runFile = await readJson<RunFile>(join(this.root, 'runs', folder, id, 'run.json'));
-        if (runFile) runs.push(runFile.state);
+        if (runFile) {
+          runs.push(runFile.state);
+        }
       }
     }
     return runs.sort((left, right) => right.startedAt.localeCompare(left.startedAt));
@@ -90,7 +98,9 @@ export class FsRunStore implements RunStore {
 
   async remove(runId: string): Promise<void> {
     const dir = await this.dirOf(runId);
-    if (dir) await removeTree(dir);
+    if (dir) {
+      await removeTree(dir);
+    }
     this.dirs.delete(runId);
     this.files.delete(runId);
   }
@@ -109,7 +119,9 @@ export class FsRunStore implements RunStore {
   async rememberServing(runId: string, port: number, ownerPid: number): Promise<void> {
     const runFile = await this.file(runId);
     const dir = await this.dirOf(runId);
-    if (!runFile || !dir || (runFile.port === port && runFile.ownerPid === ownerPid)) return;
+    if (!runFile || !dir || (runFile.port === port && runFile.ownerPid === ownerPid)) {
+      return;
+    }
     const next = { ...runFile, port, ownerPid };
     await writeAtomic(join(dir, 'run.json'), JSON.stringify(next));
     this.files.set(runId, next);
@@ -121,7 +133,9 @@ export class FsRunStore implements RunStore {
    */
   async noteViewer(runId: string, at: string): Promise<void> {
     const dir = await this.dirOf(runId);
-    if (dir) await writeAtomic(join(dir, 'viewer.json'), JSON.stringify({ at }));
+    if (dir) {
+      await writeAtomic(join(dir, 'viewer.json'), JSON.stringify({ at }));
+    }
   }
 
   async lastViewer(runId: string): Promise<string | undefined> {
@@ -132,10 +146,12 @@ export class FsRunStore implements RunStore {
   /** Runs not closed that this Claude Code process was serving before its workbench restarted. */
   async ownedBy(ownerPid: number): Promise<string[]> {
     const ids: string[] = [];
-    for (const project of await readdir(join(this.root, 'runs')).catch(() => [] as string[])) {
-      for (const id of await readdir(join(this.root, 'runs', project)).catch(() => [] as string[])) {
+    for (const project of await readdir(join(this.root, 'runs')).catch((): string[] => [])) {
+      for (const id of await readdir(join(this.root, 'runs', project)).catch((): string[] => [])) {
         const runFile = await readJson<RunFile>(join(this.root, 'runs', project, id, 'run.json'));
-        if (runFile && runFile.ownerPid === ownerPid && runFile.state.status !== RUN_STATUS.closed) ids.push(id);
+        if (runFile && runFile.ownerPid === ownerPid && runFile.state.status !== RUN_STATUS.closed) {
+          ids.push(id);
+        }
       }
     }
     return ids;

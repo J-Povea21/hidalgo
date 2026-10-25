@@ -37,7 +37,9 @@ export const T0 = '2026-10-24T22:00:00.000Z';
 export async function until(ok: () => boolean | Promise<boolean>, ms = 3000): Promise<void> {
   const end = Date.now() + ms;
   while (!(await ok())) {
-    if (Date.now() > end) throw new Error(`condition not met within ${ms} ms`);
+    if (Date.now() > end) {
+      throw new Error(`condition not met within ${ms} ms`);
+    }
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }

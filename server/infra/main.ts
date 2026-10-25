@@ -37,7 +37,9 @@ registerTools(server, wb);
 
 let ending = false;
 async function end(reason: string): Promise<void> {
-  if (ending) return;
+  if (ending) {
+    return;
+  }
   ending = true;
   await wb.shutdown(reason).catch(() => undefined);
   process.exit(0);

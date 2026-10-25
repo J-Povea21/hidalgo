@@ -12,7 +12,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 const hook = resolve(__dirname, '..', 'dist', 'stop-hook.mjs');
 const dirs: string[] = [];
 afterEach(() => {
-  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  for (const dir of dirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 /** Runs the hook N times from one parent; returns what each run printed. */

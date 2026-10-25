@@ -32,16 +32,22 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const loose = Object.entries({ ...pkg.dependencies, ...pkg.devDependencies }).filter(
   ([, version]) => !/^\d+\.\d+\.\d+$/.test(version),
 );
-if (loose.length) fail(`not exact: ${loose.map(([name, version]) => `${name}@${version}`).join(', ')}`);
+if (loose.length) {
+  fail(`not exact: ${loose.map(([name, version]) => `${name}@${version}`).join(', ')}`);
+}
 console.log('ok');
 
 // 2. Install scripts stay off, and installs come from the committed lockfile.
 process.stdout.write('• install scripts disabled… ');
-if (!/^ignore-scripts=true$/m.test(readFileSync(join(root, '.npmrc'), 'utf8')))
+if (!/^ignore-scripts=true$/m.test(readFileSync(join(root, '.npmrc'), 'utf8'))) {
   fail('.npmrc must set ignore-scripts=true');
-if (!existsSync(join(root, 'pnpm-lock.yaml'))) fail('pnpm-lock.yaml is missing: install with pnpm, never npm');
-if (existsSync(join(root, 'package-lock.json')))
+}
+if (!existsSync(join(root, 'pnpm-lock.yaml'))) {
+  fail('pnpm-lock.yaml is missing: install with pnpm, never npm');
+}
+if (existsSync(join(root, 'package-lock.json'))) {
   fail('package-lock.json found: this package is installed with pnpm only');
+}
 console.log('ok');
 
 // 3. Architecture rules. A cruise that reads nothing passes vacuously (it did once,
@@ -61,8 +67,9 @@ process.stdout.write('• dependency rules… ');
     report = JSON.parse(String(error.stdout || '{}'));
   }
   const summary = report.summary ?? {};
-  if (!summary.totalCruised || summary.totalCruised < 10)
+  if (!summary.totalCruised || summary.totalCruised < 10) {
     fail(`dependency-cruiser read only ${summary.totalCruised ?? 0} modules: the rules checked nothing`);
+  }
   if (summary.violations?.length) {
     fail(
       summary.violations.map((violation) => `  ${violation.rule.name}: ${violation.from} → ${violation.to}`).join('\n'),
@@ -99,13 +106,15 @@ try {
   const dist = join(root, 'dist');
   const committed = list(dist),
     fresh = list(out);
-  if (committed.join('\n') !== fresh.join('\n'))
+  if (committed.join('\n') !== fresh.join('\n')) {
     fail(
       `dist/ files differ from a fresh build.\n committed: ${committed.join(', ')}\n fresh:     ${fresh.join(', ')}\nRun pnpm run build and commit dist/.`,
     );
+  }
   const changed = committed.filter((path) => !readFileSync(join(dist, path)).equals(readFileSync(join(out, path))));
-  if (changed.length)
+  if (changed.length) {
     fail(`dist/ is stale or edited by hand: ${changed.join(', ')}\nRun pnpm run build and commit dist/.`);
+  }
   console.log('ok');
 
   // 8. Size budget: what the page loads before any diagram appears. app.js plus
@@ -115,21 +124,28 @@ try {
   const client = join(dist, 'client');
   const seen = new Set();
   const walk = (rel) => {
-    if (seen.has(rel)) return;
+    if (seen.has(rel)) {
+      return;
+    }
     seen.add(rel);
     const src = readFileSync(join(client, rel), 'utf8');
     const dynamic = new Set([...src.matchAll(/import\(\s*"([^"]+)"\s*\)/g)].map((match) => match[1]));
     for (const match of src.matchAll(/from\s*"(\.{1,2}\/[^"]+)"/g)) {
-      if (dynamic.has(match[1])) continue;
+      if (dynamic.has(match[1])) {
+        continue;
+      }
       walk(join(rel, '..', match[1]).replace(/^\.\//, ''));
     }
   };
   walk('app.js');
   const scriptKb = [...seen].reduce((total, file) => total + statSync(join(client, file)).size, 0) / 1024;
   const stylesKb = statSync(join(client, 'styles.css')).size / 1024;
-  if (scriptKb > BUDGET_KB.script)
+  if (scriptKb > BUDGET_KB.script) {
     fail(`first-load script is ${scriptKb.toFixed(0)} KB over ${seen.size} file(s); budget ${BUDGET_KB.script} KB`);
-  if (stylesKb > BUDGET_KB.styles) fail(`styles.css is ${stylesKb.toFixed(0)} KB; budget ${BUDGET_KB.styles} KB`);
+  }
+  if (stylesKb > BUDGET_KB.styles) {
+    fail(`styles.css is ${stylesKb.toFixed(0)} KB; budget ${BUDGET_KB.styles} KB`);
+  }
   console.log(
     `ok (first load: ${scriptKb.toFixed(0)} KB script in ${seen.size} file(s), ${stylesKb.toFixed(0)} KB styles)`,
   );

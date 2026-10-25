@@ -2,14 +2,14 @@
  * One conversation: the feed, and a composer that takes text, pasted or dropped
  * images (shrunk before sending), and quotes from the item. ⌘/Ctrl+Enter sends.
  */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Diagram, Message } from '@shared/contract.ts';
-import { loadDraft, saveDraft } from '@client/infra/drafts.ts';
-import { compress, MAX_PER_MESSAGE } from '@client/infra/images.ts';
-import { Markdown } from '@client/ui/markdown.tsx';
-import { time, toast, Typing } from '@client/ui/parts.tsx';
 import { PARTY } from '@shared/values.ts';
+import { BrowserDraftStore } from '@client/infra/drafts.ts';
 import { CLASS, classes } from '@client/ui/classes.ts';
+import { Markdown } from '@client/ui/markdown.tsx';
+import { time, Typing } from '@client/ui/parts.tsx';
+import { useAttachments } from './useAttachments.ts';
 
 export interface ThreadProps {
   runId: string;
@@ -29,57 +29,64 @@ export interface ThreadProps {
   onZoom: (html?: string, src?: string) => void;
 }
 
-const mac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
+/** The send shortcut as the user's keyboard labels it, for the composer's placeholder. */
+const SEND_SHORTCUT = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? '⌘+Enter' : 'Ctrl+Enter';
+/** The composer grows with its text up to this height, then scrolls. */
+const COMPOSER_MAX_HEIGHT_PX = 140;
 
 export function Thread(props: ThreadProps) {
-  const [text, setText] = useState<string>(() => loadDraft(props.runId, `text:${props.threadId}`, ''));
-  const [images, setImages] = useState<string[]>([]);
-  const [drag, setDrag] = useState(false);
+  const drafts = useMemo(() => new BrowserDraftStore(props.runId), [props.runId]);
+  const draftKey = `text:${props.threadId}`;
+  const [text, setText] = useState<string>(() => drafts.load(draftKey, ''));
+  const { images, setImages, attach, remove } = useAttachments();
+  const [dragging, setDragging] = useState(false);
   const feed = useRef<HTMLDivElement>(null);
-  const box = useRef<HTMLTextAreaElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => saveDraft(props.runId, `text:${props.threadId}`, text), [text]);
+  useEffect(() => drafts.save(draftKey, text), [text]);
   useEffect(() => {
     feed.current?.scrollTo({ top: feed.current.scrollHeight });
   }, [props.messages.length, props.typing]);
   useEffect(() => {
-    if (!props.quote) return;
+    if (!props.quote) {
+      return;
+    }
+    // Quote each line Markdown-style above whatever the user had written.
     const quoted = props.quote.text
       .split('\n')
       .map((line) => `> ${line}`)
       .join('\n');
     setText((current) => `${quoted}\n\n${current}`);
-    box.current?.focus();
-    box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    composer.current?.focus();
+    composer.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [props.quote?.nonce]);
 
-  const add = async (files: FileList | File[]) => {
-    const list = [...files].filter((file) => file.type.startsWith('image/'));
-    if (!list.length) return;
-    if (images.length >= MAX_PER_MESSAGE) return toast(`Up to ${MAX_PER_MESSAGE} images per message`);
-    const urls = await Promise.all(list.slice(0, MAX_PER_MESSAGE - images.length).map(compress));
-    let kept = 0;
-    setImages((cur) => {
-      const next = [...cur, ...urls].slice(0, MAX_PER_MESSAGE);
-      kept = next.length - cur.length;
-      return next;
-    });
-    toast(
-      kept < list.length
-        ? `Attached ${kept}; up to ${MAX_PER_MESSAGE} per message`
-        : `${kept} image${kept > 1 ? 's' : ''} attached`,
-    );
-  };
-
   const send = async () => {
-    if (!text.trim() && !images.length) return;
-    const [sentText, imgs] = [text, images];
+    const nothingToSend = !text.trim() && images.length === 0;
+    if (nothingToSend) {
+      return;
+    }
+    const [sentText, sentImages] = [text, images];
     setText('');
     setImages([]);
-    if (!(await props.onSend(sentText, imgs))) {
+    const delivered = await props.onSend(sentText, sentImages);
+    if (!delivered) {
       setText(sentText);
-      setImages(imgs);
+      setImages(sentImages);
     }
+  };
+
+  const chooseFiles = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = () => {
+      if (input.files) {
+        void attach(input.files);
+      }
+    };
+    input.click();
   };
 
   return (
@@ -116,16 +123,18 @@ export function Thread(props: ThreadProps) {
         {props.typing && <Typing label={props.typing} />}
       </div>
       <div
-        class={classes('composewrap', drag && CLASS.dragging)}
+        class={classes('composewrap', dragging && CLASS.dragging)}
         onDragOver={(event) => {
           event.preventDefault();
-          setDrag(true);
+          setDragging(true);
         }}
-        onDragLeave={() => setDrag(false)}
+        onDragLeave={() => setDragging(false)}
         onDrop={(event) => {
           event.preventDefault();
-          setDrag(false);
-          if (event.dataTransfer?.files) void add(event.dataTransfer.files);
+          setDragging(false);
+          if (event.dataTransfer?.files) {
+            void attach(event.dataTransfer.files);
+          }
         }}
       >
         {images.length > 0 && (
@@ -133,10 +142,7 @@ export function Thread(props: ThreadProps) {
             {images.map((src, position) => (
               <div class="thumb" key={position}>
                 <img src={src} alt={`Attachment ${position + 1}`} />
-                <button
-                  aria-label="Remove image"
-                  onClick={() => setImages(images.filter((_, otherPosition) => otherPosition !== position))}
-                >
+                <button aria-label="Remove image" onClick={() => remove(position)}>
                   ×
                 </button>
               </div>
@@ -144,43 +150,32 @@ export function Thread(props: ThreadProps) {
           </div>
         )}
         <div class="compose">
-          <button
-            class="ghost"
-            aria-label="Attach images"
-            disabled={props.disabled}
-            onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/*';
-              input.multiple = true;
-              input.onchange = () => input.files && void add(input.files);
-              input.click();
-            }}
-          >
+          <button class="ghost" aria-label="Attach images" disabled={props.disabled} onClick={chooseFiles}>
             📎
           </button>
           <textarea
-            ref={box}
+            ref={composer}
             rows={1}
             aria-label={props.hint}
-            placeholder={`${props.hint} Paste or drop images. ${mac ? '⌘' : 'Ctrl'}+Enter to send.`}
+            placeholder={`${props.hint} Paste or drop images. ${SEND_SHORTCUT} to send.`}
             value={text}
             disabled={props.disabled}
             onInput={(event) => {
-              const textarea = event.target as HTMLTextAreaElement;
+              const textarea = event.currentTarget;
               setText(textarea.value);
               textarea.style.height = 'auto';
-              textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`;
+              textarea.style.height = `${Math.min(textarea.scrollHeight, COMPOSER_MAX_HEIGHT_PX)}px`;
             }}
             onPaste={(event) => {
               const files = event.clipboardData?.files;
               if (files?.length) {
                 event.preventDefault();
-                void add(files);
+                void attach(files);
               }
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+              const isSendShortcut = event.key === 'Enter' && (event.metaKey || event.ctrlKey);
+              if (isSendShortcut) {
                 event.preventDefault();
                 void send();
               }
@@ -195,28 +190,31 @@ export function Thread(props: ThreadProps) {
   );
 }
 
-/** Stored images need the token, which an <img> can't send: fetch them, show a blob URL. */
 interface StoredImageProps {
   name: string;
   load: (name: string) => Promise<string>;
   onZoom: (src: string) => void;
 }
 
+/** A stored image needs the token, which an <img> can't send: it is fetched and shown as a blob URL. */
 function StoredImage(props: StoredImageProps) {
   const [src, setSrc] = useState<string>();
   useEffect(() => {
-    let live = true;
+    let mounted = true;
     props.load(props.name).then(
-      (url) => live && setSrc(url),
+      (url) => mounted && setSrc(url),
       () => undefined,
     );
     return () => {
-      live = false;
+      mounted = false;
     };
   }, [props.name]);
-  return src ? (
+  if (!src) {
+    return null;
+  }
+  return (
     <button type="button" class="stored" aria-label="Attached image. Open full size" onClick={() => props.onZoom(src)}>
       <img src={src} alt="" />
     </button>
-  ) : null;
+  );
 }

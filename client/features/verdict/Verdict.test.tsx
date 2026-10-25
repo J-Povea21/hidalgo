@@ -13,7 +13,7 @@ const openQ = anOpenQuestion();
 describe('Verdict', () => {
   it('blocks Approve while a question is open, and says why', () => {
     render(<Verdict item={item({ questions: [openQ] })} disabled={false} onVerdict={() => {}} />);
-    expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Approve' })).toHaveProperty('disabled', true);
     expect(screen.getByText('Answer the 1 open question first')).toBeTruthy();
   });
 

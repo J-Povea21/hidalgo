@@ -41,7 +41,9 @@ function webpSize(bytes: Buffer): { width: number; height: number } {
   expect(bytes.subarray(0, 4).toString('latin1')).toBe('RIFF');
   expect(bytes.subarray(8, 12).toString('latin1')).toBe('WEBP');
   const chunk = bytes.subarray(12, 16).toString('latin1');
-  if (chunk === 'VP8X') return { width: 1 + bytes.readUIntLE(24, 3), height: 1 + bytes.readUIntLE(27, 3) };
+  if (chunk === 'VP8X') {
+    return { width: 1 + bytes.readUIntLE(24, 3), height: 1 + bytes.readUIntLE(27, 3) };
+  }
   if (chunk === 'VP8L') {
     const bits = bytes.readUInt32LE(21);
     return { width: 1 + (bits & 0x3fff), height: 1 + ((bits >> 14) & 0x3fff) };
@@ -101,7 +103,9 @@ test('Mermaid loads only when a diagram is shown; the diagram draws and opens fu
   const run = await claude.opensRun();
   const mermaidRequests: string[] = [];
   user.page.on('request', (request) => {
-    if (/mermaid/i.test(request.url())) mermaidRequests.push(request.url());
+    if (/mermaid/i.test(request.url())) {
+      mermaidRequests.push(request.url());
+    }
   });
   await user.opens(run);
   await user.opensRunDrawer();

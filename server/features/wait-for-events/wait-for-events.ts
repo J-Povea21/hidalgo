@@ -42,7 +42,9 @@ export interface WaitDeps extends RunDeps {
 export function takeEvents(deps: WaitDeps, runId: string): Promise<DeliveredEvent[]> {
   return deps.lock.exclusive(runId, async () => {
     const events = await deps.log.undelivered(runId);
-    if (!events.length) return [];
+    if (!events.length) {
+      return [];
+    }
     const run = await loadRun(deps.store, runId);
     // Resolved before marking delivered, so a failure here hands the events over next time.
     const names = events.flatMap((ev) => (ev.type === 'message' ? (ev.images ?? []) : []));
@@ -101,7 +103,9 @@ export async function waitForEvents(
   runId: string,
 ): Promise<{ events: DeliveredEvent[]; timedOut: boolean }> {
   const ready = await takeEvents(deps, runId);
-  if (ready.length) return { events: ready, timedOut: false };
+  if (ready.length) {
+    return { events: ready, timedOut: false };
+  }
 
   // Register the wait BEFORE handing over the turn, then look once more: an event recorded
   // in between rang a bell nobody was listening to, so ring it again ourselves.
@@ -109,7 +113,9 @@ export async function waitForEvents(
   let outcome: 'event' | 'timeout';
   try {
     await setTurnTo(deps, runId, PARTY.user);
-    if ((await deps.log.undelivered(runId)).length) deps.signal.ring(runId);
+    if ((await deps.log.undelivered(runId)).length) {
+      deps.signal.ring(runId);
+    }
     outcome = await woken;
   } finally {
     await setTurnTo(deps, runId, PARTY.claude);

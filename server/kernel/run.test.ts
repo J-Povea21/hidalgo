@@ -26,7 +26,7 @@ const code = (fn: () => unknown) => {
   try {
     fn();
   } catch (error) {
-    return (error as WorkbenchError).code;
+    return error instanceof WorkbenchError ? error.code : 'not a WorkbenchError';
   }
   return 'no error';
 };
@@ -57,7 +57,7 @@ describe('items', () => {
     const { ids, run } = start();
     const r1 = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
     const { run: r2, rev } = updateItem(r1, 'i1', { proposal: { priority: 'normal' } });
-    const fields = r2.items[0]!.fields as ReturnType<typeof card>;
+    const { fields } = r2.items[0]!;
     expect(rev).toBe(2);
     expect(fields.proposal).toEqual({ ...card().proposal, priority: 'normal' });
     expect(fields.title).toBe(card().title);
@@ -108,7 +108,7 @@ describe('the approval gate', () => {
     const { run } = ready();
     const edited = applyEdit(run, 'i1', 'criteria.1.text', 'A test per input type');
     const item = edited.items[0]!;
-    expect((item.fields as ReturnType<typeof card>).criteria[1]!.text).toBe('A test per input type');
+    expect(item.fields.criteria[1]!.text).toBe('A test per input type');
     expect(item.edits).toEqual({ 'criteria.1.text': 'A test per input type' });
     expect(item.rev).toBe(2);
     expect(code(() => applyEdit(run, 'i1', 'criteria.9.text', 'x'))).toBe('invalid');

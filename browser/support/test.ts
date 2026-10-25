@@ -49,7 +49,9 @@ export const test = base.extend<Fixtures>({
       started.push(session);
       return session;
     });
-    for (const session of started) await session.ends();
+    for (const session of started) {
+      await session.ends();
+    }
   },
   user: async ({ page }, use) => {
     await use(new UserInPage(page));
@@ -57,7 +59,9 @@ export const test = base.extend<Fixtures>({
   net: async ({ page }, use) => {
     const net: Net = { tokenRequests: [] };
     page.on('request', (request) => {
-      if (request.headers()[TOKEN_HEADER]) net.tokenRequests.push(request.url());
+      if (request.headers()[TOKEN_HEADER]) {
+        net.tokenRequests.push(request.url());
+      }
     });
     await use(net);
   },

@@ -69,7 +69,9 @@ export class ClaudeSession {
       isError?: boolean;
     };
     const body = JSON.parse(result.content[0]!.text);
-    if (result.isError) throw new Error(`${name}: ${body.message ?? JSON.stringify(body)}`);
+    if (result.isError) {
+      throw new Error(`${name}: ${body.message ?? JSON.stringify(body)}`);
+    }
     return body;
   }
 
@@ -166,7 +168,9 @@ export class ClaudeSession {
   /** The server dies without a goodbye, as in a crash. */
   async crashes(): Promise<void> {
     const pid = this.transport.pid;
-    if (pid) process.kill(pid, 'SIGKILL');
+    if (pid) {
+      process.kill(pid, 'SIGKILL');
+    }
     await this.client.close().catch(() => undefined);
   }
 

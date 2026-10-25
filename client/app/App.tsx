@@ -13,7 +13,8 @@ import { Progress } from '@client/features/progress/Progress.tsx';
 import { Questions } from '@client/features/questions/Questions.tsx';
 import { useTab } from '@client/features/tab/useTab.ts';
 import { Thread } from '@client/features/thread/Thread.tsx';
-import type { Api, Session } from '@client/infra/api.ts';
+import type { WorkbenchServer } from '@client/core/ports.ts';
+import type { Session } from '@client/infra/session.ts';
 import { CLASS, classes } from '@client/ui/classes.ts';
 import { ChatIcon, LayersIcon, Lightbox, Toaster, toast } from '@client/ui/parts.tsx';
 import { useItemNavigation, useNow, useSend, useUnread } from './hooks.ts';
@@ -39,11 +40,11 @@ const SENT = {
 };
 
 interface AppProps {
-  api: Api;
+  server: WorkbenchServer;
   session: Session;
 }
 
-export function App({ api, session }: AppProps) {
+export function App({ server, session }: AppProps) {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [drawer, setDrawer] = useState<Drawer | undefined>();
   /** The thread something was last sent from: it shows Claude working until Claude listens again. */
@@ -53,11 +54,11 @@ export function App({ api, session }: AppProps) {
   const now = useNow(TICK_MS);
   const { run } = state;
   const { itemIndex, goTo, slide, slideDone } = useItemNavigation(session.runId, run?.items.length ?? 0);
-  const send = useSend(api, setSentFrom);
+  const send = useSend(server, setSentFrom);
 
   useEffect(
     () =>
-      api.follow({
+      server.follow({
         state: (next, presence) => dispatch(actions.state(next, presence)),
         presence: (presence) => dispatch(actions.presence(presence)),
         connection: (connection) => dispatch(actions.connection(connection)),
@@ -66,7 +67,9 @@ export function App({ api, session }: AppProps) {
     [],
   );
   useEffect(() => {
-    if (state.claudeListening) setSentFrom(undefined);
+    if (state.claudeListening) {
+      setSentFrom(undefined);
+    }
   }, [state.claudeListening]);
   // For tests and styling: the connection state apart from its wording.
   useEffect(() => {
@@ -82,7 +85,7 @@ export function App({ api, session }: AppProps) {
   const unread = useUnread(fromClaude.length, drawer === DRAWER.run);
 
   const reportDiagram = useCallback((diagramId: string, error: string) => {
-    void api.sendEvent({ type: 'diagram-failed', diagramId, error }).catch(() => undefined);
+    void server.sendEvent({ type: 'diagram-failed', diagramId, error }).catch(() => undefined);
   }, []);
   const zoomIn = useCallback((html?: string, src?: string) => setZoom({ html, src }), []);
 
@@ -102,7 +105,7 @@ export function App({ api, session }: AppProps) {
     runId: run.id,
     diagrams: run.diagrams,
     disabled: busy,
-    imageSrc: api.imageBlob,
+    imageSrc: server.imageBlob,
     onDiagramFailed: reportDiagram,
     onZoom: zoomIn,
   };
@@ -156,7 +159,7 @@ export function App({ api, session }: AppProps) {
                 }
               />
             )}
-            {drawer === DRAWER.reviews && <OpenReviews currentRunId={run.id} load={api.liveRuns} />}
+            {drawer === DRAWER.reviews && <OpenReviews currentRunId={run.id} load={server.liveRuns} />}
           </div>
         </div>
       </div>

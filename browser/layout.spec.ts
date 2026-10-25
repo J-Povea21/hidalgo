@@ -53,7 +53,9 @@ test('while the next item slides in, nothing covers its buttons', async ({ claud
   await user.goesToNextItem();
   // Checked at once, mid-animation: a click where a button is now reaches that button.
   const covered = await user.page.evaluate(() => {
-    if (!document.querySelector('.slide.in-right')) return 'the slide was already over';
+    if (!document.querySelector('.slide.in-right')) {
+      return 'the slide was already over';
+    }
     return [...document.querySelectorAll<HTMLButtonElement>('.verdict button, .compose button')]
       .filter((button) => {
         const rect = button.getBoundingClientRect();

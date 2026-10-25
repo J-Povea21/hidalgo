@@ -12,7 +12,9 @@ export class MemoryRunLock implements RunLock {
     const tail = next.catch(() => undefined);
     this.tails.set(runId, tail);
     void tail.then(() => {
-      if (this.tails.get(runId) === tail) this.tails.delete(runId);
+      if (this.tails.get(runId) === tail) {
+        this.tails.delete(runId);
+      }
     });
     return next;
   }
@@ -29,7 +31,9 @@ export class MemorySignal implements EventSignal {
   private pending = new Map<string, Set<(why: 'event' | 'timeout') => void>>();
 
   ring(runId: string): void {
-    for (const wake of this.pending.get(runId) ?? []) wake('event');
+    for (const wake of this.pending.get(runId) ?? []) {
+      wake('event');
+    }
   }
 
   wait(runId: string, timeoutMs: number): Promise<'event' | 'timeout'> {
@@ -39,7 +43,9 @@ export class MemorySignal implements EventSignal {
       const done = (why: 'event' | 'timeout') => {
         clearTimeout(timer);
         set.delete(done);
-        if (!set.size) this.pending.delete(runId);
+        if (!set.size) {
+          this.pending.delete(runId);
+        }
         resolve(why);
       };
       const timer = setTimeout(() => done('timeout'), timeoutMs);

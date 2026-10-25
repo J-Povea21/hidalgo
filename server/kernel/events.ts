@@ -2,7 +2,7 @@
  * Applying a recorded page event to a run. Used when the event arrives and
  * when logged events are replayed after a crash, so both paths agree.
  */
-import type { RecordedEvent, RunState } from '@shared/contract.ts';
+import type { RecordedEvent, RunState, UnsequencedEvent } from '@shared/contract.ts';
 import { addMessage, applyAnswers, applyEdit, applyVerdict, rememberEventThread, threadOfItem } from './run.ts';
 import { PARTY } from '@shared/values.ts';
 
@@ -16,6 +16,11 @@ export function threadOfEvent(run: RunState, ev: RecordedEvent): string | undefi
     default:
       return threadOfItem(run, ev.itemId);
   }
+}
+
+/** An event with its place in the log. */
+export function sequenced(event: UnsequencedEvent, seq: number): RecordedEvent {
+  return { ...event, seq };
 }
 
 /** Throws a WorkbenchError when the event can't apply (stale revision, open questions, unknown thread). */
@@ -46,7 +51,9 @@ export function applyEvent(run: RunState, ev: RecordedEvent): RunState {
       break;
   }
   const thread = threadOfEvent(run, ev);
-  if (thread) next = rememberEventThread(next, ev.seq, thread);
+  if (thread) {
+    next = rememberEventThread(next, ev.seq, thread);
+  }
   return { ...next, appliedSeq: Math.max(next.appliedSeq, ev.seq) };
 }
 
@@ -54,7 +61,9 @@ export function applyEvent(run: RunState, ev: RecordedEvent): RunState {
 export function replay(run: RunState, events: RecordedEvent[]): RunState {
   let next = run;
   for (const ev of events) {
-    if (ev.seq <= next.appliedSeq) continue;
+    if (ev.seq <= next.appliedSeq) {
+      continue;
+    }
     try {
       next = applyEvent(next, ev);
     } catch {

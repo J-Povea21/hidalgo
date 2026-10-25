@@ -2,7 +2,8 @@
 import { useEffect } from 'preact/hooks';
 import type { TurnView } from '@client/core/selectors.ts';
 
-const COLOR: Record<TurnView, string> = {
+/** The favicon dot's colour for each turn. The browser tests read these too. */
+export const TURN_COLOR: Record<TurnView, string> = {
   yours: '#c27c0e',
   working: '#2f5bd3',
   idle: '#9b9a94',
@@ -10,25 +11,45 @@ const COLOR: Record<TurnView, string> = {
   offline: '#9b9a94',
 };
 
+const ICON_SIZE_PX = 32;
+const DOT_RADIUS_PX = 12;
+
 export function useTab(title: string, turn: TurnView): void {
   useEffect(() => {
     document.title = title;
   }, [title]);
   useEffect(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 32;
-    const drawing = canvas.getContext('2d');
-    if (!drawing) return;
-    drawing.fillStyle = COLOR[turn];
-    drawing.beginPath();
-    drawing.arc(16, 16, 12, 0, Math.PI * 2);
-    drawing.fill();
-    let link = document.querySelector<HTMLLinkElement>('link[rel=icon]');
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      document.head.appendChild(link);
+    const dot = drawDot(TURN_COLOR[turn]);
+    if (dot) {
+      faviconLink().href = dot;
     }
-    link.href = canvas.toDataURL();
   }, [turn]);
+}
+
+/** A filled circle in `color`, as a data URL; undefined if the browser can't draw. */
+function drawDot(color: string): string | undefined {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = ICON_SIZE_PX;
+  const drawing = canvas.getContext('2d');
+  if (!drawing) {
+    return undefined;
+  }
+  const centre = ICON_SIZE_PX / 2;
+  drawing.fillStyle = color;
+  drawing.beginPath();
+  drawing.arc(centre, centre, DOT_RADIUS_PX, 0, Math.PI * 2);
+  drawing.fill();
+  return canvas.toDataURL();
+}
+
+/** The page's icon link, created the first time. */
+function faviconLink(): HTMLLinkElement {
+  const existing = document.querySelector<HTMLLinkElement>('link[rel=icon]');
+  if (existing) {
+    return existing;
+  }
+  const link = document.createElement('link');
+  link.rel = 'icon';
+  document.head.appendChild(link);
+  return link;
 }

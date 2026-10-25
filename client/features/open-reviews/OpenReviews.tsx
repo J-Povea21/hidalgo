@@ -2,12 +2,18 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { LiveEntry } from '@shared/contract.ts';
 
-export function OpenReviews(props: { currentRunId: string; load: () => Promise<LiveEntry[]> }) {
-  const [runs, setRuns] = useState<LiveEntry[] | undefined>();
+interface OpenReviewsProps {
+  currentRunId: string;
+  load: () => Promise<LiveEntry[]>;
+}
+
+export function OpenReviews(props: OpenReviewsProps) {
+  /** undefined while loading. */
+  const [others, setOthers] = useState<LiveEntry[]>();
   useEffect(() => {
     props.load().then(
-      (entries) => setRuns(entries.filter((entry) => entry.runId !== props.currentRunId)),
-      () => setRuns([]),
+      (entries) => setOthers(entries.filter((entry) => entry.runId !== props.currentRunId)),
+      () => setOthers([]),
     );
   }, []);
   return (
@@ -16,26 +22,33 @@ export function OpenReviews(props: { currentRunId: string; load: () => Promise<L
         <h2>Open reviews</h2>
         <span class="meta">on this machine</span>
       </div>
-      {runs === undefined ? (
-        <div class="section meta">Loading…</div>
-      ) : runs.length === 0 ? (
-        <div class="section meta">No other review is open.</div>
-      ) : (
-        <ul class="runs">
-          {runs.map((entry) => (
-            <li key={entry.runId}>
-              <a href={entry.url} target="_blank" rel="noopener">
-                <span>
-                  <b>{entry.project}</b> · {entry.skill} · {entry.subject}
-                </span>
-                <span class="meta">
-                  {entry.claudeListening ? `${entry.pendingForUser} waiting on you` : 'Claude is working'}
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ReviewList others={others} />
     </section>
+  );
+}
+
+function ReviewList(props: { others: LiveEntry[] | undefined }) {
+  const { others } = props;
+  if (others === undefined) {
+    return <div class="section meta">Loading…</div>;
+  }
+  if (others.length === 0) {
+    return <div class="section meta">No other review is open.</div>;
+  }
+  return (
+    <ul class="runs">
+      {others.map((entry) => (
+        <li key={entry.runId}>
+          <a href={entry.url} target="_blank" rel="noopener">
+            <span>
+              <b>{entry.project}</b> · {entry.skill} · {entry.subject}
+            </span>
+            <span class="meta">
+              {entry.claudeListening ? `${entry.pendingForUser} waiting on you` : 'Claude is working'}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
   );
 }

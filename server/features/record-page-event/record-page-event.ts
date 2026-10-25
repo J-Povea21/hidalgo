@@ -6,9 +6,9 @@
  * An event that can't apply (a stale revision, an open question) is refused
  * with the reason and never logged, so the user sees why at once.
  */
-import { PageEvent, type RecordedEvent, type UnsequencedEvent } from '@shared/contract.ts';
+import { PageEvent, type UnsequencedEvent } from '@shared/contract.ts';
 import { WorkbenchError } from '@server/kernel/errors.ts';
-import { applyEvent } from '@server/kernel/events.ts';
+import { applyEvent, sequenced } from '@server/kernel/events.ts';
 import type {
   Clock,
   EventLog,
@@ -51,7 +51,9 @@ async function storeImages(
   runId: string,
   urls: string[],
 ): Promise<{ names: string[]; nearLimit: boolean }> {
-  if (!urls.length) return { names: [], nearLimit: false };
+  if (!urls.length) {
+    return { names: [], nearLimit: false };
+  }
   if (urls.some((url) => !/^data:image\/(webp|png|jpeg|gif);base64,/.test(url))) {
     throw new WorkbenchError('invalid', 'images must be WebP, PNG, JPEG or GIF data URLs');
   }
@@ -63,7 +65,9 @@ async function storeImages(
     );
   }
   const names: string[] = [];
-  for (const url of urls) names.push(await deps.images.save(runId, url));
+  for (const url of urls) {
+    names.push(await deps.images.save(runId, url));
+  }
   return { names, nearLimit: total > deps.limits.imageWarnBytes };
 }
 
@@ -73,7 +77,9 @@ export async function recordPageEvent(
   raw: unknown,
 ): Promise<{ seq: number; imageWarning?: string }> {
   const parsed = PageEvent.safeParse(raw);
-  if (!parsed.success) throw new WorkbenchError('invalid', 'event is not valid', parsed.error.issues);
+  if (!parsed.success) {
+    throw new WorkbenchError('invalid', 'event is not valid', parsed.error.issues);
+  }
   const event = parsed.data;
 
   // The whole check-log-apply happens under the run's lock, so nothing changes the run in between.
@@ -82,12 +88,12 @@ export async function recordPageEvent(
     const at = deps.clock.now();
 
     // Dry run against the current state: refuse before logging or storing anything.
-    applyEvent(run, { ...toRecorded(event, [], at), seq: run.appliedSeq + 1 } as RecordedEvent);
+    applyEvent(run, sequenced(toRecorded(event, [], at), run.appliedSeq + 1));
 
     const { names, nearLimit } = await storeImages(deps, runId, event.type === 'message' ? event.images : []);
     const recorded = toRecorded(event, names, at);
     const seq = await deps.log.append(runId, recorded);
-    const next = applyEvent(run, { ...recorded, seq } as RecordedEvent);
+    const next = applyEvent(run, sequenced(recorded, seq));
     await deps.store.save(next);
     deps.page.publish(next);
     deps.signal.ring(runId);

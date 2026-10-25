@@ -20,9 +20,13 @@ export function isFinal(item: Item): boolean {
 }
 
 export function itemStatus(item: Item): ItemStatus {
-  if (openQuestions(item).length) return ITEM_STATUS.questions;
+  if (openQuestions(item).length) {
+    return ITEM_STATUS.questions;
+  }
   const verdict = currentVerdict(item);
-  if (verdict === VERDICT.approved) return item.done ? ITEM_STATUS.done : ITEM_STATUS.approved;
+  if (verdict === VERDICT.approved) {
+    return item.done ? ITEM_STATUS.done : ITEM_STATUS.approved;
+  }
   return verdict ?? ITEM_STATUS.ready;
 }
 

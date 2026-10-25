@@ -33,11 +33,19 @@ export async function appendLine(file: string, line: string): Promise<void> {
   }
 }
 
+/** A Node error carrying an errno code (`ENOENT`, `EPERM`…). */
+export function isErrno(error: unknown, code: string): boolean {
+  return error instanceof Error && 'code' in error && error.code === code;
+}
+
 export async function readJson<T>(file: string): Promise<T | undefined> {
   try {
-    return JSON.parse(await readFile(file, 'utf8')) as T;
+    const value: T = JSON.parse(await readFile(file, 'utf8'));
+    return value;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    if (isErrno(error, 'ENOENT')) {
+      return undefined;
+    }
     throw error;
   }
 }

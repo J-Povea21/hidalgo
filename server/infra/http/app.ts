@@ -82,7 +82,9 @@ export function createApp(deps: HttpDeps): Hono {
   });
 
   app.use('*', async (context, next) => {
-    if (!own().includes(context.req.header('host') ?? '')) return context.text('wrong host', 421);
+    if (!own().includes(context.req.header('host') ?? '')) {
+      return context.text('wrong host', 421);
+    }
     context.header('X-Content-Type-Options', 'nosniff');
     context.header('Referrer-Policy', 'no-referrer');
     context.header('Cache-Control', 'no-store');
@@ -97,7 +99,9 @@ export function createApp(deps: HttpDeps): Hono {
     const runId = context.req.query('run') ?? '';
     const nonce = context.req.query('nonce') ?? '';
     const token = runId ? await deps.token(runId) : undefined;
-    if (!token || !/^[0-9a-f]{32,128}$/.test(nonce)) return context.json({ error: 'unknown run or bad nonce' }, 404);
+    if (!token || !/^[0-9a-f]{32,128}$/.test(nonce)) {
+      return context.json({ error: 'unknown run or bad nonce' }, 404);
+    }
     // The build is inside the proof, so a page only believes "you're on an older build" from a server that holds the token.
     return context.json({
       server: 'workbench',
@@ -109,12 +113,15 @@ export function createApp(deps: HttpDeps): Hono {
 
   app.use('/api/*', async (context, next) => {
     const origin = context.req.header('origin');
-    if (context.req.method !== 'GET' && !(origin && own().some((host) => origin === `http://${host}`)))
+    if (context.req.method !== 'GET' && !(origin && own().some((host) => origin === `http://${host}`))) {
       return context.json({ error: 'foreign origin' }, 403);
+    }
     const runId = context.req.query('run') ?? '';
     const expected = runId ? await deps.token(runId) : undefined;
     const given = context.req.header(TOKEN_HEADER) ?? '';
-    if (!expected || !sameToken(given, expected)) return context.json({ error: 'not authorised for this run' }, 401);
+    if (!expected || !sameToken(given, expected)) {
+      return context.json({ error: 'not authorised for this run' }, 401);
+    }
     await next();
   });
 
@@ -131,7 +138,9 @@ export function createApp(deps: HttpDeps): Hono {
     return streamSSE(context, async (stream) => {
       let open = true;
       const off = deps.hub.subscribe(runId, (msg) => {
-        if (!open) return;
+        if (!open) {
+          return;
+        }
         const payload = msg.type === 'state' ? { ...msg, ...presence(runId) } : msg;
         void stream.writeSSE({ event: msg.type, data: JSON.stringify(payload) });
       });
@@ -141,7 +150,9 @@ export function createApp(deps: HttpDeps): Hono {
       });
       while (open) {
         await stream.sleep(15_000);
-        if (open) await stream.writeSSE({ event: 'ping', data: JSON.stringify(presence(runId)) });
+        if (open) {
+          await stream.writeSSE({ event: 'ping', data: JSON.stringify(presence(runId)) });
+        }
       }
     });
   });
@@ -179,7 +190,9 @@ export function createApp(deps: HttpDeps): Hono {
 
   app.get('*', async (context) => {
     const rel = context.req.path === '/' ? 'index.html' : normalize(context.req.path).replace(/^([/\\])+/, '');
-    if (rel.includes('..')) return context.text('not found', 404);
+    if (rel.includes('..')) {
+      return context.text('not found', 404);
+    }
     try {
       const body = await readFile(join(deps.clientDir, rel));
       const type = TYPES[extname(rel)] ?? 'application/octet-stream';

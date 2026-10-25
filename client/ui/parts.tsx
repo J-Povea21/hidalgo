@@ -100,7 +100,7 @@ interface LightboxProps {
 export function Lightbox(props: LightboxProps) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     box.current?.focus();
     const onKey = (event: KeyboardEvent) => event.key === 'Escape' && props.onClose();
     addEventListener('keydown', onKey);

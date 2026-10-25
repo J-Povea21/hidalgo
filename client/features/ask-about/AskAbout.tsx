@@ -5,25 +5,32 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 
-const BUTTON_HALF_WIDTH = 55;
-const BUTTON_LIFT = 40;
+interface AskAboutProps {
+  /** A selector for where a selection counts, e.g. the item preview. */
+  within: string;
+  onQuote: (text: string) => void;
+}
 
-export function AskAbout(props: { within: string; onQuote: (text: string) => void }) {
-  const [ask, setAsk] = useState<{ x: number; y: number; text: string }>();
+/** Where the button shows, and what it would quote. */
+interface Offer {
+  left: number;
+  top: number;
+  text: string;
+}
+
+/** Half the button's width, to centre it over the selection, and how far above the selection it sits. */
+const BUTTON_HALF_WIDTH_PX = 55;
+const BUTTON_LIFT_PX = 40;
+
+export function AskAbout(props: AskAboutProps) {
+  const [offer, setOffer] = useState<Offer>();
 
   useEffect(() => {
     const check = (event: Event) => {
-      if ((event.target as HTMLElement | null)?.closest?.('.askbtn')) return;
-      const sel = getSelection();
-      const text = sel?.toString().trim();
-      const inside = sel?.anchorNode?.parentElement?.closest(props.within);
-      if (!text || !inside || !sel?.rangeCount) return setAsk(undefined);
-      const rect = sel.getRangeAt(0).getBoundingClientRect();
-      setAsk({
-        x: rect.left + scrollX + rect.width / 2 - BUTTON_HALF_WIDTH,
-        y: rect.top + scrollY - BUTTON_LIFT,
-        text,
-      });
+      const clickedTheButton = event.target instanceof Element && event.target.closest('.askbtn');
+      if (!clickedTheButton) {
+        setOffer(offerFor(getSelection(), props.within));
+      }
     };
     addEventListener('mouseup', check);
     addEventListener('keyup', check);
@@ -33,18 +40,35 @@ export function AskAbout(props: { within: string; onQuote: (text: string) => voi
     };
   }, [props.within]);
 
-  if (!ask) return null;
+  if (!offer) {
+    return null;
+  }
   return (
     <button
       class="askbtn"
-      style={{ left: `${ask.x}px`, top: `${ask.y}px` }}
+      style={{ left: `${offer.left}px`, top: `${offer.top}px` }}
       onClick={() => {
-        props.onQuote(ask.text);
-        setAsk(undefined);
+        props.onQuote(offer.text);
+        setOffer(undefined);
         getSelection()?.removeAllRanges();
       }}
     >
       Ask about this
     </button>
   );
+}
+
+/** An offer for a non-empty selection inside `within`, placed just above it; otherwise none. */
+function offerFor(selection: Selection | null, within: string): Offer | undefined {
+  const text = selection?.toString().trim();
+  const isInside = !!selection?.anchorNode?.parentElement?.closest(within);
+  if (!selection || !text || !isInside || selection.rangeCount === 0) {
+    return undefined;
+  }
+  const rect = selection.getRangeAt(0).getBoundingClientRect();
+  return {
+    left: rect.left + scrollX + rect.width / 2 - BUTTON_HALF_WIDTH_PX,
+    top: rect.top + scrollY - BUTTON_LIFT_PX,
+    text,
+  };
 }

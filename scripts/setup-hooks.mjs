@@ -12,7 +12,9 @@ const hooksDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '..', '.g
 
 try {
   // Inside a git hook, GIT_DIR is set and skews paths; the hook running proves it's wired.
-  if (process.env.GIT_DIR) process.exit(0);
+  if (process.env.GIT_DIR) {
+    process.exit(0);
+  }
   const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
   const want = relative(top, hooksDir);
   let current = '';

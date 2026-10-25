@@ -29,7 +29,9 @@ describe('list-runs', () => {
       now: T0,
       threadId: ids('t'),
     });
-    for (const run of [mine, theirs, elsewhere]) await fakes.store.save(run);
+    for (const run of [mine, theirs, elsewhere]) {
+      await fakes.store.save(run);
+    }
     await fakes.live.write({
       runId: 'r2',
       project: 'MiPlan',

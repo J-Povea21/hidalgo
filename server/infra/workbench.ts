@@ -49,14 +49,15 @@ export const DEFAULT_LIMITS: Limits = {
   waitTimeoutMs: 25 * 60 * 1000,
 };
 
+/** How each OS opens an address in the default browser; anything else is assumed to have xdg-open. */
+const BROWSER_OPENER: Partial<Record<NodeJS.Platform, (url: string) => [string, string[]]>> = {
+  darwin: (url) => ['open', [url]],
+  win32: (url) => ['cmd', ['/c', 'start', '', url]],
+};
+
 export function openInBrowser(url: string): void {
-  const [cmd, args]: [string, string[]] =
-    process.platform === 'darwin'
-      ? ['open', [url]]
-      : process.platform === 'win32'
-        ? ['cmd', ['/c', 'start', '', url]]
-        : ['xdg-open', [url]];
-  spawn(cmd, args, { stdio: 'ignore', detached: true }).unref();
+  const [command, args] = BROWSER_OPENER[process.platform]?.(url) ?? ['xdg-open', [url]];
+  spawn(command, args, { stdio: 'ignore', detached: true }).unref();
 }
 
 export class Workbench {
@@ -103,7 +104,9 @@ export class Workbench {
     const bell = new MemorySignal();
     const announce = (id: string) => {
       const cur = this.hub.current(id);
-      if (cur) this.hub.publish(cur);
+      if (cur) {
+        this.hub.publish(cur);
+      }
       void this.beat(id);
     };
     this.signal = {
@@ -132,14 +135,18 @@ export class Workbench {
 
   private urlOf(runId: string): string {
     const token = this.tokens.get(runId);
-    if (!token) throw new Error(`run ${runId} has no token loaded`);
+    if (!token) {
+      throw new Error(`run ${runId} has no token loaded`);
+    }
     return `http://127.0.0.1:${this.port}/#run=${encodeURIComponent(runId)}&t=${token}`;
   }
 
   /** Binds the page's port on first use, preferring the one a resumed run used before. */
   async serve(runId: string): Promise<void> {
     const token = await this.store.token(runId);
-    if (!token) throw new Error(`run ${runId} has no token and can't be served`);
+    if (!token) {
+      throw new Error(`run ${runId} has no token and can't be served`);
+    }
     this.tokens.set(runId, token);
     this.listening ??= this.store
       .port(runId)
@@ -149,7 +156,9 @@ export class Workbench {
     this.served.add(runId);
     await this.beat(runId);
     this.heartbeat ??= setInterval(() => {
-      for (const id of this.served) void this.beat(id);
+      for (const id of this.served) {
+        void this.beat(id);
+      }
     }, this.config.heartbeatMs);
   }
 
@@ -161,9 +170,13 @@ export class Workbench {
         token: async (id) => (this.served.has(id) ? this.tokens.get(id) : undefined),
         hub: this.hub,
         ensureState: async (id) => {
-          if (this.hub.current(id)) return;
+          if (this.hub.current(id)) {
+            return;
+          }
           const run = await this.store.load(id);
-          if (run) this.hub.publish(run);
+          if (run) {
+            this.hub.publish(run);
+          }
         },
         recordEvent: this.recordEvent,
         imageFile: (id, name) => this.images.path(id, name),
@@ -182,7 +195,9 @@ export class Workbench {
 
   /** Rewrites the run's live entry. Never throws: a missed heartbeat is retried on the next one. */
   private async beatRun(run: RunState): Promise<void> {
-    if (!this.served.has(run.id) || !this.port) return;
+    if (!this.served.has(run.id) || !this.port) {
+      return;
+    }
     try {
       await this.live.write(
         liveEntry(
@@ -205,8 +220,12 @@ export class Workbench {
 
   private async beat(runId: string): Promise<void> {
     const run = this.hub.current(runId) ?? (await this.store.load(runId));
-    if (run) await this.beatRun(run);
-    if (this.hub.viewers(runId) > 0) await this.noteViewer(runId);
+    if (run) {
+      await this.beatRun(run);
+    }
+    if (this.hub.viewers(runId) > 0) {
+      await this.noteViewer(runId);
+    }
   }
 
   private noteViewer(runId: string): Promise<void> {
@@ -219,9 +238,13 @@ export class Workbench {
    * a second one while the first sits between retries. A page this server saw leave is gone.
    */
   async reattach(runId: string): Promise<number> {
-    if (this.hub.viewers(runId) > 0) return this.hub.viewers(runId);
+    if (this.hub.viewers(runId) > 0) {
+      return this.hub.viewers(runId);
+    }
     const seen = Date.parse((await this.store.lastViewer(runId)) ?? '');
-    if (!(seen < this.bornAt) || Date.parse(this.clock.now()) - seen > RECENT_VIEWER_MS) return 0;
+    if (!(seen < this.bornAt) || Date.parse(this.clock.now()) - seen > RECENT_VIEWER_MS) {
+      return 0;
+    }
     await this.hub.waitForViewer(runId, this.config.reattachWaitMs ?? REATTACH_WAIT_MS);
     return this.hub.viewers(runId);
   }
@@ -231,9 +254,13 @@ export class Workbench {
    * reconnects (on the run's old port when it's free) and sees the change.
    */
   async ensureServed(runId: string): Promise<void> {
-    if (this.served.has(runId)) return;
+    if (this.served.has(runId)) {
+      return;
+    }
     const run = await this.store.load(runId);
-    if (run && run.status !== RUN_STATUS.closed) await this.serve(runId);
+    if (run && run.status !== RUN_STATUS.closed) {
+      await this.serve(runId);
+    }
   }
 
   /**
@@ -244,7 +271,9 @@ export class Workbench {
    */
   async reserveOwnRuns(): Promise<string[]> {
     const ids = await this.store.ownedBy(this.ownerPid);
-    for (const id of ids) await this.serve(id).catch(() => undefined);
+    for (const id of ids) {
+      await this.serve(id).catch(() => undefined);
+    }
     return ids;
   }
 
@@ -260,17 +289,25 @@ export class Workbench {
   /** Closed runs past retention are deleted; open and paused runs are the user's to decide. */
   async sweep(): Promise<string[]> {
     const gone = expired(await this.store.list(), this.clock.now(), this.config.retentionDays);
-    for (const id of gone) await this.store.remove(id);
+    for (const id of gone) {
+      await this.store.remove(id);
+    }
     return gone;
   }
 
   /** The session ended normally: tell every page, take the live entries down, stop serving. */
   async shutdown(reason: string): Promise<void> {
     this.hub.goodbye(reason);
-    if (this.heartbeat) clearInterval(this.heartbeat);
-    for (const id of this.served) await this.live.remove(id).catch(() => undefined);
+    if (this.heartbeat) {
+      clearInterval(this.heartbeat);
+    }
+    for (const id of this.served) {
+      await this.live.remove(id).catch(() => undefined);
+    }
     const grace = this.config.goodbyeGraceMs ?? 150;
-    if (grace) await new Promise((resolve) => setTimeout(resolve, grace));
+    if (grace) {
+      await new Promise((resolve) => setTimeout(resolve, grace));
+    }
     this.http?.close();
   }
 

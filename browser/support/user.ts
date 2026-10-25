@@ -79,7 +79,9 @@ export class UserInPage {
   favicon(): Promise<string> {
     return this.page.evaluate(async () => {
       const href = document.querySelector<HTMLLinkElement>('link[rel=icon]')?.href;
-      if (!href) return 'none';
+      if (!href) {
+        return 'none';
+      }
       const image = new Image();
       image.src = href;
       await image.decode();

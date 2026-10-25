@@ -32,10 +32,12 @@ export async function openSession(
 ): Promise<{ run: RunState; resumed: boolean }> {
   if (input.resume) {
     const saved = await deps.store.load(input.resume);
-    if (!saved)
+    if (!saved) {
       throw new WorkbenchError('not-found', `no run ${input.resume} to resume; list_runs shows the project's runs`);
-    if (saved.status === RUN_STATUS.closed)
+    }
+    if (saved.status === RUN_STATUS.closed) {
       throw new WorkbenchError('closed', `run ${input.resume} is closed and can't be resumed`);
+    }
     const run = reopen(replay(saved, await deps.log.after(saved.id, saved.appliedSeq)));
     await deps.store.save(run);
     deps.page.publish(run);

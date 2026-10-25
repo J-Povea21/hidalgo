@@ -5,7 +5,7 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { DiagramSpec, ItemKinds, QuestionSpec, type ItemKind } from '@shared/contract.ts';
+import { DiagramSpec, ITEM_KINDS, ItemKinds, QuestionSpec } from '@shared/contract.ts';
 import { runThreadId } from '@shared/rules.ts';
 import { addItems } from '@server/features/add-items/add-items.ts';
 import { ask } from '@server/features/ask/ask.ts';
@@ -29,14 +29,14 @@ const err = (error: unknown): Result => {
   const known = error instanceof WorkbenchError ? error : undefined;
   const body = known
     ? { error: known.code, message: known.message, ...(known.details ? { details: known.details } : {}) }
-    : { error: 'internal', message: String((error as Error)?.message ?? error) };
+    : { error: 'internal', message: error instanceof Error ? error.message : String(error) };
   return { content: [{ type: 'text', text: JSON.stringify(body) }], isError: true };
 };
 
 const RunId = z.string().describe('The run id open_session returned.');
 /** One input shape per registered kind, derived from ItemKinds: adding a kind needs no change here. */
-const [firstKind, ...otherKinds] = (Object.entries(ItemKinds) as [ItemKind, (typeof ItemKinds)[ItemKind]][]).map(
-  ([kind, fields]) => z.object({ kind: z.literal(kind), fields, questions: z.array(QuestionSpec).optional() }),
+const [firstKind, ...otherKinds] = ITEM_KINDS.map((kind) =>
+  z.object({ kind: z.literal(kind), fields: ItemKinds[kind], questions: z.array(QuestionSpec).optional() }),
 );
 const ItemInput = z.discriminatedUnion('kind', [firstKind!, ...otherKinds]);
 
@@ -45,14 +45,14 @@ export function registerTools(server: McpServer, wb: Workbench): void {
   const deps = wb;
 
   /** Runs the slice, then attaches whatever the user did since the last delivery. */
-  const withEvents = async (runId: string, act: () => Promise<unknown>): Promise<Result> => {
+  const withEvents = async (runId: string, act: () => Promise<object>): Promise<Result> => {
     try {
       // A run touched after a restart is served again, so its open page sees the change.
       await wb.ensureServed(runId);
       wb.markActive(runId);
       const result = await act();
       const events = await takeEvents(deps, runId);
-      return ok(events.length ? { ...(result as object), events } : result);
+      return ok(events.length ? { ...result, events } : result);
     } catch (error) {
       return err(error);
     }
@@ -78,8 +78,11 @@ export function registerTools(server: McpServer, wb: Workbench): void {
         // A page already connected to this run (or about to reconnect) is the one the user has: tell it, don't open another.
         const viewers = resumed ? await wb.reattach(run.id) : 0;
         const alreadyOpen = viewers > 0;
-        if (alreadyOpen) wb.hub.nudge(run.id, 'Claude resumed this run.');
-        else wb.open(wb.address.url(run.id));
+        if (alreadyOpen) {
+          wb.hub.nudge(run.id, 'Claude resumed this run.');
+        } else {
+          wb.open(wb.address.url(run.id));
+        }
         const events = resumed ? await takeEvents(deps, run.id) : [];
         return ok({
           runId: run.id,

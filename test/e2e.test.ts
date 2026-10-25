@@ -14,10 +14,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { registerTools } from '@server/infra/mcp/tools.ts';
 import { Workbench } from '@server/infra/workbench.ts';
 import { card, question, until } from './fixtures.ts';
+import { readToolResult } from './tool-result.ts';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
-  for (const cleanup of cleanups.splice(0)) await cleanup();
+  for (const cleanup of cleanups.splice(0)) {
+    await cleanup();
+  }
 });
 
 async function boot(dataRoot?: string, ownerPid?: number, reattachWaitMs = 0) {
@@ -48,15 +51,15 @@ async function boot(dataRoot?: string, ownerPid?: number, reattachWaitMs = 0) {
     },
     () => rmSync(clientDir, { recursive: true, force: true }),
   );
-  if (!dataRoot) cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+  if (!dataRoot) {
+    cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+  }
   const call = async (name: string, args: Record<string, unknown>) => {
-    const result = (await client.callTool({ name, arguments: args })) as {
-      content: { text: string }[];
-      isError?: boolean;
-    };
-    const text = result.content[0]!.text;
-    if (!text.startsWith('{')) throw new Error(`${name}: ${text}`);
-    return { ...JSON.parse(text), isError: !!result.isError };
+    const { body, isError } = readToolResult(await client.callTool({ name, arguments: args }));
+    if (!body.startsWith('{')) {
+      throw new Error(`${name}: ${body}`);
+    }
+    return { ...JSON.parse(body), isError };
   };
   return { wb, call, opened, root };
 }
@@ -70,16 +73,24 @@ function http(
   return new Promise<{ status: number; json: any }>((resolve, reject) => {
     const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
     const headers: Record<string, string> = { host: opts.host ?? `127.0.0.1:${port}` };
-    if (opts.token) headers['x-workbench-token'] = opts.token;
-    if (opts.origin !== null) headers['origin'] = opts.origin ?? `http://127.0.0.1:${port}`;
-    if (body) headers['content-type'] = 'application/json';
+    if (opts.token) {
+      headers['x-workbench-token'] = opts.token;
+    }
+    if (opts.origin !== null) {
+      headers['origin'] = opts.origin ?? `http://127.0.0.1:${port}`;
+    }
+    if (body) {
+      headers['content-type'] = 'application/json';
+    }
     const req = request({ host: '127.0.0.1', port, path, method: opts.method ?? 'GET', headers }, (res) => {
       let data = '';
       res.on('data', (chunk) => (data += chunk));
       res.on('end', () => resolve({ status: res.statusCode!, json: data.startsWith('{') ? JSON.parse(data) : data }));
     });
     req.on('error', reject);
-    if (body) req.write(body);
+    if (body) {
+      req.write(body);
+    }
     req.end();
   });
 }
@@ -133,7 +144,9 @@ describe('workbench end to end', () => {
         let buf = '';
         res.on('data', (chunk) => {
           buf += chunk;
-          for (const match of buf.matchAll(/event: state\ndata: (.*)\n/g)) pushed.push(JSON.parse(match[1]!));
+          for (const match of buf.matchAll(/event: state\ndata: (.*)\n/g)) {
+            pushed.push(JSON.parse(match[1]!));
+          }
           buf = buf.slice(buf.lastIndexOf('\n\n') + 2);
         });
       },
@@ -338,7 +351,9 @@ describe('one tab per run', () => {
       },
       (res) => {
         res.on('data', (chunk) => {
-          for (const match of String(chunk).matchAll(/event: (\w+)/g)) events.push(match[1]!);
+          for (const match of String(chunk).matchAll(/event: (\w+)/g)) {
+            events.push(match[1]!);
+          }
         });
       },
     );
@@ -459,7 +474,9 @@ describe('resume after a restart', () => {
             headers: { host: `127.0.0.1:${port}`, 'x-workbench-token': token },
           },
           (res) => {
-            if (res.statusCode === 200) return resolve(() => req.destroy());
+            if (res.statusCode === 200) {
+              return resolve(() => req.destroy());
+            }
             res.resume();
             setTimeout(attempt, 50);
           },

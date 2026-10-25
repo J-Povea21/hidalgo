@@ -193,7 +193,9 @@ test.describe('pages that must not talk to the server', () => {
       // Something else on a port: it serves the page's files but knows nothing about the run.
       stranger = createServer((incoming, response) => {
         const path = (incoming.url ?? '/').split('?')[0]!;
-        if (path.startsWith('/api/')) return void response.writeHead(404).end();
+        if (path.startsWith('/api/')) {
+          return void response.writeHead(404).end();
+        }
         const file = path === '/' ? 'index.html' : path.slice(1);
         const type = file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html';
         try {

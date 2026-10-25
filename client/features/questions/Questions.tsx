@@ -4,104 +4,81 @@
  * keyboard user can reach every option. Answers are kept as drafts until sent, so
  * nothing is lost on a reload.
  */
-import { useEffect, useRef, useState } from 'preact/hooks';
-import type { Item } from '@shared/contract.ts';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import type { Item, Question } from '@shared/contract.ts';
 import { openQuestions } from '@client/core/selectors.ts';
-import { loadDraft, saveDraft } from '@client/infra/drafts.ts';
-import { toInlineHtml } from '@client/ui/markdown.tsx';
+import { BrowserDraftStore } from '@client/infra/drafts.ts';
 import { CLASS, classes, slideToward } from '@client/ui/classes.ts';
+import { toInlineHtml } from '@client/ui/markdown.tsx';
 
+/** What the user picked (and noted) per question, not sent yet. */
 type Draft = Record<string, { choice?: number; note?: string }>;
-const inline = (markdown: string) => ({ __html: toInlineHtml(markdown) });
-
-/** Long enough to see the pick land before the next question slides in. */
-const ADVANCE_MS = 260;
+type Answers = Record<string, { choice: number; note?: string }>;
 
 interface QuestionsProps {
   runId: string;
   item: Item;
   disabled: boolean;
-  onSend: (answers: Record<string, { choice: number; note?: string }>) => Promise<boolean>;
+  onSend: (answers: Answers) => Promise<boolean>;
 }
+
+/** Long enough to see the pick land before the next question slides in. */
+const ADVANCE_MS = 260;
+const FIRST_QUESTION = 0;
 
 export function Questions(props: QuestionsProps) {
   const { item } = props;
   const open = openQuestions(item);
-  const key = `answers:${item.id}`;
-  const [draft, setDraft] = useState<Draft>(() => loadDraft(props.runId, key, {}));
-  const [pos, setPos] = useState(0);
+  const drafts = useMemo(() => new BrowserDraftStore(props.runId), [props.runId]);
+  const draftKey = `answers:${item.id}`;
+  const [draft, setDraft] = useState<Draft>(() => drafts.load(draftKey, {}));
+  const [shownIndex, setShownIndex] = useState(FIRST_QUESTION);
   const [slide, setSlide] = useState('');
   const card = useRef<HTMLDivElement>(null);
   /** Set when a pick moved on, so focus follows to the next question instead of dropping to the page. */
   const focusNext = useRef(false);
   const advance = useRef<ReturnType<typeof setTimeout>>(undefined);
+
   useEffect(() => () => clearTimeout(advance.current), []);
-  useEffect(() => saveDraft(props.runId, key, draft), [draft]);
+  useEffect(() => drafts.save(draftKey, draft), [draft]);
   useEffect(() => {
-    if (!focusNext.current) return;
+    if (!focusNext.current) {
+      return;
+    }
     focusNext.current = false;
     card.current?.querySelector<HTMLInputElement>('input[type=radio]:checked, input[type=radio]')?.focus();
-  }, [pos]);
+  }, [shownIndex]);
 
-  const answered = item.questions.filter((question) => question.answer);
-  const rulings = answered.length > 0 && (
-    <div class="section">
-      {answered.map((question) => (
-        <div class="ruling" key={question.id}>
-          ✓ <span dangerouslySetInnerHTML={inline(question.text)} />{' '}
-          <b>{question.options[question.answer!.choice]?.label}</b>
-          {question.answer!.note ? ` · “${question.answer!.note}”` : ''}
-        </div>
-      ))}
-    </div>
-  );
-
-  if (!open.length) {
-    if (!item.questions.length) return null;
-    return (
-      <section class="panel" aria-label="Questions">
-        <div class="phead">
-          <h2>Questions</h2>
-          <span class="badge ready">All answered</span>
-        </div>
-        <div class="section">
-          <div class="allset">
-            <span class="check" aria-hidden="true">
-              ✓
-            </span>
-            Nothing left to decide on this item
-          </div>
-        </div>
-        {rulings}
-      </section>
-    );
+  if (open.length === 0) {
+    return item.questions.length > 0 ? <AllAnswered questions={item.questions} /> : null;
   }
 
-  const current = Math.min(pos, open.length - 1);
+  const current = Math.min(shownIndex, open.length - 1);
   const question = open[current]!;
   const answer = draft[question.id] ?? {};
-  const ready = Object.entries(draft).filter(
-    ([id, pick]) => pick.choice !== undefined && open.some((openQuestion) => openQuestion.id === id),
-  );
+  const isLast = current === open.length - 1;
+  const picked = open.filter((openQuestion) => draft[openQuestion.id]?.choice !== undefined);
+
   const go = (target: number) => {
     setSlide(slideToward(target, current));
-    setPos(target);
+    setShownIndex(target);
   };
   const choose = (choice: number) => setDraft({ ...draft, [question.id]: { ...answer, choice } });
   const commit = (choice: number) => {
     choose(choice);
     clearTimeout(advance.current);
-    if (current < open.length - 1)
+    if (!isLast) {
       advance.current = setTimeout(() => {
         focusNext.current = true;
         go(current + 1);
       }, ADVANCE_MS);
+    }
   };
   const send = async () => {
-    const answers = Object.fromEntries(
-      ready.map(([id, pick]) => [id, { choice: pick.choice!, ...(pick.note ? { note: pick.note } : {}) }]),
-    );
-    if (await props.onSend(answers)) setDraft({});
+    const delivered = await props.onSend(answersFrom(draft, picked));
+    if (delivered) {
+      setDraft({});
+    }
   };
 
   return (
@@ -131,10 +108,16 @@ export function Questions(props: QuestionsProps) {
                 checked={answer.choice === index}
                 disabled={props.disabled}
                 onChange={() => choose(index)}
-                // A pointer click has a click count; the click a browser fires for an arrow key has none.
-                onClick={(event) => event.detail > 0 && commit(index)}
+                onClick={(event) => {
+                  // A pointer click has a click count; the click a browser fires for an arrow key has none.
+                  const isPointerClick = event.detail > 0;
+                  if (isPointerClick) {
+                    commit(index);
+                  }
+                }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
+                  const commitsChoice = event.key === 'Enter' || event.key === ' ';
+                  if (commitsChoice) {
                     event.preventDefault();
                     commit(index);
                   }
@@ -152,41 +135,91 @@ export function Questions(props: QuestionsProps) {
           placeholder="Note for Claude (optional)"
           value={answer.note ?? ''}
           disabled={props.disabled}
-          onInput={(event) =>
-            setDraft({ ...draft, [question.id]: { ...answer, note: (event.target as HTMLTextAreaElement).value } })
-          }
+          onInput={(event) => setDraft({ ...draft, [question.id]: { ...answer, note: event.currentTarget.value } })}
         />
       </div>
       <div class="qnav">
-        <button class="ghost" disabled={current === 0} onClick={() => go(current - 1)}>
+        <button class="ghost" disabled={current === FIRST_QUESTION} onClick={() => go(current - 1)}>
           Back
         </button>
         <div class="dots" role="group" aria-label="Go to question">
-          {open.map((oq, index) => (
-            <button
-              key={oq.id}
-              aria-current={index === current ? 'step' : undefined}
-              aria-label={`Question ${index + 1}${draft[oq.id]?.choice !== undefined ? ', answered' : ''}`}
-              class={classes(
-                'dot',
-                draft[oq.id]?.choice !== undefined && CLASS.answered,
-                index === current && CLASS.on,
-              )}
-              onClick={() => go(index)}
-            />
-          ))}
+          {open.map((dotQuestion, index) => {
+            const isPicked = draft[dotQuestion.id]?.choice !== undefined;
+            return (
+              <button
+                key={dotQuestion.id}
+                aria-current={index === current ? 'step' : undefined}
+                aria-label={`Question ${index + 1}${isPicked ? ', answered' : ''}`}
+                class={classes('dot', isPicked && CLASS.answered, index === current && CLASS.on)}
+                onClick={() => go(index)}
+              />
+            );
+          })}
         </div>
-        {current < open.length - 1 ? (
+        {isLast ? (
+          <button class="primary" disabled={props.disabled || picked.length === 0} onClick={send}>
+            Send {picked.length || ''} answer{picked.length === 1 ? '' : 's'}
+          </button>
+        ) : (
           <button class="ghost" onClick={() => go(current + 1)}>
             Next
           </button>
-        ) : (
-          <button class="primary" disabled={props.disabled || !ready.length} onClick={send}>
-            Send {ready.length || ''} answer{ready.length === 1 ? '' : 's'}
-          </button>
         )}
       </div>
-      {rulings}
+      <Rulings questions={item.questions} />
     </section>
   );
+}
+
+function AllAnswered(props: { questions: Question[] }) {
+  return (
+    <section class="panel" aria-label="Questions">
+      <div class="phead">
+        <h2>Questions</h2>
+        <span class="badge ready">All answered</span>
+      </div>
+      <div class="section">
+        <div class="allset">
+          <span class="check" aria-hidden="true">
+            ✓
+          </span>
+          Nothing left to decide on this item
+        </div>
+      </div>
+      <Rulings questions={props.questions} />
+    </section>
+  );
+}
+
+/** What the user already decided on this item, one line per answered question. */
+function Rulings(props: { questions: Question[] }) {
+  const answered = props.questions.filter((question) => question.answer);
+  if (answered.length === 0) {
+    return null;
+  }
+  return (
+    <div class="section">
+      {answered.map((question) => (
+        <div class="ruling" key={question.id}>
+          ✓ <span dangerouslySetInnerHTML={inline(question.text)} />{' '}
+          <b>{question.options[question.answer!.choice]?.label}</b>
+          {question.answer!.note ? ` · “${question.answer!.note}”` : ''}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The picks of the given questions, with their notes when there are any. */
+function answersFrom(draft: Draft, questions: Question[]): Answers {
+  const answers: Answers = {};
+  for (const question of questions) {
+    const pick = draft[question.id]!;
+    answers[question.id] = { choice: pick.choice!, ...(pick.note ? { note: pick.note } : {}) };
+  }
+  return answers;
+}
+
+function inline(markdown: string) {
+  return { __html: toInlineHtml(markdown) };
 }

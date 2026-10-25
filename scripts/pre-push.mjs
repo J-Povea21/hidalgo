@@ -14,7 +14,9 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 
 /** Where the pushed commits start: the remote's tip, or where a new branch left main. */
 function baseOf(localSha, remoteSha) {
-  if (!NO_COMMIT.test(remoteSha)) return remoteSha;
+  if (!NO_COMMIT.test(remoteSha)) {
+    return remoteSha;
+  }
   try {
     return git('merge-base', localSha, 'origin/main');
   } catch {
@@ -34,7 +36,9 @@ const touchesWorkbench = pushedRefs.some(
   ({ localSha, remoteSha }) =>
     git('diff', '--name-only', baseOf(localSha, remoteSha), localSha, '--', WORKBENCH) !== '',
 );
-if (!touchesWorkbench) process.exit(0);
+if (!touchesWorkbench) {
+  process.exit(0);
+}
 
 console.log('workbench: running pnpm run check before push...');
 const top = git('rev-parse', '--show-toplevel');

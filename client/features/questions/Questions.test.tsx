@@ -37,14 +37,14 @@ describe('Questions', () => {
         onSend={async () => true}
       />,
     );
-    const here = screen.getByLabelText(/Here/) as HTMLInputElement;
+    const here = screen.getByLabelText(/Here/);
     // The click a browser fires for an arrow key has no click count.
     fireEvent.click(here, { detail: 0 });
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(screen.getByText('First?')).toBeTruthy();
     fireEvent.keyDown(here, { key: 'Enter' });
     await waitFor(() => expect(screen.getByText('Second?')).toBeTruthy());
-    await waitFor(() => expect((document.activeElement as HTMLInputElement | null)?.name).toBe('q2'));
+    await waitFor(() => expect(document.activeElement).toHaveProperty('name', 'q2'));
   });
 
   it('sends the chosen answers with their notes', async () => {
@@ -63,7 +63,7 @@ describe('Questions', () => {
     fireEvent.click(screen.getByLabelText(/Here/));
     unmount();
     render(<Questions runId="r1" item={item([question('q1', 'Only?')])} disabled={false} onSend={async () => true} />);
-    expect((screen.getByLabelText(/Here/) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByLabelText(/Here/)).toHaveProperty('checked', true);
   });
 
   it('shows the rulings once every question is answered', () => {

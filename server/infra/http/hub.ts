@@ -19,7 +19,9 @@ export class PageHub implements PagePublisher {
 
   publish(run: RunState): void {
     this.latest.set(run.id, run);
-    for (const listener of this.listeners.get(run.id) ?? []) listener({ type: 'state', state: run });
+    for (const listener of this.listeners.get(run.id) ?? []) {
+      listener({ type: 'state', state: run });
+    }
   }
 
   current(runId: string): RunState | undefined {
@@ -31,15 +33,21 @@ export class PageHub implements PagePublisher {
     set.add(listener);
     this.listeners.set(runId, set);
     const now = this.latest.get(runId);
-    if (now) listener({ type: 'state', state: now });
+    if (now) {
+      listener({ type: 'state', state: now });
+    }
     this.onViewer?.(runId);
-    for (const arrived of this.arrivals.get(runId) ?? []) arrived();
+    for (const arrived of this.arrivals.get(runId) ?? []) {
+      arrived();
+    }
     return () => set.delete(listener);
   }
 
   /** Resolves true as soon as a page connects to the run, false if none does within `ms`. */
   waitForViewer(runId: string, ms: number): Promise<boolean> {
-    if (this.viewers(runId) > 0) return Promise.resolve(true);
+    if (this.viewers(runId) > 0) {
+      return Promise.resolve(true);
+    }
     return new Promise((resolve) => {
       const set = this.arrivals.get(runId) ?? new Set();
       this.arrivals.set(runId, set);
@@ -60,11 +68,17 @@ export class PageHub implements PagePublisher {
   }
 
   nudge(runId: string, text: string): void {
-    for (const listener of this.listeners.get(runId) ?? []) listener({ type: 'nudge', text });
+    for (const listener of this.listeners.get(runId) ?? []) {
+      listener({ type: 'nudge', text });
+    }
   }
 
   /** The session is ending normally: tell every open page before the server exits. */
   goodbye(reason: string): void {
-    for (const set of this.listeners.values()) for (const listener of set) listener({ type: 'goodbye', reason });
+    for (const set of this.listeners.values()) {
+      for (const listener of set) {
+        listener({ type: 'goodbye', reason });
+      }
+    }
   }
 }

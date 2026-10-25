@@ -5,6 +5,19 @@
  */
 export const TOKEN_HEADER = 'x-workbench-token';
 
+/** The events the live stream sends a page. */
+export const STREAM_EVENT = {
+  /** The run changed (and how Claude is, with it). */
+  state: 'state',
+  /** A keep-alive that also says how Claude is. */
+  ping: 'ping',
+  /** A short notice for a page already open, e.g. "Claude resumed this run". */
+  nudge: 'nudge',
+  /** The session is ending normally. */
+  goodbye: 'goodbye',
+} as const;
+export type StreamEvent = (typeof STREAM_EVENT)[keyof typeof STREAM_EVENT];
+
 declare const __WORKBENCH_BUILD__: string | undefined;
 
 /**

@@ -50,7 +50,9 @@ interface ItemNavProps {
 
 export function ItemNav(props: ItemNavProps) {
   const { items, itemIndex } = props;
-  if (items.length < 2) return null;
+  if (items.length < 2) {
+    return null;
+  }
   const isFirst = itemIndex === 0;
   const isLast = itemIndex === items.length - 1;
   return (

@@ -17,6 +17,7 @@ import {
   type VerdictValue,
 } from '@shared/contract.ts';
 import { currentVerdict, isFinal, openQuestions } from '@shared/rules.ts';
+import type { z } from 'zod';
 import { WorkbenchError } from './errors.ts';
 import { PARTY, RUN_STATUS, VERDICT } from '@shared/values.ts';
 
@@ -53,29 +54,43 @@ export function newRun(init: {
 
 export function runThreadId(run: RunState): string {
   const thread = run.threads.find((candidate) => candidate.owner.type === 'run');
-  if (!thread) throw new WorkbenchError('invalid', 'run has no run thread');
+  if (!thread) {
+    throw new WorkbenchError('invalid', 'run has no run thread');
+  }
   return thread.id;
 }
 
 /** A closed run is final: every change to it is refused. A paused run still takes changes and stays resumable. */
 function assertOpen(run: RunState): void {
-  if (run.status === RUN_STATUS.closed) throw new WorkbenchError('closed', `run ${run.id} is closed`);
+  if (run.status === RUN_STATUS.closed) {
+    throw new WorkbenchError('closed', `run ${run.id} is closed`);
+  }
 }
 
 export function findItem(run: RunState, itemId: string): Item {
   const item = run.items.find((candidate) => candidate.id === itemId);
-  if (!item) throw new WorkbenchError('not-found', `no item ${itemId} in run ${run.id}`);
+  if (!item) {
+    throw new WorkbenchError('not-found', `no item ${itemId} in run ${run.id}`);
+  }
   return item;
 }
 
 function parseFields<K extends ItemKind>(kind: K, fields: unknown): ItemOf<K>['fields'] {
-  const parsed = ItemKinds[kind].safeParse(fields);
+  return parseWith(ItemKinds[kind], kind, fields);
+}
+
+function parseWith<S extends z.ZodType>(schema: S, kind: string, fields: unknown): z.output<S> {
+  const parsed = schema.safeParse(fields);
   if (!parsed.success) {
     throw new WorkbenchError('invalid', `fields do not match the "${kind}" schema`, parsed.error.issues);
   }
-  // zod can't relate a generic K to its schema's output; the parse above is what guarantees it.
-  return parsed.data as ItemOf<K>['fields'];
+  return parsed.data;
 }
+
+const isItemKind = (kind: string): kind is ItemKind => kind in ItemKinds;
+
+/** A plain object whose fields can be read by name. */
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 /** Replaces an item's fields with a re-validated copy (assigning to the union directly can't be typed). */
 const setFields = (item: Item, fields: unknown) => Object.assign(item, { fields: parseFields(item.kind, fields) });
@@ -102,22 +117,21 @@ export function addItems(
   const next = clone(run);
   const added: { id: string; rev: number; threadId: string }[] = [];
   for (const input of inputs) {
-    if (!(input.kind in ItemKinds)) {
+    if (!isItemKind(input.kind)) {
       throw new WorkbenchError(
         'invalid',
         `unknown item kind "${input.kind}"; known kinds: ${Object.keys(ItemKinds).join(', ')}`,
       );
     }
-    const kind = input.kind as ItemKind;
     const threadId = ids('t');
-    const item = {
+    const item: Item = {
       id: ids('i'),
-      kind,
+      kind: input.kind,
       rev: 1,
-      fields: parseFields(kind, input.fields),
+      fields: parseFields(input.kind, input.fields),
       questions: buildQuestions(input.questions ?? [], ids),
       threadId,
-    } as Item;
+    };
     next.items.push(item);
     next.threads.push({ id: threadId, owner: { type: 'item', itemId: item.id } });
     added.push({ id: item.id, rev: item.rev, threadId });
@@ -132,11 +146,15 @@ function revise(item: Item): void {
 }
 
 function merge(base: unknown, patch: unknown): unknown {
-  if (Array.isArray(patch) || patch === null || typeof patch !== 'object') return patch;
+  if (Array.isArray(patch) || patch === null || typeof patch !== 'object') {
+    return patch;
+  }
   const out: Record<string, unknown> = {
     ...(typeof base === 'object' && base !== null && !Array.isArray(base) ? base : {}),
   };
-  for (const [key, value] of Object.entries(patch)) out[key] = merge(out[key], value);
+  for (const [key, value] of Object.entries(patch)) {
+    out[key] = merge(out[key], value);
+  }
   return out;
 }
 
@@ -157,7 +175,9 @@ export function ask(
   ids: IdGen,
 ): { run: RunState; questionIds: string[]; rev: number } {
   assertOpen(run);
-  if (specs.length === 0) throw new WorkbenchError('invalid', 'ask needs at least one question');
+  if (specs.length === 0) {
+    throw new WorkbenchError('invalid', 'ask needs at least one question');
+  }
   const next = clone(run);
   const item = findItem(next, itemId);
   const qs = buildQuestions(specs, ids);
@@ -177,9 +197,12 @@ export function applyAnswers(
   const item = findItem(next, itemId);
   for (const [qid, answer] of Object.entries(answers)) {
     const question = item.questions.find((candidate) => candidate.id === qid);
-    if (!question) throw new WorkbenchError('not-found', `no question ${qid} on item ${itemId}`);
-    if (answer.choice < 0 || answer.choice >= question.options.length)
+    if (!question) {
+      throw new WorkbenchError('not-found', `no question ${qid} on item ${itemId}`);
+    }
+    if (answer.choice < 0 || answer.choice >= question.options.length) {
       throw new WorkbenchError('invalid', `question ${qid} has no option ${answer.choice}`);
+    }
     question.answer = { choice: answer.choice, at: now, ...(answer.note ? { note: answer.note } : {}) };
   }
   return touch(next);
@@ -214,13 +237,13 @@ export function applyEdit(run: RunState, itemId: string, path: string, text: str
   const parts = path.split('.');
   let target: unknown = item.fields;
   for (const part of parts.slice(0, -1)) {
-    target = (target as Record<string, unknown> | undefined)?.[part];
+    target = isRecord(target) ? target[part] : undefined;
   }
   const last = parts.at(-1)!;
-  if (target === null || typeof target !== 'object' || typeof (target as Record<string, unknown>)[last] !== 'string') {
+  if (!isRecord(target) || typeof target[last] !== 'string') {
     throw new WorkbenchError('invalid', `item ${itemId} has no text field at "${path}"`);
   }
-  (target as Record<string, unknown>)[last] = text;
+  target[last] = text;
   setFields(item, item.fields);
   item.edits = { ...(item.edits ?? {}), [path]: text };
   revise(item);
@@ -260,7 +283,9 @@ export function addMessage(
   let threadId = message.threadId;
   if (message.replyTo !== undefined) {
     const fromEvent = run.eventThreads[message.replyTo];
-    if (!fromEvent) throw new WorkbenchError('not-found', `no recorded event #${message.replyTo} in run ${run.id}`);
+    if (!fromEvent) {
+      throw new WorkbenchError('not-found', `no recorded event #${message.replyTo} in run ${run.id}`);
+    }
     if (threadId !== undefined && threadId !== fromEvent) {
       throw new WorkbenchError(
         'thread-mismatch',
@@ -270,9 +295,12 @@ export function addMessage(
     threadId = fromEvent;
   }
   assertOpen(run);
-  if (threadId === undefined) throw new WorkbenchError('invalid', 'a message needs replyTo or threadId');
-  if (!run.threads.some((thread) => thread.id === threadId))
+  if (threadId === undefined) {
+    throw new WorkbenchError('invalid', 'a message needs replyTo or threadId');
+  }
+  if (!run.threads.some((thread) => thread.id === threadId)) {
     throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
+  }
   const next = clone(run);
   next.messages.push({
     id: message.id,
@@ -292,8 +320,9 @@ export function threadOfItem(run: RunState, itemId: string): string {
 }
 
 export function rememberEventThread(run: RunState, seq: number, threadId: string): RunState {
-  if (!run.threads.some((thread) => thread.id === threadId))
+  if (!run.threads.some((thread) => thread.id === threadId)) {
     throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
+  }
   return { ...run, eventThreads: { ...run.eventThreads, [seq]: threadId } };
 }
 
@@ -323,8 +352,11 @@ export function reopen(run: RunState): RunState {
 export function setStatusLine(run: RunState, line: string | undefined): RunState {
   assertOpen(run);
   const next = clone(run);
-  if (line === undefined) delete next.statusLine;
-  else next.statusLine = line;
+  if (line === undefined) {
+    delete next.statusLine;
+  } else {
+    next.statusLine = line;
+  }
   return touch(next);
 }
 

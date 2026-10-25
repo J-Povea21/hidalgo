@@ -40,9 +40,10 @@ export type CardFields = z.infer<typeof CardFields>;
  * Every kind the workbench can show. pr-review and review-queue add theirs here.
  * Every kind has a `title`: the tab, the progress bar and list_runs show it.
  */
-export const ItemKinds = { card: CardFields } as const satisfies Record<string, z.ZodType<{ title: string }>>;
-export type ItemKind = keyof typeof ItemKinds;
-export const ItemKind = z.enum(Object.keys(ItemKinds) as [ItemKind, ...ItemKind[]]);
+export const ITEM_KINDS = ['card'] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
+export const ItemKinds = { card: CardFields } as const satisfies Record<ItemKind, z.ZodType<{ title: string }>>;
+export const ItemKind = z.enum(ITEM_KINDS);
 
 // ---------- questions, threads, messages ----------
 

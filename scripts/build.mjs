@@ -20,7 +20,9 @@ const hash = createHash('sha256');
 for (const dir of ['shared', 'server', 'client']) {
   for (const rel of readdirSync(join(root, dir), { recursive: true }).map(String).sort()) {
     const file = join(root, dir, rel);
-    if (statSync(file).isFile() && !/\.test\.tsx?$/.test(rel)) hash.update(rel).update(readFileSync(file));
+    if (statSync(file).isFile() && !/\.test\.tsx?$/.test(rel)) {
+      hash.update(rel).update(readFileSync(file));
+    }
   }
 }
 const BUILD = hash.digest('hex').slice(0, 12);

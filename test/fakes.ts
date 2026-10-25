@@ -12,6 +12,7 @@ import type {
   RunStore,
 } from '@server/kernel/ports.ts';
 import { MemoryRunLock, MemorySignal } from '@server/infra/runtime.ts';
+import { sequenced } from '@server/kernel/events.ts';
 import { addItems, ask, newRun } from '@server/kernel/run.ts';
 import { card, counterIds, question, T0 } from './fixtures.ts';
 
@@ -38,7 +39,7 @@ export class MemoryLog implements EventLog {
   async append(runId: string, ev: UnsequencedEvent) {
     const list = this.events.get(runId) ?? [];
     const seq = list.length + 1;
-    list.push({ ...ev, seq } as RecordedEvent);
+    list.push(sequenced(ev, seq));
     this.events.set(runId, list);
     return seq;
   }

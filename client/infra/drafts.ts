@@ -1,51 +1,77 @@
 /**
- * What the user typed or picked but hasn't sent, kept in this browser per run,
- * so a reload, a dropped connection or a moved page loses nothing. Storage can
- * be unavailable (private windows); then drafts simply live in memory.
+ * What the user typed or picked but hasn't sent, kept in the browser per run, so a reload,
+ * a dropped connection or a moved page loses nothing. When the browser refuses storage
+ * (a private window, blocked site data) the values live in memory for the tab's life.
  */
-const mem = new Map<string, string>();
+import type { DraftStore } from '@client/core/ports.ts';
 
-export function loadDraft<T>(runId: string, key: string, fallback: T): T {
-  const storageKey = `wb:${runId}:${key}`;
-  try {
-    const stored = localStorage.getItem(storageKey);
-    return stored === null ? fallback : (JSON.parse(stored) as T);
-  } catch {
-    const stored = mem.get(storageKey);
-    return stored === undefined ? fallback : (JSON.parse(stored) as T);
+/** Drafts outlive the tab (localStorage); tab values, like which item is on screen, don't (sessionStorage). */
+type Lifetime = 'drafts' | 'tab';
+
+/** Shared by every store: what couldn't be kept in the browser. */
+const inMemory = new Map<string, string>();
+
+export class BrowserDraftStore implements DraftStore {
+  constructor(
+    private readonly runId: string,
+    private readonly lifetime: Lifetime = 'drafts',
+  ) {}
+
+  load<T>(key: string, fallback: T): T {
+    const stored = this.read(this.storageKey(key));
+    if (stored === null) {
+      return fallback;
+    }
+    const value: T = JSON.parse(stored);
+    return value;
+  }
+
+  save(key: string, value: unknown): void {
+    const storageKey = this.storageKey(key);
+    if (isEmpty(value)) {
+      this.remove(storageKey);
+    } else {
+      this.write(storageKey, JSON.stringify(value));
+    }
+  }
+
+  private storageKey(key: string): string {
+    return `wb:${this.lifetime}:${this.runId}:${key}`;
+  }
+
+  private storage(): Storage {
+    return this.lifetime === 'drafts' ? localStorage : sessionStorage;
+  }
+
+  private read(storageKey: string): string | null {
+    try {
+      return this.storage().getItem(storageKey);
+    } catch {
+      return inMemory.get(storageKey) ?? null;
+    }
+  }
+
+  private write(storageKey: string, text: string): void {
+    try {
+      this.storage().setItem(storageKey, text);
+    } catch {
+      inMemory.set(storageKey, text);
+    }
+  }
+
+  private remove(storageKey: string): void {
+    try {
+      this.storage().removeItem(storageKey);
+    } catch {
+      inMemory.delete(storageKey);
+    }
   }
 }
 
-export function saveDraft(runId: string, key: string, value: unknown): void {
-  const storageKey = `wb:${runId}:${key}`;
-  const empty =
-    value === '' || value === undefined || (typeof value === 'object' && value !== null && !Object.keys(value).length);
-  try {
-    if (empty) localStorage.removeItem(storageKey);
-    else localStorage.setItem(storageKey, JSON.stringify(value));
-  } catch {
-    if (empty) mem.delete(storageKey);
-    else mem.set(storageKey, JSON.stringify(value));
+/** An empty text or an empty set of picks is nothing to keep. */
+function isEmpty(value: unknown): boolean {
+  if (value === '' || value === undefined) {
+    return true;
   }
-}
-
-/** A value for this tab only (sessionStorage), e.g. which item is on screen; same fallback as drafts. */
-export function loadTabValue<T>(runId: string, key: string, fallback: T): T {
-  const storageKey = `wb:${runId}:${key}`;
-  try {
-    const stored = sessionStorage.getItem(storageKey);
-    return stored === null ? fallback : (JSON.parse(stored) as T);
-  } catch {
-    const stored = mem.get(`tab:${storageKey}`);
-    return stored === undefined ? fallback : (JSON.parse(stored) as T);
-  }
-}
-
-export function saveTabValue(runId: string, key: string, value: unknown): void {
-  const storageKey = `wb:${runId}:${key}`;
-  try {
-    sessionStorage.setItem(storageKey, JSON.stringify(value));
-  } catch {
-    mem.set(`tab:${storageKey}`, JSON.stringify(value));
-  }
+  return typeof value === 'object' && value !== null && Object.keys(value).length === 0;
 }

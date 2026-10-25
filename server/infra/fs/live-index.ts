@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import type { LiveEntry } from '@shared/contract.ts';
 import { isDead } from '@server/features/live-index/live-index.ts';
 import type { Clock, LiveIndex } from '@server/kernel/ports.ts';
-import { readJson, writeAtomic } from './files.ts';
+import { isErrno, readJson, writeAtomic } from './files.ts';
 
 const STALE_MS = 2 * 60 * 1000;
 
@@ -26,7 +26,9 @@ function processStart(pid: number): ProcessReading {
   try {
     process.kill(pid, 0);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EPERM') return { running: false };
+    if (!isErrno(error, 'EPERM')) {
+      return { running: false };
+    }
   }
   try {
     const out = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
@@ -50,7 +52,9 @@ export function processAlive(
   read: (pid: number) => ProcessReading = processStart,
 ): boolean {
   const found = read(pid);
-  if (!found.running) return false;
+  if (!found.running) {
+    return false;
+  }
   return found.startedAt === undefined || Math.abs(found.startedAt - Date.parse(startedAt)) < SAME_START_MS;
 }
 
@@ -74,12 +78,19 @@ export class FsLiveIndex implements LiveIndex {
 
   async alive(): Promise<LiveEntry[]> {
     const out: LiveEntry[] = [];
-    for (const name of await readdir(this.dir).catch(() => [] as string[])) {
-      if (!name.endsWith('.json')) continue;
+    for (const name of await readdir(this.dir).catch((): string[] => [])) {
+      if (!name.endsWith('.json')) {
+        continue;
+      }
       const entry = await readJson<LiveEntry>(join(this.dir, name)).catch(() => undefined);
-      if (!entry) continue;
-      if (isDead(entry, this.clock.now(), STALE_MS, this.alive_)) await rm(join(this.dir, name), { force: true });
-      else out.push(entry);
+      if (!entry) {
+        continue;
+      }
+      if (isDead(entry, this.clock.now(), STALE_MS, this.alive_)) {
+        await rm(join(this.dir, name), { force: true });
+      } else {
+        out.push(entry);
+      }
     }
     return out;
   }

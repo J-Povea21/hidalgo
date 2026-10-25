@@ -12,6 +12,7 @@
 import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isErrno } from '@server/infra/fs/files.ts';
 import { dataRoot } from '@server/infra/paths.ts';
 import type { LiveEntry } from '@shared/contract.ts';
 import { RUN_STATUS } from '@shared/values.ts';
@@ -31,7 +32,7 @@ function pidAlive(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM';
+    return isErrno(error, 'EPERM');
   }
 }
 
@@ -45,11 +46,12 @@ export function openRunsNobodyWaitsOn(liveDir: string, ownerPid: number): LiveEn
   const out: LiveEntry[] = [];
   for (const name of names) {
     try {
-      const entry = JSON.parse(readFileSync(join(liveDir, name), 'utf8')) as LiveEntry & { awaiting?: boolean };
+      const entry: LiveEntry & { awaiting?: boolean } = JSON.parse(readFileSync(join(liveDir, name), 'utf8'));
       // `awaiting` is the field's name before 0.6.0's rename; drop it once no older server can be running.
       const listening = entry.claudeListening ?? entry.awaiting;
-      if (entry.ownerPid === ownerPid && entry.status === RUN_STATUS.open && !listening && pidAlive(entry.pid))
+      if (entry.ownerPid === ownerPid && entry.status === RUN_STATUS.open && !listening && pidAlive(entry.pid)) {
         out.push(entry);
+      }
     } catch {
       // A torn or foreign file is not a reason to block anyone.
     }
@@ -69,7 +71,8 @@ function main(): void {
   }
   let count = 0;
   try {
-    count = (JSON.parse(readFileSync(counter, 'utf8')) as { count: number }).count;
+    const saved: { count: number } = JSON.parse(readFileSync(counter, 'utf8'));
+    count = saved.count;
   } catch {
     /* first time */
   }

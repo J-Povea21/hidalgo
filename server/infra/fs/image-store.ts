@@ -14,9 +14,13 @@ export class FsImageStore implements ImageStore {
 
   private async dir(runId: string): Promise<string> {
     const cached = this.dirs.get(runId);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
     const folder = await this.folderOf(runId);
-    if (!folder) throw new Error(`no folder for run ${runId}`);
+    if (!folder) {
+      throw new Error(`no folder for run ${runId}`);
+    }
     const dir = join(folder, 'images');
     this.dirs.set(runId, dir);
     return dir;
@@ -24,7 +28,9 @@ export class FsImageStore implements ImageStore {
 
   async save(runId: string, dataUrl: string): Promise<string> {
     const match = /^data:image\/(webp|png|jpeg|gif);base64,(.*)$/s.exec(dataUrl);
-    if (!match) throw new Error('not an image data URL');
+    if (!match) {
+      throw new Error('not an image data URL');
+    }
     const bytes = Buffer.from(match[2]!, 'base64');
     const name = `${createHash('sha256').update(bytes).digest('hex').slice(0, 24)}.${EXT[match[1]!]}`;
     const file = join(await this.dir(runId), name);
@@ -32,20 +38,26 @@ export class FsImageStore implements ImageStore {
       () => true,
       () => false,
     );
-    if (!exists) await writeAtomic(file, bytes);
+    if (!exists) {
+      await writeAtomic(file, bytes);
+    }
     return name;
   }
 
   async usedBytes(runId: string): Promise<number> {
     const dir = await this.dir(runId);
-    const names = await readdir(dir).catch(() => [] as string[]);
+    const names = await readdir(dir).catch((): string[] => []);
     let total = 0;
-    for (const name of names) total += (await stat(join(dir, name))).size;
+    for (const name of names) {
+      total += (await stat(join(dir, name))).size;
+    }
     return total;
   }
 
   async path(runId: string, name: string): Promise<string> {
-    if (!/^[a-f0-9]{24}\.(webp|png|jpg|gif)$/.test(name)) throw new Error('bad image name');
+    if (!/^[a-f0-9]{24}\.(webp|png|jpg|gif)$/.test(name)) {
+      throw new Error('bad image name');
+    }
     return join(await this.dir(runId), name);
   }
 }

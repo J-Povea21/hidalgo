@@ -3,7 +3,8 @@
  * edit is a change, so it bumps the revision and the adversary re-probes it.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { CardFields, Item } from '@shared/contract.ts';
+import type { CardFields, ItemOf } from '@shared/contract.ts';
+import type { KindViewProps } from '@client/kinds/types.ts';
 import { toInlineHtml, toSafeHtml } from '@client/ui/markdown.tsx';
 import { CLASS, classes } from '@client/ui/classes.ts';
 
@@ -12,14 +13,8 @@ const inline = (markdown: string) => ({ __html: toInlineHtml(markdown) });
 /** How long a changed criterion stays highlighted: the length of its flash animation. */
 const FLASH_MS = 1700;
 
-interface CardViewProps {
-  item: Item;
-  editable: boolean;
-  onEdit: (path: string, text: string) => void;
-}
-
-export function CardView(props: CardViewProps) {
-  const fields = props.item.fields as unknown as CardFields;
+export function CardView(props: KindViewProps<'card'>) {
+  const { fields } = props.item;
   const fresh = useFresh(props.item);
   return (
     <>
@@ -141,10 +136,14 @@ function Criterion(props: CriterionProps) {
   const opener = useRef<HTMLButtonElement>(null);
   // While editing, the user's text is theirs: a new revision from Claude only replaces it once they're done.
   useEffect(() => {
-    if (!editing) setValue(props.text);
+    if (!editing) {
+      setValue(props.text);
+    }
   }, [props.text, editing]);
   useEffect(() => {
-    if (editing) box.current?.focus();
+    if (editing) {
+      box.current?.focus();
+    }
   }, [editing]);
   const stop = () => {
     setEditing(false);
@@ -164,7 +163,7 @@ function Criterion(props: CriterionProps) {
             aria-label="Edit criterion"
             ref={box}
             value={value}
-            onInput={(event) => setValue((event.target as HTMLTextAreaElement).value)}
+            onInput={(event) => setValue(event.currentTarget.value)}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 event.preventDefault();
@@ -204,19 +203,23 @@ function Criterion(props: CriterionProps) {
 }
 
 /** Which text fields changed since the last render, so they can flash once. */
-function useFresh(item: Item): Set<string> {
+function useFresh(item: ItemOf<'card'>): Set<string> {
   const prev = useRef<{ id: string; rev: number; fields: CardFields } | undefined>(undefined);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   useEffect(() => {
-    const fields = item.fields as unknown as CardFields;
+    const { fields } = item;
     const before = prev.current;
     if (before && before.id === item.id && before.rev !== item.rev) {
       const changed = new Set<string>();
       fields.criteria.forEach((criterion, index) => {
-        if (before.fields.criteria[index]?.text !== criterion.text) changed.add(`criteria.${index}.text`);
+        if (before.fields.criteria[index]?.text !== criterion.text) {
+          changed.add(`criteria.${index}.text`);
+        }
       });
       fields.manualQa.forEach((check, index) => {
-        if (before.fields.manualQa[index] !== check) changed.add(`manualQa.${index}`);
+        if (before.fields.manualQa[index] !== check) {
+          changed.add(`manualQa.${index}`);
+        }
       });
       setFresh(changed);
       const timer = setTimeout(() => setFresh(new Set()), FLASH_MS);
