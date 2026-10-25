@@ -1,24 +1,31 @@
 /**
- * Wires every slice to the state and the server. The only module that knows
- * them all; each feature stays ignorant of the others.
+ * Wires every module's views to the state and the use cases. The only part of
+ * the page that knows them all; each module stays ignorant of the others.
  */
 import { useCallback, useEffect, useReducer, useState } from 'preact/hooks';
 import { PARTY, RUN_STATUS, VERDICT, type VerdictValue } from '@shared/values.ts';
-import { runThreadId, tabTitle, threadMessages, TURN_VIEW, turnView, typingIn } from '@client/domain/selectors.ts';
-import { actions, CONNECTION, initialState, reduce } from '@client/domain/state.ts';
-import { AskAbout } from '@client/features/ask-about/AskAbout.tsx';
-import { ConnectionBanner } from '@client/features/connection/Banner.tsx';
-import { OpenReviews } from '@client/features/open-reviews/OpenReviews.tsx';
-import { Progress } from '@client/features/progress/Progress.tsx';
-import { Questions } from '@client/features/questions/Questions.tsx';
-import { useTab } from '@client/features/tab/useTab.ts';
-import { Thread } from '@client/features/thread/Thread.tsx';
-import type { WorkbenchServer } from '@client/domain/ports.ts';
-import type { Session } from '@client/infra/session.ts';
-import { CLASS, classes } from '@client/ui/classes.ts';
-import { ChatIcon, LayersIcon, Lightbox, Toaster, toast } from '@client/ui/parts.tsx';
+import {
+  runThreadId,
+  tabTitle,
+  threadMessages,
+  TURN_VIEW,
+  turnView,
+  typingIn,
+} from '@client/common/domain/selectors.ts';
+import { CONNECTION, initialState, reduce } from '@client/common/domain/state.ts';
+import { AskAbout } from '@client/conversation/interface/AskAbout.tsx';
+import { ConnectionBanner } from '@client/run/interface/Banner.tsx';
+import { OpenReviews } from '@client/run/interface/OpenReviews.tsx';
+import { Progress } from '@client/run/interface/Progress.tsx';
+import { Questions } from '@client/items/interface/Questions.tsx';
+import { useTab } from '@client/run/interface/useTab.ts';
+import { Thread } from '@client/conversation/interface/Thread.tsx';
+import type { Session } from '@client/common/infrastructure/session.ts';
+import { CLASS, classes } from '@client/common/interface/ui/classes.ts';
+import { ChatIcon, LayersIcon, Lightbox, Toaster, toast } from '@client/common/interface/ui/parts.tsx';
 import { useItemNavigation, useNow, useSend, useUnread } from './hooks.ts';
-import { ItemNav, ItemPanel } from './ItemPanel.tsx';
+import type { PageModules } from './modules.ts';
+import { ItemNav, ItemPanel } from '@client/items/interface/ItemPanel.tsx';
 
 /** How often the page re-checks time-based state ("Claude went quiet"). */
 const TICK_MS = 10_000;
@@ -40,11 +47,11 @@ const SENT = {
 };
 
 interface AppProps {
-  server: WorkbenchServer;
+  modules: PageModules;
   session: Session;
 }
 
-export function App({ server, session }: AppProps) {
+export function App({ modules, session }: AppProps) {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [drawer, setDrawer] = useState<Drawer | undefined>();
   /** The thread something was last sent from: it shows Claude working until Claude listens again. */
@@ -54,18 +61,9 @@ export function App({ server, session }: AppProps) {
   const now = useNow(TICK_MS);
   const { run } = state;
   const { itemIndex, goTo, slide, slideDone } = useItemNavigation(session.runId, run?.items.length ?? 0);
-  const send = useSend(server, setSentFrom);
+  const send = useSend(modules.sendPageEvent, setSentFrom);
 
-  useEffect(
-    () =>
-      server.follow({
-        state: (next, presence) => dispatch(actions.state(next, presence)),
-        presence: (presence) => dispatch(actions.presence(presence)),
-        connection: (connection) => dispatch(actions.connection(connection)),
-        nudge: (text) => toast(text),
-      }),
-    [],
-  );
+  useEffect(() => modules.followSession.execute({ dispatch, nudge: (text) => toast(text) }), []);
   useEffect(() => {
     if (state.claudeListening) {
       setSentFrom(undefined);
@@ -85,12 +83,13 @@ export function App({ server, session }: AppProps) {
   const unread = useUnread(fromClaude.length, drawer === DRAWER.run);
 
   const reportDiagram = useCallback((diagramId: string, error: string) => {
-    void server.sendEvent({ type: 'diagram-failed', diagramId, error }).catch(() => undefined);
+    // Claude hears about it if it can; the user needn't, the diagram already shows its own failure.
+    void modules.sendPageEvent.execute({ event: { type: 'diagram-failed', diagramId, error }, sentNotice: '' });
   }, []);
   const zoomIn = useCallback((html?: string, src?: string) => setZoom({ html, src }), []);
-  // Handed to children as callbacks, so they're bound to the server here.
-  const loadImage = useCallback((name: string) => server.imageBlob(name), []);
-  const loadOpenReviews = useCallback(() => server.liveRuns(), []);
+  // Handed to children as callbacks, so they're bound to the use cases here.
+  const loadImage = useCallback((name: string) => modules.conversation.loadImage.execute({ name }), []);
+  const loadOpenReviews = useCallback(() => modules.run.listOpenReviews.execute(), []);
 
   if (!run) {
     return (

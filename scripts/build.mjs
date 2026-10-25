@@ -69,4 +69,4 @@ await build({
   jsxImportSource: 'preact',
 });
 copyFileSync(join(root, 'client', 'index.html'), join(out, 'client', 'index.html'));
-copyFileSync(join(root, 'client', 'ui', 'styles.css'), join(out, 'client', 'styles.css'));
+copyFileSync(join(root, 'client', 'common', 'interface', 'ui', 'styles.css'), join(out, 'client', 'styles.css'));

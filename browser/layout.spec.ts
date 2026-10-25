@@ -2,7 +2,7 @@
 import type { Page } from '@playwright/test';
 import { expect, plainCard, SCREENS, test } from './support/index.ts';
 
-/** The space between the header and the stuck item panel (client/ui/styles.css, `.sticky`). */
+/** The space between the header and the stuck item panel (client/common/interface/ui/styles.css, `.sticky`). */
 const PANEL_GAP_PX = 12;
 
 /** Narrow enough that a long subject wraps the header onto two lines. */

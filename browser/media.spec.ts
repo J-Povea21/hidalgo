@@ -8,7 +8,7 @@ const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
   'base64',
 );
-/** Images are shrunk to this many pixels on their long side before they're sent (client/infra/images.ts). */
+/** Images are shrunk to this many pixels on their long side before they're sent (client/conversation/infrastructure/images.ts). */
 const LONG_EDGE = 1500;
 
 test('pasted, dropped and attached images are shrunk to WebP, capped at 5, stored, and shown back', async ({

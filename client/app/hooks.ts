@@ -1,29 +1,23 @@
 /** What the page shell keeps between renders: sending, which item is on screen, what's unread, the clock. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { PageEvent } from '@shared/contract.ts';
-import type { WorkbenchServer } from '@client/domain/ports.ts';
-import { BrowserDraftStore } from '@client/infra/drafts.ts';
-import { ApiError } from '@client/domain/errors.ts';
-import { slideToward } from '@client/ui/classes.ts';
-import { toast } from '@client/ui/parts.tsx';
-
-const UNREACHABLE = "Not sent: Claude's session is unreachable. Your text is kept.";
+import type { SendPageEventUseCase } from '@client/common/application/use-cases/send-page-event.use-case.ts';
+import { BrowserDraftStore } from '@client/common/infrastructure/drafts.ts';
+import { slideToward } from '@client/common/interface/ui/classes.ts';
+import { toast } from '@client/common/interface/ui/parts.tsx';
 
 /**
  * Sends a page event and tells the user how it went. `fromThread` is the conversation it was
  * sent from, so that thread can show Claude working on it. Resolves false when it didn't go.
  */
-export function useSend(server: WorkbenchServer, onSent: (fromThread: string | undefined) => void) {
-  return useCallback(async (event: PageEvent, fromThread: string | undefined, sentMessage: string) => {
-    try {
-      const result = await server.sendEvent(event);
+export function useSend(sendPageEvent: SendPageEventUseCase, onSent: (fromThread: string | undefined) => void) {
+  return useCallback(async (event: PageEvent, fromThread: string | undefined, sentNotice: string) => {
+    const { sent, notice } = await sendPageEvent.execute({ event, sentNotice });
+    if (sent) {
       onSent(fromThread);
-      toast(result.imageWarning ?? sentMessage);
-      return true;
-    } catch (error) {
-      toast(error instanceof ApiError ? error.message : UNREACHABLE);
-      return false;
     }
+    toast(notice);
+    return sent;
   }, []);
 }
 

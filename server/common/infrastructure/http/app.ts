@@ -49,7 +49,7 @@ const TYPES: Record<string, string> = {
 /**
  * What only the server holding the token, answering on this port, as this build, can produce.
  * FROZEN FORMAT: pages from older builds must verify newer servers with it, so it never changes.
- * Mirrored in client/infra/api.ts.
+ * Mirrored in client/common/infrastructure/identity.ts.
  */
 export const helloProof = (token: string, nonce: string, port: number, build: string) =>
   createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|${build}`).digest('hex');

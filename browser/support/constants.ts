@@ -3,9 +3,9 @@
  * the value, it is derived from the product's own constant, so the two can't drift apart.
  */
 import { devices } from '@playwright/test';
-import { ACTIVE_FOR_MS } from '@client/domain/state.ts';
-import { TURN_COLOR } from '@client/features/tab/useTab.ts';
-import { RETRY } from '@client/infra/live-feed.ts';
+import { ACTIVE_FOR_MS } from '@client/common/domain/state.ts';
+import { TURN_COLOR } from '@client/run/interface/useTab.ts';
+import { RETRY } from '@client/common/infrastructure/live-feed.ts';
 
 /** Under the server's 15 s keep-alive: a push that lagged would only arrive with the next one. */
 export const PROMPTLY = { timeout: 3_000 };
