@@ -34,40 +34,65 @@ should say what broke without opening the code.
 - **The data says only what the test is about.** Build it with the builders in
   `test/builders.ts` (`anItem`, `aRun`, `anOpenQuestion`, `approvedAt`…) and override
   only what matters: `anItem({ rev: 2, verdict: approvedAt(1) })`.
-- **Arrange, act, assert, in that order**, separated by a blank line when the test is
-  longer than a few lines.
+- **Every test follows Arrange–Act–Assert.** Three blocks, in that order, separated by
+  a blank line: set up what the test needs, do the one thing under test, check what it
+  did. No `// arrange` comments; the blank lines are the structure. A browser story
+  that walks through several steps repeats act-then-assert for each step, still with a
+  blank line between them:
+
+  ```ts
+  it('the real server, on a newer build, makes the page stale', async () => {
+    new SomethingOnThePort({ answering: 'the real server', build: 'newer' });
+
+    const identity = await proveServer(SESSION);
+
+    expect(identity).toBe(IDENTITY.stale);
+  });
+  ```
+
 - **Constants, not magic values.** A timeout, a size or a delay a test depends on gets a
   name that says why it is that value (`PAST_ACTIVE_WINDOW_MS`, `LONG_EDGE`).
 - **Comments explain why, never what.** If a line needs a comment to say what it does,
   rename something instead.
 
-### Browser tests read as a story
+### Tests read as stories
 
-Browser tests use two fixtures from `browser/support/test.ts`:
+Where a test plays out a scene, its helpers are named for who acts in it, so the test
+reads as what happens:
 
-- `claude`: a Claude session driving a real workbench server, through methods named for
-  what Claude does: `claude.opensRun()`, `claude.waitsForTheUser(run)`, `claude.says()`,
-  `claude.pauses()`, `claude.crashes()`, `claude.restarts()` (`browser/support/claude.ts`);
-- `user`: the user in the page, through what a person sees and does: `user.opens(run)`,
-  `user.picks('Here')`, `user.approves()`, `user.banner('This run is paused')`
-  (`browser/support/user.ts`).
+- **Browser tests** (`browser/support/`, imported through `browser/support/index.ts`):
+  - `claude`, a Claude session driving a real server. `claude.opensRun()` returns the run,
+    and what Claude does with it is on the run, one method per workbench tool:
+    `run.waitForTheUser()`, `run.say()`, `run.revise()`, `run.pause()`, `run.resume()`
+    (`claude/run.ts`). `claude.ends()`, `crashes()` and `restarts()` act on the server
+    itself (`claude/session.ts`).
+  - `user`, the user in the page, with one part per part of the page, mirroring the
+    client's features: `user.questions.pick('Here')`, `user.verdict.approve()`,
+    `user.thread.write()`, `user.status.banner('This run is paused')`,
+    `user.drawers.openRun()` (`user/*.ts`).
+- **The page's connection tests** (`client/infra/*.test.ts`) use `SomethingOnThePort`
+  (`test/something-on-the-port.ts`): whatever answers on the page's port, played as
+  `'the real server'`, `'an impostor relaying the real proof'` or `'a stranger'`.
 
 ```ts
 test('the answers reach Claude, and then Approve unlocks', async ({ claude, user }) => {
   const run = await claude.opensRun({ cards: [cardAsking('First?')] });
   await user.opens(run);
 
-  const answers = claude.waitsForTheUser(run);
-  await user.picks('Here');
-  await user.sendsAnswers(1);
+  const answers = run.waitForTheUser();
+  await user.questions.pick('Here');
+  await user.questions.send(1);
 
   expect(await answers).toEqual([expect.objectContaining({ type: 'answers' })]);
-  await expect(user.button('Approve')).toBeEnabled();
+  await expect(user.verdict.approveButton).toBeEnabled();
 });
 ```
 
-When a test needs something the page object doesn't have, add a method to it rather
-than reaching for selectors in the spec. Find elements by role and accessible name
+**Adding to the support code.** A new workbench tool is a new method on `OpenRun`. A new
+part of the page is a new file in `browser/support/user/`, added to `UserInPage`. A spec
+never reaches for raw selectors that a part could name; if it needs one, the part gets it.
+Timings, screens and colours live in `browser/support/constants.ts`, derived from the
+product's own constants where there are some. Find elements by role and accessible name
 first (`getByRole`, `getByLabel`): that also proves a screen reader can find them. Use
 `data-turn`, `data-connection` and `data-testid="toast"` to check state apart from its
 wording.
@@ -94,7 +119,7 @@ keep the suite trustworthy.
   count of opened pages, not the absence of an error.
 - **A fixed bug comes with the test that would have caught it**, and that test is seen
   failing without the fix before it is trusted.
-- **Every page is guarded.** `browser/support/test.ts` fails any browser test whose page
+- **Every page is guarded.** `browser/support/fixtures.ts` fails any browser test whose page
   throws or breaks its Content-Security-Policy, whatever the test checks.
 - **Accessibility is tested, not assumed.** Each state the page can be in is scanned
   with axe in light and dark (`browser/accessibility.spec.ts`), and every action has a
@@ -102,12 +127,16 @@ keep the suite trustworthy.
 
 ## Where the helpers live
 
-| File                        | What it holds                                                                   |
-| --------------------------- | ------------------------------------------------------------------------------- |
-| `test/fixtures.ts`          | Valid card and question data, an id counter, `until()`.                         |
-| `test/builders.ts`          | `anItem`, `aRun`, `anOpenQuestion`, `approvedAt`… for unit and component tests. |
-| `test/fakes.ts`             | In-memory fakes of every port, `world()` and `seededWorld()`.                   |
-| `browser/support/claude.ts` | The Claude session that drives a real server.                                   |
-| `browser/support/user.ts`   | The page object: what the user sees and does.                                   |
-| `browser/support/data.ts`   | Cards, questions and diagrams for browser tests.                                |
-| `browser/support/test.ts`   | The fixtures and the page guard.                                                |
+| File                            | What it holds                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------- |
+| `test/fixtures.ts`              | Valid card and question data, an id counter, `until()`.                         |
+| `test/builders.ts`              | `anItem`, `aRun`, `anOpenQuestion`, `approvedAt`… for unit and component tests. |
+| `test/fakes.ts`                 | In-memory fakes of every port, `world()` and `seededWorld()`.                   |
+| `test/something-on-the-port.ts` | Whatever answers on the page's port, for the page's connection tests.           |
+| `test/tool-result.ts`           | A tool result from the MCP client, checked with zod.                            |
+| `browser/support/index.ts`      | The one import for specs.                                                       |
+| `browser/support/claude/`       | The Claude session (`session.ts`) and an open run with its tools (`run.ts`).    |
+| `browser/support/user/`         | The page object, one file per part of the page.                                 |
+| `browser/support/fixtures.ts`   | The fixtures and the page guard.                                                |
+| `browser/support/constants.ts`  | Timings, screens, colours and accessibility rules.                              |
+| `browser/support/data.ts`       | Cards, questions and diagrams for browser tests.                                |

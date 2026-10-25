@@ -40,7 +40,8 @@ flowchart LR
 | `server/kernel/`           | the rules every item kind obeys, as pure functions         | `shared/`                |
 | `server/features/<slice>/` | one use case per folder, with its tests                    | `kernel/`, `shared/`     |
 | `server/infra/`            | disk, HTTP, MCP, processes; wires the slices               | anything on the server   |
-| `client/core/`             | the page's state and what is derived from it, pure         | `shared/`                |
+| `client/core/`             | the page's state, what is derived from it, and its ports   | `shared/`                |
+| `client/infra/`            | what implements the ports: the server, drafts, images      | `core/`, `shared/`       |
 | `client/features/<slice>/` | one part of the page each                                  | `core/`, `ui/`, `infra/` |
 | `client/kinds/<kind>/`     | the view for one item kind                                 | `core/`, `ui/`           |
 | `client/app/`              | wires the page together                                    | anything on the client   |
@@ -71,33 +72,70 @@ one tool fewer.
   `shared/contract.ts` added to `ItemKinds`, its view in `client/kinds/<kind>/` added to
   `client/kinds/index.ts`. The tools stay the same.
 - **A part of the page:** a slice in `client/features/<name>/`, wired in `client/app/`.
+- **Something the page needs from outside** (storage, the network): an interface in
+  `client/core/ports.ts`, and a class in `client/infra/` that `implements` it, so the
+  contract is checked by the compiler and tests can stand in their own.
 
 ## Code style
 
 Formatting is Prettier's (settings under `"prettier"` in `package.json`, 120 columns):
-run `pnpm run format`. ESLint (`config/eslint.config.mjs`) enforces the naming rules.
-Both run in `pnpm run check`. The rest is for review.
+run `pnpm run format`. ESLint (`config/eslint.config.mjs`) enforces what a machine can
+see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review.
+
+### Reading order
 
 - **Code should explain itself.** A name that says what a thing is beats a comment that
-  explains a short one. Comments say _why_, never _what_. Every file opens with one line
-  on what it is for.
-- **No single-letter names** (lint). `_` marks a parameter that is deliberately unused.
+  explains a short one. Comments say _why_, never _what_, and only where the code can't
+  say it. Every file opens with one line on what it is for.
+- **A file reads top-down by importance.** What it exports and exists for comes first;
+  the helpers it uses come below, in the order they are needed. A constant sits just
+  above the code that uses it.
+- **A condition that needs a moment to read gets a name**:
+  `const verdictJustLanded = previous !== status;` then `if (verdictJustLanded)`.
+
+### Names and values
+
+- **No single-letter names** _(lint)_. `_` marks a parameter that is deliberately unused.
   Names come from the domain: `item`, `verdict`, `itemIndex`, never `cur` or `x`.
-- **No shadowing** (lint): an inner name never hides an outer one.
+- **No shadowing** _(lint)_: an inner name never hides an outer one.
 - **Fixed sets of values are constants, never bare strings.** Compare against
   `VERDICT.approved`, `RUN_STATUS.open`, `CONNECTION.live`, and derive the type from the
   constant. They live with what they describe:
   - `shared/values.ts` for the run's own values (it imports nothing, so the page can use it
     without loading zod);
-  - `client/core/state.ts` for connection kinds and actions;
+  - `client/core/connection.ts` for connection kinds, `client/core/state.ts` for actions;
   - `client/core/selectors.ts` for turn views;
   - `client/ui/classes.ts` for CSS classes.
+- **A constant other code needs is exported from where it is defined, once.** The
+  stream's event names (`STREAM_EVENT` in `shared/constants.ts`) are used by the server
+  and the page; the favicon colours (`TURN_COLOR`) by the page and the browser tests.
 - **Numbers that mean something get a name** that says why they are that value:
-  `ACTIVE_FOR_MS`, `FIRST_ITEM`, `ADVANCE_MS`.
+  `ACTIVE_FOR_MS`, `FIRST_ITEM`, `ADVANCE_MS`. In tests, derive them from the product's
+  constant when there is one (`PAST_ACTIVE_WINDOW_MS = ACTIVE_FOR_MS + 1_000`).
 - **CSS classes are built with `classes()`**, not template strings:
   `classes('iconbtn', open && CLASS.on)`.
-- **Props with more than two fields get their own `interface <Component>Props`**, each
-  field on its line, with a comment where its meaning isn't obvious.
+- **An object type with two or more fields gets a name**: a component's props are
+  `interface <Component>Props`, a function's options are an interface too. Each field on
+  its line, with a comment where its meaning isn't obvious.
+
+### Control flow
+
+- **A guard clause's body goes on its own line** _(lint: `curly`)_:
+  `if (!item) {` / `return;` / `}`, never `if (!item) return;`.
+- **A `switch` over a fixed set of values, not a chain of `if`s**, building the result
+  and returning once at the end. One exit makes a function predictable; early returns
+  stay for guard clauses at the top.
+- **A ternary is for a short either-or** _(lint: no nested ternaries)_. Anything longer
+  is an `if`/`else`, a lookup table, or a small function.
+- **No inline casts** _(lint: no `x as T`; `as const` stays)_. Types come from:
+  - declarations where data enters: `const event: RecordedEvent = JSON.parse(line);`
+  - type guards: `error instanceof Error`, `isErrno(error, 'ENOENT')`, `isRecord(value)`;
+  - parsers for what can't be trusted: zod for tool results in tests;
+  - better-typed APIs: `event.currentTarget` in a handler, a const tuple for a zod enum.
+- **A method passed as a callback is bound** _(lint: `unbound-method`)_:
+  `load={() => server.liveRuns()}`, never `load={server.liveRuns}`, which loses `this`.
+- **Errors are classes in their own file** (`server/kernel/errors.ts`,
+  `client/infra/errors.ts`), so callers can tell them apart with `instanceof`.
 - **Components render; behaviour lives elsewhere.** Hooks in `client/app/hooks.ts` hold
   stateful behaviour (sending, navigation); pure functions in `client/core/selectors.ts`
   derive what to show. A component reads them and draws.
