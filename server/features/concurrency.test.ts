@@ -5,10 +5,10 @@
  * per-run lock or the wait's ordering.
  */
 import { describe, expect, it } from 'vitest';
-import type { RunState } from '../../shared/contract.ts';
-import { card, counterIds, question, T0 } from '../../test/fixtures.ts';
-import { MemoryLog, MemoryStore, world } from '../../test/fakes.ts';
-import { addItems, ask, newRun } from '../kernel/run.ts';
+import type { RunState } from '@shared/contract.ts';
+import { card, counterIds, question, T0 } from '@test/fixtures.ts';
+import { MemoryLog, MemoryStore, world } from '@test/fakes.ts';
+import { addItems, ask, newRun } from '@server/kernel/run.ts';
 import { recordPageEvent } from './record-page-event/record-page-event.ts';
 import { sendMessage } from './send-message/send-message.ts';
 import { takeEvents, waitForEvents } from './wait-for-events/wait-for-events.ts';

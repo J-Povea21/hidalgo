@@ -2,7 +2,7 @@
  * Applying a recorded page event to a run. Used when the event arrives and
  * when logged events are replayed after a crash, so both paths agree.
  */
-import type { RecordedEvent, RunState } from '../../shared/contract.ts';
+import type { RecordedEvent, RunState } from '@shared/contract.ts';
 import { addMessage, applyAnswers, applyEdit, applyVerdict, rememberEventThread, threadOfItem } from './run.ts';
 
 /** The thread an event belongs to, or undefined for events that have none (a diagram failure). */

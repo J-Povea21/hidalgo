@@ -6,11 +6,11 @@
  * An event that can't apply (a stale revision, an open question) is refused
  * with the reason and never logged, so the user sees why at once.
  */
-import { PageEvent, type RecordedEvent, type UnsequencedEvent } from '../../../shared/contract.ts';
-import { WorkbenchError } from '../../kernel/errors.ts';
-import { applyEvent } from '../../kernel/events.ts';
-import type { Clock, EventLog, EventSignal, ImageStore, Limits, PagePublisher, RunLock, RunStore } from '../../kernel/ports.ts';
-import { loadRun } from '../../kernel/unit-of-work.ts';
+import { PageEvent, type RecordedEvent, type UnsequencedEvent } from '@shared/contract.ts';
+import { WorkbenchError } from '@server/kernel/errors.ts';
+import { applyEvent } from '@server/kernel/events.ts';
+import type { Clock, EventLog, EventSignal, ImageStore, Limits, PagePublisher, RunLock, RunStore } from '@server/kernel/ports.ts';
+import { loadRun } from '@server/kernel/unit-of-work.ts';
 
 export interface RecordDeps {
   store: RunStore;

@@ -1,6 +1,6 @@
 /** Clock, ids, the per-run lock, and the in-memory bell that wakes a pending wait_for_events. */
 import { randomBytes } from 'node:crypto';
-import type { Clock, EventSignal, Ids, RunLock } from '../kernel/ports.ts';
+import type { Clock, EventSignal, Ids, RunLock } from '@server/kernel/ports.ts';
 
 /** One queue per run: each call runs after the previous one for that run settles. */
 export class MemoryRunLock implements RunLock {

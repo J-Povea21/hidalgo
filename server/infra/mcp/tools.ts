@@ -5,21 +5,21 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { DiagramSpec, ItemKinds, QuestionSpec, type ItemKind } from '../../../shared/contract.ts';
-import { runThreadId } from '../../../shared/rules.ts';
-import { addItems } from '../../features/add-items/add-items.ts';
-import { ask } from '../../features/ask/ask.ts';
-import { closeSession } from '../../features/close-session/close-session.ts';
-import { createDiagram } from '../../features/create-diagram/create-diagram.ts';
-import { listRuns } from '../../features/list-runs/list-runs.ts';
-import { markDone } from '../../features/mark-done/mark-done.ts';
-import { openSession } from '../../features/open-session/open-session.ts';
-import { sendMessage } from '../../features/send-message/send-message.ts';
-import { setStatus } from '../../features/set-status/set-status.ts';
-import { updateItem } from '../../features/update-item/update-item.ts';
-import { takeEvents, waitForEvents } from '../../features/wait-for-events/wait-for-events.ts';
-import { WorkbenchError } from '../../kernel/errors.ts';
-import type { Workbench } from '../workbench.ts';
+import { DiagramSpec, ItemKinds, QuestionSpec, type ItemKind } from '@shared/contract.ts';
+import { runThreadId } from '@shared/rules.ts';
+import { addItems } from '@server/features/add-items/add-items.ts';
+import { ask } from '@server/features/ask/ask.ts';
+import { closeSession } from '@server/features/close-session/close-session.ts';
+import { createDiagram } from '@server/features/create-diagram/create-diagram.ts';
+import { listRuns } from '@server/features/list-runs/list-runs.ts';
+import { markDone } from '@server/features/mark-done/mark-done.ts';
+import { openSession } from '@server/features/open-session/open-session.ts';
+import { sendMessage } from '@server/features/send-message/send-message.ts';
+import { setStatus } from '@server/features/set-status/set-status.ts';
+import { updateItem } from '@server/features/update-item/update-item.ts';
+import { takeEvents, waitForEvents } from '@server/features/wait-for-events/wait-for-events.ts';
+import { WorkbenchError } from '@server/kernel/errors.ts';
+import type { Workbench } from '@server/infra/workbench.ts';
 
 type Result = { content: { type: 'text'; text: string }[]; isError?: boolean };
 

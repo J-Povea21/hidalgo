@@ -1,6 +1,6 @@
 /** Says plainly when the page can't reach its session, or the run is paused, and what to do. Silent when all is well. */
-import type { RunStatus } from '../../../shared/contract.ts';
-import type { Connection } from '../../core/state.ts';
+import type { RunStatus } from '@shared/contract.ts';
+import type { Connection } from '@client/core/state.ts';
 
 export function ConnectionBanner(props: { connection: Connection; listening: boolean; idle: boolean; runStatus?: RunStatus | undefined }) {
   const c = props.connection;

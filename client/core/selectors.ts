@@ -1,9 +1,9 @@
 /** What the page derives from its state. Item and run rules come from shared/rules, written once for both halves. */
-import type { Message, RunState } from '../../shared/contract.ts';
-import { pendingForUser } from '../../shared/rules.ts';
+import type { Message, RunState } from '@shared/contract.ts';
+import { pendingForUser } from '@shared/rules.ts';
 import { ACTIVE_FOR_MS, type PageState } from './state.ts';
 
-export { itemStatus, itemTitle, openQuestions, runThreadId, type ItemStatus } from '../../shared/rules.ts';
+export { itemStatus, itemTitle, openQuestions, runThreadId, type ItemStatus } from '@shared/rules.ts';
 
 /**
  * How the page presents whose turn it is (the run's own `turn` is just user or claude).

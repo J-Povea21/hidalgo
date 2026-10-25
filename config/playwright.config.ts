@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 // Browser suite: `pnpm run test:browser`, run before pushing (not part of `pnpm run check`).
 export default defineConfig({
-  testDir: 'browser',
+  testDir: '../browser',
+  outputDir: '../test-results',
   timeout: 45_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,

@@ -5,7 +5,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import type { Diagram as DiagramData } from '../../shared/contract.ts';
+import type { Diagram as DiagramData } from '@shared/contract.ts';
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 

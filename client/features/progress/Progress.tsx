@@ -1,8 +1,8 @@
 /** The header: what this run is, whose turn it is, what Claude is doing, and where each item stands. */
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
-import type { RunState } from '../../../shared/contract.ts';
-import { itemStatus, itemTitle, type ItemStatus, type TurnView } from '../../core/selectors.ts';
+import type { RunState } from '@shared/contract.ts';
+import { itemStatus, itemTitle, type ItemStatus, type TurnView } from '@client/core/selectors.ts';
 
 const FILL: Record<ItemStatus, [string, string]> = {
   questions: ['35%', 'var(--warn)'], ready: ['75%', 'var(--accent)'], approved: ['90%', 'var(--ok)'],

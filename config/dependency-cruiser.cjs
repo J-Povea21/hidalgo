@@ -1,6 +1,6 @@
 /**
- * The architecture as rules. `npm run check` fails on any violation, so the
- * layering in docs/workbench/design.md is enforced rather than remembered.
+ * The architecture as rules. `pnpm run check` fails on any violation, so the
+ * layering in docs/conventions.md is enforced rather than remembered.
  */
 module.exports = {
   forbidden: [
@@ -95,6 +95,7 @@ module.exports = {
     doNotFollow: { path: 'node_modules' },
     exclude: { path: '(^|/)(node_modules|dist)/|\\.test\\.tsx?$' },
     tsPreCompilationDeps: true,
+    // Resolves the @shared, @server, @client and @test aliases the same way TypeScript does.
     tsConfig: { fileName: 'tsconfig.json' },
   },
 };

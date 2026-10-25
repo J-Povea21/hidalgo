@@ -3,8 +3,8 @@
  * case over the kernel; these tests check the wiring: saved, shown, result.
  */
 import { describe, expect, it } from 'vitest';
-import { card, question } from '../../test/fixtures.ts';
-import { world } from '../../test/fakes.ts';
+import { card, question } from '@test/fixtures.ts';
+import { world } from '@test/fakes.ts';
 import { addItems } from './add-items/add-items.ts';
 import { ask } from './ask/ask.ts';
 import { closeSession } from './close-session/close-session.ts';
@@ -13,7 +13,7 @@ import { openSession } from './open-session/open-session.ts';
 import { sendMessage } from './send-message/send-message.ts';
 import { setStatus } from './set-status/set-status.ts';
 import { updateItem } from './update-item/update-item.ts';
-import { applyVerdict } from '../kernel/run.ts';
+import { applyVerdict } from '@server/kernel/run.ts';
 
 async function setup() {
   const w = world();

@@ -2,9 +2,9 @@
  * The project's runs, read-only: what resume offers, and what the card skill's
  * duplicate search checks so drafts not yet on the board are seen too.
  */
-import type { RunState } from '../../../shared/contract.ts';
-import type { LiveIndex, RunStore } from '../../kernel/ports.ts';
-import { currentVerdict, itemTitle, pendingForUser } from '../../../shared/rules.ts';
+import type { RunState } from '@shared/contract.ts';
+import type { LiveIndex, RunStore } from '@server/kernel/ports.ts';
+import { currentVerdict, itemTitle, pendingForUser } from '@shared/rules.ts';
 
 export interface RunSummary {
   id: string;

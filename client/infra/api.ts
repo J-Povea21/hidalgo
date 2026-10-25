@@ -5,9 +5,9 @@
  * server to prove it owns this run: if another program took the port, nothing
  * is ever sent to it.
  */
-import { BUILD, TOKEN_HEADER } from '../../shared/constants.ts';
-import type { LiveEntry, PageEvent, RunState } from '../../shared/contract.ts';
-import { LOST_AFTER_MS, type Connection, type Presence } from '../core/state.ts';
+import { BUILD, TOKEN_HEADER } from '@shared/constants.ts';
+import type { LiveEntry, PageEvent, RunState } from '@shared/contract.ts';
+import { LOST_AFTER_MS, type Connection, type Presence } from '@client/core/state.ts';
 
 export interface Session { runId: string; token: string }
 

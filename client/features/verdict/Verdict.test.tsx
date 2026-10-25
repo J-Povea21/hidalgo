@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Item } from '../../../shared/contract.ts';
-import { card } from '../../../test/fixtures.ts';
+import type { Item } from '@shared/contract.ts';
+import { card } from '@test/fixtures.ts';
 import { Verdict } from './Verdict.tsx';
 
 afterEach(cleanup);

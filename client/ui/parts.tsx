@@ -1,7 +1,7 @@
 /** Small shared pieces: icons, toast, lightbox, typing indicator, badges. */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
-import type { ItemStatus } from '../../shared/rules.ts';
+import type { ItemStatus } from '@shared/rules.ts';
 
 export const ChatIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

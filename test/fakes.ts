@@ -1,8 +1,8 @@
 /** In-memory fakes for every port: no disk, network or real clock in slice tests. */
-import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '../shared/contract.ts';
-import type { Clock, EventLog, Ids, ImageStore, Limits, LiveIndex, PageAddress, PagePublisher, RunStore } from '../server/kernel/ports.ts';
-import { MemoryRunLock, MemorySignal } from '../server/infra/runtime.ts';
-import { addItems, ask, newRun } from '../server/kernel/run.ts';
+import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '@shared/contract.ts';
+import type { Clock, EventLog, Ids, ImageStore, Limits, LiveIndex, PageAddress, PagePublisher, RunStore } from '@server/kernel/ports.ts';
+import { MemoryRunLock, MemorySignal } from '@server/infra/runtime.ts';
+import { addItems, ask, newRun } from '@server/kernel/run.ts';
 import { card, counterIds, question, T0 } from './fixtures.ts';
 
 export class MemoryStore implements RunStore {

@@ -1,6 +1,6 @@
 /** Applies a patch to an item. The new revision voids any approval of the old one. */
-import { updateItem as update } from '../../kernel/run.ts';
-import { changeRun, type RunDeps } from '../../kernel/unit-of-work.ts';
+import { updateItem as update } from '@server/kernel/run.ts';
+import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
 
 export function updateItem(deps: RunDeps, input: { runId: string; itemId: string; patch: unknown }) {
   return changeRun(deps, input.runId, (run) => {

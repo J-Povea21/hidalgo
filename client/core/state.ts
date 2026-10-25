@@ -2,7 +2,7 @@
  * The page's state: what the server last sent, and how the connection is.
  * A pure reducer: the server's updates go in, the views read what comes out.
  */
-import type { RunState } from '../../shared/contract.ts';
+import type { RunState } from '@shared/contract.ts';
 
 export type Connection =
   | { kind: 'connecting' }

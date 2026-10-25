@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Item, Question } from '../../../shared/contract.ts';
-import { card } from '../../../test/fixtures.ts';
+import type { Item, Question } from '@shared/contract.ts';
+import { card } from '@test/fixtures.ts';
 import { Questions } from './Questions.tsx';
 
 afterEach(() => { cleanup(); localStorage.clear(); });

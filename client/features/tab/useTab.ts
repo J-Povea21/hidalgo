@@ -1,6 +1,6 @@
 /** The browser tab: a title that leads with whose turn it is, and a dot of the same state's colour. */
 import { useEffect } from 'preact/hooks';
-import type { TurnView } from '../../core/selectors.ts';
+import type { TurnView } from '@client/core/selectors.ts';
 
 const COLOR: Record<TurnView, string> = { yours: '#c27c0e', working: '#2f5bd3', idle: '#9b9a94', done: '#1f7a4d', offline: '#9b9a94' };
 

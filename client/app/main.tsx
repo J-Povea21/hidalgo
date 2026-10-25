@@ -1,6 +1,6 @@
 /** Boots the page from the address fragment: `#run=<id>&t=<token>`. */
 import { render } from 'preact';
-import { createApi, sessionFromLocation } from '../infra/api.ts';
+import { createApi, sessionFromLocation } from '@client/infra/api.ts';
 import { App } from './App.tsx';
 
 const root = document.getElementById('app')!;

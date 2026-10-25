@@ -15,8 +15,8 @@ import {
   type RunState,
   type RunStatus,
   type VerdictValue,
-} from '../../shared/contract.ts';
-import { currentVerdict, isFinal, openQuestions } from '../../shared/rules.ts';
+} from '@shared/contract.ts';
+import { currentVerdict, isFinal, openQuestions } from '@shared/rules.ts';
 import { WorkbenchError } from './errors.ts';
 
 type IdGen = (prefix: string) => string;

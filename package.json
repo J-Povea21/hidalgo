@@ -12,11 +12,11 @@
     "hooks": "node scripts/setup-hooks.mjs",
     "build": "node scripts/setup-hooks.mjs && node scripts/build.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node scripts/setup-hooks.mjs && vitest run",
-    "deps": "depcruise --config .dependency-cruiser.cjs server client shared",
+    "test": "node scripts/setup-hooks.mjs && vitest run --config config/vitest.config.ts",
+    "deps": "depcruise --config config/dependency-cruiser.cjs server client shared",
     "check": "node scripts/setup-hooks.mjs && node scripts/check.mjs",
     "demo": "node scripts/demo.mjs",
-    "test:browser": "node scripts/setup-hooks.mjs && node scripts/build.mjs && playwright test"
+    "test:browser": "node scripts/setup-hooks.mjs && node scripts/build.mjs && playwright test --config config/playwright.config.ts"
   },
   "dependencies": {
     "@hono/node-server": "2.1.5",

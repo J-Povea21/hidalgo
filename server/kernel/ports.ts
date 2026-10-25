@@ -2,7 +2,7 @@
  * The interfaces slices use to reach the outside world. Declared once here so
  * every slice shares them; implemented only in server/infra.
  */
-import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '../../shared/contract.ts';
+import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '@shared/contract.ts';
 
 export interface Clock { now(): string }
 export interface Ids { next(prefix: string): string }

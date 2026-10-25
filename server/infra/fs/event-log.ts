@@ -4,8 +4,8 @@
  */
 import { readFile, truncate } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { RecordedEvent, UnsequencedEvent } from '../../../shared/contract.ts';
-import type { EventLog } from '../../kernel/ports.ts';
+import type { RecordedEvent, UnsequencedEvent } from '@shared/contract.ts';
+import type { EventLog } from '@server/kernel/ports.ts';
 import { appendLine, readJson, writeAtomic } from './files.ts';
 
 /**

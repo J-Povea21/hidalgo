@@ -5,9 +5,9 @@
  * left pending can still be approved or rejected later.
  */
 import { useEffect, useRef } from 'preact/hooks';
-import type { Item, VerdictValue } from '../../../shared/contract.ts';
-import { itemStatus, openQuestions } from '../../core/selectors.ts';
-import { StatusBadge, time } from '../../ui/parts.tsx';
+import type { Item, VerdictValue } from '@shared/contract.ts';
+import { itemStatus, openQuestions } from '@client/core/selectors.ts';
+import { StatusBadge, time } from '@client/ui/parts.tsx';
 
 export function Verdict(props: { item: Item; disabled: boolean; onVerdict: (value: VerdictValue, rev: number) => void }) {
   const { item } = props;

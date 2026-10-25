@@ -7,10 +7,10 @@
  * The delivery cursor lives on disk, so after a crash Claude gets exactly the
  * events it hadn't seen.
  */
-import type { RecordedEvent, RunState } from '../../../shared/contract.ts';
-import type { EventLog, EventSignal, ImageStore, Limits } from '../../kernel/ports.ts';
-import { setTurn } from '../../kernel/run.ts';
-import { changeRun, loadRun, type RunDeps } from '../../kernel/unit-of-work.ts';
+import type { RecordedEvent, RunState } from '@shared/contract.ts';
+import type { EventLog, EventSignal, ImageStore, Limits } from '@server/kernel/ports.ts';
+import { setTurn } from '@server/kernel/run.ts';
+import { changeRun, loadRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
 
 /** What Claude reads: compact, flat, only what's needed to act. */
 export interface DeliveredEvent {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { card } from '../../../test/fixtures.ts';
-import { world } from '../../../test/fakes.ts';
-import { addItems } from '../../kernel/run.ts';
+import { card } from '@test/fixtures.ts';
+import { world } from '@test/fakes.ts';
+import { addItems } from '@server/kernel/run.ts';
 import { openSession } from './open-session.ts';
 
 describe('open-session', () => {

@@ -3,11 +3,11 @@
  * a reboot). A resumed run replays any logged page events its saved state
  * hadn't absorbed, so nothing the user did is lost.
  */
-import type { RunState } from '../../../shared/contract.ts';
-import { WorkbenchError } from '../../kernel/errors.ts';
-import { replay } from '../../kernel/events.ts';
-import type { Clock, EventLog, Ids, PagePublisher, RunStore } from '../../kernel/ports.ts';
-import { newRun, reopen } from '../../kernel/run.ts';
+import type { RunState } from '@shared/contract.ts';
+import { WorkbenchError } from '@server/kernel/errors.ts';
+import { replay } from '@server/kernel/events.ts';
+import type { Clock, EventLog, Ids, PagePublisher, RunStore } from '@server/kernel/ports.ts';
+import { newRun, reopen } from '@server/kernel/run.ts';
 
 export interface OpenSessionDeps {
   store: RunStore;

@@ -1,6 +1,6 @@
 /** Pushes each run's state to its open pages over SSE. Implements PagePublisher. */
-import type { RunState } from '../../../shared/contract.ts';
-import type { PagePublisher } from '../../kernel/ports.ts';
+import type { RunState } from '@shared/contract.ts';
+import type { PagePublisher } from '@server/kernel/ports.ts';
 
 export type PageMessage =
   | { type: 'state'; state: RunState }

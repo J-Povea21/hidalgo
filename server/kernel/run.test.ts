@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { card, counterIds, question, T0 } from '../../test/fixtures.ts';
+import { card, counterIds, question, T0 } from '@test/fixtures.ts';
 import { WorkbenchError } from './errors.ts';
 import {
   addItems, addMessage, applyAnswers, applyEdit, applyVerdict, ask, close,
   markDone, newRun, rememberEventThread, runThreadId, updateItem,
 } from './run.ts';
-import { isFinal, pendingForUser } from '../../shared/rules.ts';
+import { isFinal, pendingForUser } from '@shared/rules.ts';
 
 const start = () => {
   const ids = counterIds();

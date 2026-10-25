@@ -43,7 +43,7 @@ process.stdout.write('• dependency rules… ');
 {
   let report;
   try {
-    report = JSON.parse(execFileSync(bin('depcruise'), ['--config', '.dependency-cruiser.cjs', '--output-type', 'json', 'server', 'client', 'shared'],
+    report = JSON.parse(execFileSync(bin('depcruise'), ['--config', 'config/dependency-cruiser.cjs', '--output-type', 'json', 'server', 'client', 'shared'],
       { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }));
   } catch (e) {
     report = JSON.parse(String(e.stdout || '{}'));
@@ -60,7 +60,7 @@ process.stdout.write('• dependency rules… ');
 run('types', bin('tsc'), ['--noEmit', '-p', 'tsconfig.json']);
 
 // 5. Tests.
-run('tests', bin('vitest'), ['run']);
+run('tests', bin('vitest'), ['run', '--config', 'config/vitest.config.ts']);
 
 // 6. Known vulnerabilities.
 // One fixed command string through the shell, so Windows finds pnpm.cmd too.

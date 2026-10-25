@@ -11,8 +11,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import { registerTools } from '../server/infra/mcp/tools.ts';
-import { Workbench } from '../server/infra/workbench.ts';
+import { registerTools } from '@server/infra/mcp/tools.ts';
+import { Workbench } from '@server/infra/workbench.ts';
 import { card, question, until } from './fixtures.ts';
 
 const cleanups: (() => Promise<void> | void)[] = [];

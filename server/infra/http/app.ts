@@ -13,9 +13,9 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { BUILD } from '../../../shared/constants.ts';
-import { TOKEN_HEADER, type LiveEntry } from '../../../shared/contract.ts';
-import { WorkbenchError } from '../../kernel/errors.ts';
+import { BUILD } from '@shared/constants.ts';
+import { TOKEN_HEADER, type LiveEntry } from '@shared/contract.ts';
+import { WorkbenchError } from '@server/kernel/errors.ts';
 import type { PageHub } from './hub.ts';
 
 export interface HttpDeps {

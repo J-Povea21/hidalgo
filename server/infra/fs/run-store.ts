@@ -6,8 +6,8 @@
 import { randomBytes } from 'node:crypto';
 import { access, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { RunState } from '../../../shared/contract.ts';
-import type { RunStore } from '../../kernel/ports.ts';
+import type { RunState } from '@shared/contract.ts';
+import type { RunStore } from '@server/kernel/ports.ts';
 import { readJson, removeTree, slug, writeAtomic } from './files.ts';
 
 /** `ownerPid`: the Claude Code process last serving the run, so a /mcp reconnect can serve it again. */

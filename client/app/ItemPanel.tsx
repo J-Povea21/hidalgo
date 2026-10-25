@@ -1,9 +1,9 @@
 /** The item as it will be created, with its verdict; and the Previous / Next bar under the stage. */
-import type { Item, VerdictValue } from '../../shared/contract.ts';
-import { itemStatus, itemTitle } from '../core/selectors.ts';
-import { Verdict } from '../features/verdict/Verdict.tsx';
-import { KIND_VIEWS } from '../kinds/index.ts';
-import { StatusBadge } from '../ui/parts.tsx';
+import type { Item, VerdictValue } from '@shared/contract.ts';
+import { itemStatus, itemTitle } from '@client/core/selectors.ts';
+import { Verdict } from '@client/features/verdict/Verdict.tsx';
+import { KIND_VIEWS } from '@client/kinds/index.ts';
+import { StatusBadge } from '@client/ui/parts.tsx';
 
 export function ItemPanel(props: {
   item: Item;

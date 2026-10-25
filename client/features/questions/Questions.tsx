@@ -5,10 +5,10 @@
  * nothing is lost on a reload.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { Item } from '../../../shared/contract.ts';
-import { openQuestions } from '../../core/selectors.ts';
-import { loadDraft, saveDraft } from '../../infra/drafts.ts';
-import { toInlineHtml } from '../../ui/markdown.tsx';
+import type { Item } from '@shared/contract.ts';
+import { openQuestions } from '@client/core/selectors.ts';
+import { loadDraft, saveDraft } from '@client/infra/drafts.ts';
+import { toInlineHtml } from '@client/ui/markdown.tsx';
 
 type Draft = Record<string, { choice?: number; note?: string }>;
 const inline = (s: string) => ({ __html: toInlineHtml(s) });

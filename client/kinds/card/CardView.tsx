@@ -3,8 +3,8 @@
  * edit is a change, so it bumps the revision and the adversary re-probes it.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { CardFields, Item } from '../../../shared/contract.ts';
-import { toInlineHtml, toSafeHtml } from '../../ui/markdown.tsx';
+import type { CardFields, Item } from '@shared/contract.ts';
+import { toInlineHtml, toSafeHtml } from '@client/ui/markdown.tsx';
 
 const inline = (s: string) => ({ __html: toInlineHtml(s) });
 

@@ -1,6 +1,6 @@
 /** Other workbench pages open right now on this machine, any session or project. */
 import { useEffect, useState } from 'preact/hooks';
-import type { LiveEntry } from '../../../shared/contract.ts';
+import type { LiveEntry } from '@shared/contract.ts';
 
 export function OpenReviews(props: { currentRunId: string; load: () => Promise<LiveEntry[]> }) {
   const [runs, setRuns] = useState<LiveEntry[] | undefined>();

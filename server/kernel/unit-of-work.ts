@@ -3,7 +3,7 @@
  * that changes a run goes through this, so "saved before shown" holds and two
  * changes can't overwrite each other. Uses ports only.
  */
-import type { RunState } from '../../shared/contract.ts';
+import type { RunState } from '@shared/contract.ts';
 import { WorkbenchError } from './errors.ts';
 import type { PagePublisher, RunLock, RunStore } from './ports.ts';
 

@@ -3,11 +3,11 @@
  * and item text embed it with `{{diagram:<id>}}`. A bad structure is refused
  * here, with the reason, and nothing reaches the page.
  */
-import { DiagramSpec } from '../../../shared/contract.ts';
-import { WorkbenchError } from '../../kernel/errors.ts';
-import type { Ids } from '../../kernel/ports.ts';
-import { addDiagram } from '../../kernel/run.ts';
-import { changeRun, type RunDeps } from '../../kernel/unit-of-work.ts';
+import { DiagramSpec } from '@shared/contract.ts';
+import { WorkbenchError } from '@server/kernel/errors.ts';
+import type { Ids } from '@server/kernel/ports.ts';
+import { addDiagram } from '@server/kernel/run.ts';
+import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
 import { toMermaid, toOutline } from './mermaid.ts';
 
 export function createDiagram(deps: RunDeps & { ids: Ids }, input: { runId: string; spec: unknown }) {

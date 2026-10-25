@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import mermaid from 'mermaid';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { DiagramSpec } from '../../../shared/contract.ts';
+import { DiagramSpec } from '@shared/contract.ts';
 import { toMermaid, toOutline } from './mermaid.ts';
 
 /** Labels built to break Mermaid syntax if anything reached it unescaped. */

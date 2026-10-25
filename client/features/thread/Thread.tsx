@@ -3,11 +3,11 @@
  * images (shrunk before sending), and quotes from the item. ⌘/Ctrl+Enter sends.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { Diagram, Message } from '../../../shared/contract.ts';
-import { loadDraft, saveDraft } from '../../infra/drafts.ts';
-import { compress, MAX_PER_MESSAGE } from '../../infra/images.ts';
-import { Markdown } from '../../ui/markdown.tsx';
-import { time, toast, Typing } from '../../ui/parts.tsx';
+import type { Diagram, Message } from '@shared/contract.ts';
+import { loadDraft, saveDraft } from '@client/infra/drafts.ts';
+import { compress, MAX_PER_MESSAGE } from '@client/infra/images.ts';
+import { Markdown } from '@client/ui/markdown.tsx';
+import { time, toast, Typing } from '@client/ui/parts.tsx';
 
 export interface ThreadProps {
   runId: string;

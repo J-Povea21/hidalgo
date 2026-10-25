@@ -6,9 +6,9 @@
 import { execFileSync } from 'node:child_process';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { LiveEntry } from '../../../shared/contract.ts';
-import { isDead } from '../../features/live-index/live-index.ts';
-import type { Clock, LiveIndex } from '../../kernel/ports.ts';
+import type { LiveEntry } from '@shared/contract.ts';
+import { isDead } from '@server/features/live-index/live-index.ts';
+import type { Clock, LiveIndex } from '@server/kernel/ports.ts';
 import { readJson, writeAtomic } from './files.ts';
 
 const STALE_MS = 2 * 60 * 1000;

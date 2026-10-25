@@ -1,6 +1,6 @@
 /** Small state the shell keeps: the clock, which item is on screen, and what's unread. */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { loadTabValue, saveTabValue } from '../infra/drafts.ts';
+import { loadTabValue, saveTabValue } from '@client/infra/drafts.ts';
 
 /** The time, refreshed every `ms`: enough for "Claude went quiet" to show without a state push. */
 export function useNow(ms: number): number {

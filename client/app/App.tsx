@@ -3,18 +3,18 @@
  * them all; each feature stays ignorant of the others.
  */
 import { useCallback, useEffect, useReducer, useState } from 'preact/hooks';
-import type { PageEvent } from '../../shared/contract.ts';
-import { runThreadId, tabTitle, threadMessages, turnView } from '../core/selectors.ts';
-import { initialState, reduce } from '../core/state.ts';
-import { AskAbout } from '../features/ask-about/AskAbout.tsx';
-import { ConnectionBanner } from '../features/connection/Banner.tsx';
-import { OpenReviews } from '../features/open-reviews/OpenReviews.tsx';
-import { Progress } from '../features/progress/Progress.tsx';
-import { Questions } from '../features/questions/Questions.tsx';
-import { useTab } from '../features/tab/useTab.ts';
-import { Thread } from '../features/thread/Thread.tsx';
-import { ApiError, type Api, type Session } from '../infra/api.ts';
-import { ChatIcon, LayersIcon, Lightbox, Toaster, toast } from '../ui/parts.tsx';
+import type { PageEvent } from '@shared/contract.ts';
+import { runThreadId, tabTitle, threadMessages, turnView } from '@client/core/selectors.ts';
+import { initialState, reduce } from '@client/core/state.ts';
+import { AskAbout } from '@client/features/ask-about/AskAbout.tsx';
+import { ConnectionBanner } from '@client/features/connection/Banner.tsx';
+import { OpenReviews } from '@client/features/open-reviews/OpenReviews.tsx';
+import { Progress } from '@client/features/progress/Progress.tsx';
+import { Questions } from '@client/features/questions/Questions.tsx';
+import { useTab } from '@client/features/tab/useTab.ts';
+import { Thread } from '@client/features/thread/Thread.tsx';
+import { ApiError, type Api, type Session } from '@client/infra/api.ts';
+import { ChatIcon, LayersIcon, Lightbox, Toaster, toast } from '@client/ui/parts.tsx';
 import { useItemPosition, useNow, useUnread } from './hooks.ts';
 import { ItemNav, ItemPanel } from './ItemPanel.tsx';
 

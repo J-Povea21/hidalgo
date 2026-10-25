@@ -12,8 +12,8 @@
 import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { dataRoot } from '../paths.ts';
-import type { LiveEntry } from '../../../shared/contract.ts';
+import { dataRoot } from '@server/infra/paths.ts';
+import type { LiveEntry } from '@shared/contract.ts';
 
 const MAX_BLOCKS = 3;
 

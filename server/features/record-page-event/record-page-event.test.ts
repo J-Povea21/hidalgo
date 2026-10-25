@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { seededWorld } from '../../../test/fakes.ts';
-import { until } from '../../../test/fixtures.ts';
+import { seededWorld } from '@test/fakes.ts';
+import { until } from '@test/fixtures.ts';
 import { recordPageEvent } from './record-page-event.ts';
 
 const setup = seededWorld;

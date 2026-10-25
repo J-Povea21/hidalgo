@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { card, counterIds, T0 } from '../../../test/fixtures.ts';
-import { world } from '../../../test/fakes.ts';
-import { addItems, newRun } from '../../kernel/run.ts';
+import { card, counterIds, T0 } from '@test/fixtures.ts';
+import { world } from '@test/fakes.ts';
+import { addItems, newRun } from '@server/kernel/run.ts';
 import { listRuns } from './list-runs.ts';
 
 describe('list-runs', () => {

@@ -5,8 +5,8 @@
  * entry, so a mistakenly deleted one comes back within a beat). `expired`
  * picks finished runs past retention; unfinished runs are never removed here.
  */
-import type { LiveEntry, RunState } from '../../../shared/contract.ts';
-import { pendingForUser } from '../../../shared/rules.ts';
+import type { LiveEntry, RunState } from '@shared/contract.ts';
+import { pendingForUser } from '@shared/rules.ts';
 
 export function liveEntry(
   run: RunState,

@@ -2,8 +2,8 @@
  * Structure in, Mermaid out. Claude never writes Mermaid: every label is
  * escaped here, so punctuation in a label can't change the diagram's syntax.
  */
-import type { DiagramSpec } from '../../../shared/contract.ts';
-import { WorkbenchError } from '../../kernel/errors.ts';
+import type { DiagramSpec } from '@shared/contract.ts';
+import { WorkbenchError } from '@server/kernel/errors.ts';
 
 /** Mermaid's entity codes for characters that are syntax somewhere in a diagram. */
 const ENTITIES: Record<string, string> = {

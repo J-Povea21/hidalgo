@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Item, RunState } from '../../shared/contract.ts';
-import { pendingForUser } from '../../shared/rules.ts';
-import { card } from '../../test/fixtures.ts';
+import type { Item, RunState } from '@shared/contract.ts';
+import { pendingForUser } from '@shared/rules.ts';
+import { card } from '@test/fixtures.ts';
 import { itemStatus, tabTitle, turnView } from './selectors.ts';
 import { ACTIVE_FOR_MS, initialState, reduce, type Presence } from './state.ts';
 
