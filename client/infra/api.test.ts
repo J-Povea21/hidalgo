@@ -4,7 +4,8 @@ import { createApi, proofFor } from './api.ts';
 
 const session = { runId: 'r1', token: 'the-secret-token' };
 const PAGE_PORT = '51234';
-const serverProof = (nonce: string, port: string) => createHmac('sha256', session.token).update(`workbench-hello|${nonce}|${port}`).digest('hex');
+const serverProof = (nonce: string, port: string, build = 'dev') =>
+  createHmac('sha256', session.token).update(`workbench-hello|${nonce}|${port}|${build}`).digest('hex');
 
 beforeEach(() => vi.stubGlobal('location', new URL(`http://127.0.0.1:${PAGE_PORT}/`)));
 afterEach(() => vi.unstubAllGlobals());
@@ -21,7 +22,7 @@ function server(signedPort: string | 'garbage') {
     if (url.startsWith('/api/hello')) {
       const nonce = new URL(url, 'http://x').searchParams.get('nonce')!;
       const proof = signedPort === 'garbage' ? 'f'.repeat(64) : serverProof(nonce, signedPort);
-      return new Response(JSON.stringify({ server: 'workbench', run: 'r1', proof }));
+      return new Response(JSON.stringify({ server: 'workbench', build: 'dev', run: 'r1', proof }));
     }
     return new Response(JSON.stringify({ runs: [] }));
   });
@@ -41,7 +42,7 @@ describe('following the session', () => {
       if (phase === 'down') throw new TypeError('connection refused');
       if (url.startsWith('/api/hello')) {
         const nonce = new URL(url, 'http://x').searchParams.get('nonce')!;
-        return new Response(JSON.stringify({ server: 'workbench', run: 'r1', proof: serverProof(nonce, PAGE_PORT) }));
+        return new Response(JSON.stringify({ server: 'workbench', build: 'dev', run: 'r1', proof: serverProof(nonce, PAGE_PORT) }));
       }
       if (url.startsWith('/api/stream')) {
         if (phase === 'first') { phase = 'down'; return new Response('event: goodbye\ndata: {"reason":"session ended"}\n\n'); }
@@ -68,7 +69,7 @@ describe('following the session', () => {
 
 describe('the identity check', () => {
   it("matches the server's HMAC for the same nonce and port", async () => {
-    expect(await proofFor(session.token, 'n', '1')).toBe(serverProof('n', '1'));
+    expect(await proofFor(session.token, 'n', '1', 'b1')).toBe(serverProof('n', '1', 'b1'));
   });
 
   it('never sends the token in hello itself', async () => {
@@ -93,13 +94,27 @@ describe('the identity check', () => {
     expect(leaked(seen)).toBe(false);
   });
 
-  it('a workbench of another build is reported as stale, and never gets the token', async () => {
+  /** A server that claims build `build`, with a real proof of it or a forged one. */
+  function claims(build: string, proves: boolean) {
     const seen: { url: string; headers: Record<string, string> }[] = [];
     vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
       seen.push({ url, headers: (init?.headers ?? {}) as Record<string, string> });
-      return new Response(JSON.stringify({ server: 'workbench', build: 'newer', error: 'unknown run' }), { status: 404 });
+      const nonce = new URL(url, 'http://x').searchParams.get('nonce')!;
+      const proof = proves ? serverProof(nonce, PAGE_PORT, build) : 'f'.repeat(64);
+      return new Response(JSON.stringify({ server: 'workbench', build, run: 'r1', proof }));
     });
+    return seen;
+  }
+
+  it('the real server on a newer build makes the page stale, and gets no token', async () => {
+    const seen = claims('newer', true);
     expect(await createApi(session).hello()).toBe('stale');
+    expect(leaked(seen)).toBe(false);
+  });
+
+  it('a stranger merely claiming a newer build is not believed: no stale banner, no token', async () => {
+    const seen = claims('newer', false);
+    expect(await createApi(session).hello()).toBe('no');
     expect(leaked(seen)).toBe(false);
   });
 

@@ -24,13 +24,14 @@ export class ApiError extends Error {
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
 
 /**
- * HMAC-SHA256(token, "workbench-hello|nonce|port"): what only the server holding the token,
- * answering on this port, can produce. A proof relayed from a server on another port fails.
- * Mirrors helloProof in server/infra/http/app.ts.
+ * HMAC-SHA256(token, "workbench-hello|nonce|port|build"): what only the server holding the
+ * token, answering on this port, as that build, can produce. A proof relayed from another port
+ * fails, and a claim of another build counts only when proven. FROZEN FORMAT, so old pages can
+ * verify new servers. Mirrors helloProof in server/infra/http/app.ts.
  */
-export async function proofFor(token: string, nonce: string, port: string): Promise<string> {
+export async function proofFor(token: string, nonce: string, port: string, build: string): Promise<string> {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`workbench-hello|${nonce}|${port}`)));
+  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`workbench-hello|${nonce}|${port}|${build}`)));
 }
 
 /** The port this page is talking to (the address bar's, defaulting like the browser does). */
@@ -60,12 +61,15 @@ export function createApi(s: Session) {
     try {
       const nonce = hex(crypto.getRandomValues(new Uint8Array(16)).buffer);
       const res = await fetch(`/api/hello?${q}&nonce=${nonce}`);
-      const r = (await res.json().catch(() => ({}))) as { server?: string; build?: string; run?: string; proof?: string };
-      // A workbench of another build answered: this page predates an update and can't talk to it.
-      if (r.server === 'workbench' && r.build && r.build !== BUILD) return 'stale';
       if (!res.ok) return 'no';
-      proven = r.server === 'workbench' && r.run === s.runId && r.proof === (await proofFor(s.token, nonce, pagePort()));
-      return proven ? 'proven' : 'no';
+      const r = (await res.json()) as { server?: string; build?: string; run?: string; proof?: string };
+      if (r.server !== 'workbench' || r.run !== s.runId || !r.build || !r.proof) return 'no';
+      // Nothing in the answer is trusted until the proof, which covers the build, checks out.
+      if (r.proof !== (await proofFor(s.token, nonce, pagePort(), r.build))) return 'no';
+      // The real server, on a newer build: this page predates an update and must be reloaded.
+      if (r.build !== BUILD) return 'stale';
+      proven = true;
+      return 'proven';
     } catch {
       return 'no';
     }

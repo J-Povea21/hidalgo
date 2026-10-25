@@ -205,7 +205,7 @@ describe('HTTP security', () => {
     const nonce = 'ab'.repeat(16);
     const r = await http(port, `/api/hello?run=${runId}&nonce=${nonce}`);
     expect(r.status).toBe(200);
-    expect(r.json.proof).toBe(createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}`).digest('hex'));
+    expect(r.json.proof).toBe(createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|dev`).digest('hex'));
     expect(JSON.stringify(r.json)).not.toContain(token);
     expect((await http(port, `/api/hello?run=nope&nonce=${nonce}`)).status).toBe(404);
     expect((await http(port, `/api/hello?run=${runId}&nonce=short`)).status).toBe(404);
@@ -286,7 +286,7 @@ describe('recovering an open page', () => {
     expect(after.wb.boundPort).toBe(port);
     const nonce = 'cd'.repeat(16);
     const hello = await http(port, `/api/hello?run=${runId}&nonce=${nonce}`);
-    expect(hello.json.proof).toBe(createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}`).digest('hex'));
+    expect(hello.json.proof).toBe(createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|dev`).digest('hex'));
     expect(after.opened).toEqual([]);
   });
 

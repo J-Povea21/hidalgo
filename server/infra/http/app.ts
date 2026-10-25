@@ -38,9 +38,13 @@ const TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif',
 };
 
-/** What only the server holding the token, answering on this port, can produce. Mirrored in client/infra/api.ts. */
-export const helloProof = (token: string, nonce: string, port: number) =>
-  createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}`).digest('hex');
+/**
+ * What only the server holding the token, answering on this port, as this build, can produce.
+ * FROZEN FORMAT: pages from older builds must verify newer servers with it, so it never changes.
+ * Mirrored in client/infra/api.ts.
+ */
+export const helloProof = (token: string, nonce: string, port: number, build: string) =>
+  createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|${build}`).digest('hex');
 
 const sameToken = (a: string, b: string) => {
   const x = Buffer.from(a), y = Buffer.from(b);
@@ -67,9 +71,9 @@ export function createApp(deps: HttpDeps): Hono {
     const runId = c.req.query('run') ?? '';
     const nonce = c.req.query('nonce') ?? '';
     const token = runId ? await deps.token(runId) : undefined;
-    // The build goes out even when the run is unknown: a page from an older build must learn to reload.
-    if (!token || !/^[0-9a-f]{32,128}$/.test(nonce)) return c.json({ error: 'unknown run or bad nonce', server: 'workbench', build: BUILD }, 404);
-    return c.json({ server: 'workbench', build: BUILD, run: runId, proof: helloProof(token, nonce, deps.port()) });
+    if (!token || !/^[0-9a-f]{32,128}$/.test(nonce)) return c.json({ error: 'unknown run or bad nonce' }, 404);
+    // The build is inside the proof, so a page only believes "you're on an older build" from a server that holds the token.
+    return c.json({ server: 'workbench', build: BUILD, run: runId, proof: helloProof(token, nonce, deps.port(), BUILD) });
   });
 
   app.use('/api/*', async (c, next) => {
