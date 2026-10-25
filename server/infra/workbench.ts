@@ -17,6 +17,7 @@ import { FsRunStore } from './fs/run-store.ts';
 import { createApp } from './http/app.ts';
 import { PageHub } from './http/hub.ts';
 import { MemoryRunLock, MemorySignal, randomIds, systemClock } from './runtime.ts';
+import { RUN_STATUS } from '@shared/values.ts';
 
 /** A page seen connected within this long is probably still open and retrying. */
 const RECENT_VIEWER_MS = 10 * 60_000;
@@ -232,7 +233,7 @@ export class Workbench {
   async ensureServed(runId: string): Promise<void> {
     if (this.served.has(runId)) return;
     const run = await this.store.load(runId);
-    if (run && run.status !== 'closed') await this.serve(runId);
+    if (run && run.status !== RUN_STATUS.closed) await this.serve(runId);
   }
 
   /**

@@ -7,7 +7,7 @@
  */
 import { BUILD, TOKEN_HEADER } from '@shared/constants.ts';
 import type { LiveEntry, PageEvent, RunState } from '@shared/contract.ts';
-import { LOST_AFTER_MS, type Connection, type Presence } from '@client/core/state.ts';
+import { type Connection, CONNECTION, LOST_AFTER_MS, type Presence } from '@client/core/state.ts';
 
 export interface Session {
   runId: string;
@@ -164,10 +164,12 @@ export function createApi(session: Session) {
           () => true,
           () => false,
         );
-        if (reachable && downSince === 0) return on.connection({ kind: 'moved' });
+        if (reachable && downSince === 0) return on.connection({ kind: CONNECTION.moved });
         downSince ||= Date.now();
         on.connection(
-          Date.now() - downSince > LOST_AFTER_MS ? { kind: 'lost' } : { kind: 'reconnecting', since: downSince },
+          Date.now() - downSince > LOST_AFTER_MS
+            ? { kind: CONNECTION.lost }
+            : { kind: CONNECTION.reconnecting, since: downSince },
         );
       };
 
@@ -183,7 +185,7 @@ export function createApi(session: Session) {
           const res = await fetch(`/api/stream?${runQuery}`, { headers, signal: controller.signal });
           if (!res.ok || !res.body) return false;
           // A proven server and an open stream: the page is live again, even after a goodbye.
-          on.connection({ kind: 'live' });
+          on.connection({ kind: CONNECTION.live });
           await readSse(res.body, (event, data) => {
             const msg = JSON.parse(data);
             if (event === 'state') on.state(msg.state, presence(msg));
@@ -191,7 +193,7 @@ export function createApi(session: Session) {
             else if (event === 'nudge') on.nudge?.(msg.text);
             else if (event === 'goodbye') {
               goodbye = true;
-              on.connection({ kind: 'ended', reason: msg.reason });
+              on.connection({ kind: CONNECTION.ended, reason: msg.reason });
               controller?.abort();
             }
           });
@@ -204,7 +206,7 @@ export function createApi(session: Session) {
       const loop = async () => {
         while (!stopped) {
           const identity = await hello();
-          if (identity === 'stale') on.connection({ kind: 'stale' });
+          if (identity === 'stale') on.connection({ kind: CONNECTION.stale });
           else if (identity === 'no') await reportUnproven();
           else {
             downSince = 0;
@@ -215,7 +217,7 @@ export function createApi(session: Session) {
             proven = false;
             if (!goodbye) {
               downSince ||= Date.now();
-              on.connection({ kind: 'reconnecting', since: downSince });
+              on.connection({ kind: CONNECTION.reconnecting, since: downSince });
             }
           }
           await pause();

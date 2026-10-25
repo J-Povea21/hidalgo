@@ -3,9 +3,9 @@
  * them all; each feature stays ignorant of the others.
  */
 import { useCallback, useEffect, useReducer, useState } from 'preact/hooks';
-import type { PageEvent } from '@shared/contract.ts';
-import { runThreadId, tabTitle, threadMessages, turnView } from '@client/core/selectors.ts';
-import { initialState, reduce } from '@client/core/state.ts';
+import { PARTY, RUN_STATUS, VERDICT, type VerdictValue } from '@shared/values.ts';
+import { runThreadId, tabTitle, threadMessages, TURN_VIEW, turnView, typingIn } from '@client/core/selectors.ts';
+import { actions, CONNECTION, initialState, reduce } from '@client/core/state.ts';
 import { AskAbout } from '@client/features/ask-about/AskAbout.tsx';
 import { ConnectionBanner } from '@client/features/connection/Banner.tsx';
 import { OpenReviews } from '@client/features/open-reviews/OpenReviews.tsx';
@@ -13,39 +13,60 @@ import { Progress } from '@client/features/progress/Progress.tsx';
 import { Questions } from '@client/features/questions/Questions.tsx';
 import { useTab } from '@client/features/tab/useTab.ts';
 import { Thread } from '@client/features/thread/Thread.tsx';
-import { ApiError, type Api, type Session } from '@client/infra/api.ts';
+import type { Api, Session } from '@client/infra/api.ts';
+import { CLASS, classes } from '@client/ui/classes.ts';
 import { ChatIcon, LayersIcon, Lightbox, Toaster, toast } from '@client/ui/parts.tsx';
-import { useItemPosition, useNow, useUnread } from './hooks.ts';
+import { useItemNavigation, useNow, useSend, useUnread } from './hooks.ts';
 import { ItemNav, ItemPanel } from './ItemPanel.tsx';
 
 /** How often the page re-checks time-based state ("Claude went quiet"). */
 const TICK_MS = 10_000;
 
-export function App(props: { api: Api; session: Session }) {
-  const { api, session } = props;
+/** The side panel: the whole run's conversation, or the other reviews open on this machine. */
+const DRAWER = { run: 'run', reviews: 'reviews' } as const;
+type Drawer = (typeof DRAWER)[keyof typeof DRAWER];
+
+/** What the toast says once something reached Claude. */
+const SENT = {
+  message: 'Sent to Claude',
+  answers: 'Answers sent to Claude',
+  edit: 'Edit sent: Claude will re-check it',
+  quoted: "Quoted into this item's conversation",
+  verdict: (value: VerdictValue, rev: number) =>
+    ({ [VERDICT.approved]: `Approved rev ${rev}`, [VERDICT.rejected]: 'Rejected', [VERDICT.pending]: 'Left pending' })[
+      value
+    ],
+};
+
+interface AppProps {
+  api: Api;
+  session: Session;
+}
+
+export function App({ api, session }: AppProps) {
   const [state, dispatch] = useReducer(reduce, initialState);
-  const [cur, setCur] = useItemPosition(session.runId);
-  const [slide, setSlide] = useState('');
-  const [drawer, setDrawer] = useState<'run' | 'reviews' | undefined>();
-  const [typingIn, setTypingIn] = useState<string | undefined>();
+  const [drawer, setDrawer] = useState<Drawer | undefined>();
+  /** The thread something was last sent from: it shows Claude working until Claude listens again. */
+  const [sentFrom, setSentFrom] = useState<string | undefined>();
   const [zoom, setZoom] = useState<{ html?: string | undefined; src?: string | undefined }>();
   const [quote, setQuote] = useState<{ text: string; nonce: number }>();
   const now = useNow(TICK_MS);
+  const { run } = state;
+  const { itemIndex, goTo, slide, slideDone } = useItemNavigation(session.runId, run?.items.length ?? 0);
+  const send = useSend(api, setSentFrom);
 
   useEffect(
     () =>
       api.follow({
-        state: (run, presence) => dispatch({ type: 'state', run, presence }),
-        presence: (presence) => dispatch({ type: 'presence', presence }),
-        connection: (connection) => dispatch({ type: 'connection', connection }),
+        state: (next, presence) => dispatch(actions.state(next, presence)),
+        presence: (presence) => dispatch(actions.presence(presence)),
+        connection: (connection) => dispatch(actions.connection(connection)),
         nudge: (text) => toast(text),
       }),
     [],
   );
-
-  const run = state.run;
   useEffect(() => {
-    if (state.claudeListening) setTypingIn(undefined);
+    if (state.claudeListening) setSentFrom(undefined);
   }, [state.claudeListening]);
   // For tests and styling: the connection state apart from its wording.
   useEffect(() => {
@@ -56,9 +77,9 @@ export function App(props: { api: Api; session: Session }) {
   useTab(tabTitle(state, now), turn);
 
   const runThread = run ? runThreadId(run) : undefined;
-  const claudeMessages =
-    run && runThread ? threadMessages(run, runThread).filter((message) => message.from === 'claude').length : 0;
-  const unread = useUnread(claudeMessages, drawer === 'run');
+  const fromClaude =
+    run && runThread ? threadMessages(run, runThread).filter((message) => message.from === PARTY.claude) : [];
+  const unread = useUnread(fromClaude.length, drawer === DRAWER.run);
 
   const reportDiagram = useCallback((diagramId: string, error: string) => {
     void api.sendEvent({ type: 'diagram-failed', diagramId, error }).catch(() => undefined);
@@ -69,39 +90,14 @@ export function App(props: { api: Api; session: Session }) {
     return (
       <>
         <ConnectionBanner connection={state.connection} listening={false} idle={false} />
-        {state.connection.kind === 'connecting' && <div class="empty">Connecting to Claude's session…</div>}
+        {state.connection.kind === CONNECTION.connecting && <div class="empty">Connecting to Claude's session…</div>}
       </>
     );
   }
 
-  async function send(event: PageEvent, from: string | undefined, ok: string): Promise<boolean> {
-    try {
-      const result = await api.sendEvent(event);
-      if (from) setTypingIn(from);
-      toast(result.imageWarning ?? ok);
-      return true;
-    } catch (error) {
-      toast(
-        error instanceof ApiError ? error.message : "Not sent: Claude's session is unreachable. Your text is kept.",
-      );
-      return false;
-    }
-  }
-
-  const index = Math.min(cur, Math.max(0, run.items.length - 1));
-  const item = run.items[index];
-  const go = (target: number) => {
-    if (target < 0 || target >= run.items.length || target === index) return;
-    setSlide(target > index ? 'in-right' : 'in-left');
-    setCur(target);
-    scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const busy = state.connection.kind !== 'live' || run.status !== 'open';
-  const typingLabel = run.statusLine ? `Claude: ${run.statusLine}` : 'Claude is thinking…';
-  // "Thinking" only while a live session is actually working on what was sent from this thread.
-  const showTyping = (key: string) =>
-    turn === 'working' && typingIn === key && state.connection.kind === 'live' ? typingLabel : undefined;
+  const item = run.items[itemIndex];
+  const busy = state.connection.kind !== CONNECTION.live || run.status !== RUN_STATUS.open;
+  const typing = (threadId: string) => typingIn(state, now, sentFrom, threadId);
   const threadProps = {
     runId: run.id,
     diagrams: run.diagrams,
@@ -110,30 +106,27 @@ export function App(props: { api: Api; session: Session }) {
     onDiagramFailed: reportDiagram,
     onZoom: zoomIn,
   };
-  const toggle = (which: 'run' | 'reviews') => setDrawer(drawer === which ? undefined : which);
+  const toggle = (which: Drawer) => setDrawer(drawer === which ? undefined : which);
+  const drawerButton = (which: Drawer) => ({
+    class: classes('iconbtn', drawer === which && CLASS.on),
+    'aria-expanded': drawer === which,
+    onClick: () => toggle(which),
+  });
 
   return (
     <>
       <Progress
         run={run}
         turn={turn}
-        current={index}
-        onGo={go}
+        current={itemIndex}
+        onGo={goTo}
         actions={
           <>
-            <button
-              class={`iconbtn ${drawer === 'reviews' ? 'on' : ''}`}
-              aria-expanded={drawer === 'reviews'}
-              onClick={() => toggle('reviews')}
-            >
+            <button {...drawerButton(DRAWER.reviews)}>
               <LayersIcon />
               <span>Open reviews</span>
             </button>
-            <button
-              class={`iconbtn ${drawer === 'run' ? 'on' : ''}`}
-              aria-expanded={drawer === 'run'}
-              onClick={() => toggle('run')}
-            >
+            <button {...drawerButton(DRAWER.run)}>
               <ChatIcon />
               <span>Run</span>
               {unread && <span class="unread" role="img" aria-label="new messages" />}
@@ -144,46 +137,44 @@ export function App(props: { api: Api; session: Session }) {
       <ConnectionBanner
         connection={state.connection}
         listening={state.claudeListening}
-        idle={turn === 'idle'}
+        idle={turn === TURN_VIEW.idle}
         runStatus={run.status}
       />
       <div class="wrap">
-        <div class={`drawer ${drawer ? 'open' : ''}`}>
+        <div class={classes('drawer', drawer && CLASS.open)}>
           <div>
-            {drawer === 'run' && runThread && (
+            {drawer === DRAWER.run && runThread && (
               <Thread
                 {...threadProps}
                 threadId={runThread}
                 title="Whole run"
                 hint="About anything that spans the items."
                 messages={threadMessages(run, runThread)}
-                typing={showTyping(runThread)}
+                typing={typing(runThread)}
                 onSend={(text, images) =>
-                  send({ type: 'message', threadId: runThread, text, images }, runThread, 'Sent to Claude')
+                  send({ type: 'message', threadId: runThread, text, images }, runThread, SENT.message)
                 }
               />
             )}
-            {drawer === 'reviews' && <OpenReviews currentRunId={run.id} load={api.liveRuns} />}
+            {drawer === DRAWER.reviews && <OpenReviews currentRunId={run.id} load={api.liveRuns} />}
           </div>
         </div>
       </div>
       <main class="stage">
         {!item ? (
           <div class="empty">
-            {run.status === 'open'
+            {run.status === RUN_STATUS.open
               ? 'Claude is preparing the first item…'
               : (run.closedOutcome ?? 'This run has ended.')}
           </div>
         ) : (
-          <div class={`slide ${slide}`} key={item.id} onAnimationEnd={() => setSlide('')}>
+          <div class={classes('slide', slide)} key={item.id} onAnimationEnd={slideDone}>
             <div class="col">
               <Questions
                 runId={run.id}
                 item={item}
                 disabled={busy}
-                onSend={(answers) =>
-                  send({ type: 'answers', itemId: item.id, answers }, item.threadId, 'Answers sent to Claude')
-                }
+                onSend={(answers) => send({ type: 'answers', itemId: item.id, answers }, item.threadId, SENT.answers)}
               />
               <Thread
                 {...threadProps}
@@ -191,10 +182,10 @@ export function App(props: { api: Api; session: Session }) {
                 title="Conversation about this item"
                 hint="About this item only."
                 messages={threadMessages(run, item.threadId)}
-                typing={showTyping(item.threadId)}
+                typing={typing(item.threadId)}
                 quote={quote}
                 onSend={(text, images) =>
-                  send({ type: 'message', threadId: item.threadId, text, images }, item.threadId, 'Sent to Claude')
+                  send({ type: 'message', threadId: item.threadId, text, images }, item.threadId, SENT.message)
                 }
               />
             </div>
@@ -202,32 +193,24 @@ export function App(props: { api: Api; session: Session }) {
               <ItemPanel
                 item={item}
                 busy={busy}
-                working={!!showTyping(item.threadId)}
+                working={!!typing(item.threadId)}
                 onEdit={(path, text) =>
-                  void send(
-                    { type: 'edit', itemId: item.id, path, text },
-                    item.threadId,
-                    'Edit sent: Claude will re-check it',
-                  )
+                  void send({ type: 'edit', itemId: item.id, path, text }, item.threadId, SENT.edit)
                 }
                 onVerdict={(value, rev) =>
-                  void send(
-                    { type: 'verdict', itemId: item.id, rev, value },
-                    item.threadId,
-                    value === 'approved' ? `Approved rev ${rev}` : value === 'rejected' ? 'Rejected' : 'Left pending',
-                  )
+                  void send({ type: 'verdict', itemId: item.id, rev, value }, item.threadId, SENT.verdict(value, rev))
                 }
               />
             </div>
           </div>
         )}
       </main>
-      <ItemNav items={run.items} index={index} onGo={go} />
+      <ItemNav items={run.items} itemIndex={itemIndex} onGo={goTo} />
       <AskAbout
         within=".preview"
         onQuote={(text) => {
           setQuote({ text, nonce: Date.now() });
-          toast("Quoted into this item's conversation");
+          toast(SENT.quoted);
         }}
       />
       {zoom && <Lightbox html={zoom.html} src={zoom.src} onClose={() => setZoom(undefined)} />}

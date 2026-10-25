@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import type { ItemStatus } from '@shared/rules.ts';
+import { CLASS, classes } from './classes.ts';
 
 export const ChatIcon = () => (
   <svg
@@ -55,7 +56,7 @@ const STATUS_TEXT: Record<ItemStatus, string> = {
   pending: 'Left pending',
 };
 export const StatusBadge = (props: { status: ItemStatus; children?: ComponentChildren }) => (
-  <span class={`badge ${props.status}`}>{props.children ?? STATUS_TEXT[props.status]}</span>
+  <span class={classes('badge', props.status)}>{props.children ?? STATUS_TEXT[props.status]}</span>
 );
 
 const TOAST_MS = 2200;
@@ -80,17 +81,23 @@ export function Toaster() {
     };
   }, []);
   return (
-    <div class={`toast ${show ? 'show' : ''}`} role="status" aria-live="polite" data-testid="toast">
+    <div class={classes('toast', show && CLASS.shown)} role="status" aria-live="polite" data-testid="toast">
       {text}
     </div>
   );
+}
+
+interface LightboxProps {
+  html?: string | undefined;
+  src?: string | undefined;
+  onClose: () => void;
 }
 
 /**
  * Full-size view of an image or a diagram. Takes focus when it opens, Escape or
  * a click closes it, and focus goes back to whatever opened it.
  */
-export function Lightbox(props: { html?: string | undefined; src?: string | undefined; onClose: () => void }) {
+export function Lightbox(props: LightboxProps) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;

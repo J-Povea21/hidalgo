@@ -3,7 +3,10 @@
  * file; it imports nothing of ours. A field renamed here breaks both sides
  * at compile time.
  */
+import { VERDICT, type Party, type RunStatus, type Turn, type VerdictValue } from './values.ts';
 import { z } from 'zod';
+
+export { PARTY, RUN_STATUS, VERDICT, type Party, type RunStatus, type Turn, type VerdictValue } from './values.ts';
 
 export const Id = z
   .string()
@@ -77,7 +80,7 @@ export interface Thread {
 export interface Message {
   id: string;
   threadId: string;
-  from: 'claude' | 'user';
+  from: Party;
   at: string;
   text: string;
   images?: string[];
@@ -85,7 +88,6 @@ export interface Message {
   replyTo?: number;
 }
 
-export type VerdictValue = 'approved' | 'rejected' | 'pending';
 export interface Verdict {
   value: VerdictValue;
   rev: number;
@@ -159,9 +161,6 @@ export interface Diagram {
 
 // ---------- the run ----------
 
-export type RunStatus = 'open' | 'paused' | 'closed';
-export type Turn = 'user' | 'claude';
-
 export interface RunState {
   id: string;
   skill: string;
@@ -203,7 +202,7 @@ export const PageEvent = z.discriminatedUnion('type', [
     type: z.literal('verdict'),
     itemId: Id,
     rev: z.number().int().min(1),
-    value: z.enum(['approved', 'rejected', 'pending']),
+    value: z.enum(VERDICT),
   }),
   z.object({ type: z.literal('edit'), itemId: Id, path: z.string().max(80), text: Text }),
   z.object({ type: z.literal('diagram-failed'), diagramId: Id, error: z.string().max(2000) }),

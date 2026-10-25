@@ -5,6 +5,7 @@
 import type { RunState } from '@shared/contract.ts';
 import type { LiveIndex, RunStore } from '@server/kernel/ports.ts';
 import { currentVerdict, itemTitle, pendingForUser } from '@shared/rules.ts';
+import { RUN_STATUS } from '@shared/values.ts';
 
 export interface RunSummary {
   id: string;
@@ -26,7 +27,7 @@ export async function listRuns(
   const [runs, live] = await Promise.all([deps.store.list(input.project), deps.live.alive()]);
   const liveIds = new Set(live.map((entry) => entry.runId));
   return runs
-    .filter((run) => input.includeClosed || run.status !== 'closed')
+    .filter((run) => input.includeClosed || run.status !== RUN_STATUS.closed)
     .map((run) => ({
       id: run.id,
       skill: run.skill,

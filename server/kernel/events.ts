@@ -4,6 +4,7 @@
  */
 import type { RecordedEvent, RunState } from '@shared/contract.ts';
 import { addMessage, applyAnswers, applyEdit, applyVerdict, rememberEventThread, threadOfItem } from './run.ts';
+import { PARTY } from '@shared/values.ts';
 
 /** The thread an event belongs to, or undefined for events that have none (a diagram failure). */
 export function threadOfEvent(run: RunState, ev: RecordedEvent): string | undefined {
@@ -33,7 +34,7 @@ export function applyEvent(run: RunState, ev: RecordedEvent): RunState {
     case 'message':
       next = addMessage(run, {
         text: ev.text,
-        from: 'user',
+        from: PARTY.user,
         now: ev.at,
         id: `u${ev.seq}`,
         threadId: ev.threadId,

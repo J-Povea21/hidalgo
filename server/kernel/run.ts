@@ -18,6 +18,7 @@ import {
 } from '@shared/contract.ts';
 import { currentVerdict, isFinal, openQuestions } from '@shared/rules.ts';
 import { WorkbenchError } from './errors.ts';
+import { PARTY, RUN_STATUS, VERDICT } from '@shared/values.ts';
 
 type IdGen = (prefix: string) => string;
 
@@ -37,13 +38,13 @@ export function newRun(init: {
     skill: init.skill,
     project: init.project,
     subject: init.subject,
-    status: 'open',
+    status: RUN_STATUS.open,
     startedAt: init.now,
     items: [],
     threads: [{ id: init.threadId, owner: { type: 'run' } }],
     messages: [],
     diagrams: [],
-    turn: 'claude',
+    turn: PARTY.claude,
     version: 1,
     eventThreads: {},
     appliedSeq: 0,
@@ -58,7 +59,7 @@ export function runThreadId(run: RunState): string {
 
 /** A closed run is final: every change to it is refused. A paused run still takes changes and stays resumable. */
 function assertOpen(run: RunState): void {
-  if (run.status === 'closed') throw new WorkbenchError('closed', `run ${run.id} is closed`);
+  if (run.status === RUN_STATUS.closed) throw new WorkbenchError('closed', `run ${run.id} is closed`);
 }
 
 export function findItem(run: RunState, itemId: string): Item {
@@ -195,7 +196,7 @@ export function applyVerdict(run: RunState, itemId: string, rev: number, value: 
   if (rev !== item.rev) {
     throw new WorkbenchError('stale-revision', `verdict names rev ${rev}, but item ${itemId} is at rev ${item.rev}`);
   }
-  if (value === 'approved' && openQuestions(item).length > 0) {
+  if (value === VERDICT.approved && openQuestions(item).length > 0) {
     throw new WorkbenchError(
       'open-questions',
       `item ${itemId} still has ${openQuestions(item).length} open question(s)`,
@@ -230,7 +231,7 @@ export function markDone(run: RunState, itemId: string, note: string, now: strin
   assertOpen(run);
   const next = clone(run);
   const item = findItem(next, itemId);
-  if (currentVerdict(item) !== 'approved') {
+  if (currentVerdict(item) !== VERDICT.approved) {
     throw new WorkbenchError(
       'invalid',
       `item ${itemId} is not approved at its current revision, so it can't be marked done`,
@@ -305,18 +306,18 @@ export function rememberEventThread(run: RunState, seq: number, threadId: string
 export function close(run: RunState, status: Exclude<RunStatus, 'open'>, outcome: string, now: string): RunState {
   assertOpen(run);
   const open = run.items.filter((item) => !isFinal(item));
-  if (status === 'closed' && open.length) {
+  if (status === RUN_STATUS.closed && open.length) {
     throw new WorkbenchError(
       'open-items',
       `${open.length} item(s) aren't rejected, or approved and done: pause the run instead`,
       open.map((item) => ({ id: item.id, rev: item.rev })),
     );
   }
-  return touch({ ...clone(run), status, closedOutcome: outcome, closedAt: now, turn: 'claude' });
+  return touch({ ...clone(run), status, closedOutcome: outcome, closedAt: now, turn: PARTY.claude });
 }
 
 export function reopen(run: RunState): RunState {
-  return run.status === 'paused' ? touch({ ...clone(run), status: 'open' }) : run;
+  return run.status === RUN_STATUS.paused ? touch({ ...clone(run), status: RUN_STATUS.open }) : run;
 }
 
 export function setStatusLine(run: RunState, line: string | undefined): RunState {

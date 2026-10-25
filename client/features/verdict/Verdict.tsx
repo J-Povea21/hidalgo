@@ -8,12 +8,15 @@ import { useEffect, useRef } from 'preact/hooks';
 import type { Item, VerdictValue } from '@shared/contract.ts';
 import { itemStatus, openQuestions } from '@client/core/selectors.ts';
 import { StatusBadge, time } from '@client/ui/parts.tsx';
+import { ITEM_STATUS, VERDICT } from '@shared/values.ts';
 
-export function Verdict(props: {
+interface VerdictProps {
   item: Item;
   disabled: boolean;
   onVerdict: (value: VerdictValue, rev: number) => void;
-}) {
+}
+
+export function Verdict(props: VerdictProps) {
   const { item } = props;
   const status = itemStatus(item);
   const outcome = useRef<HTMLDivElement>(null);
@@ -24,24 +27,24 @@ export function Verdict(props: {
     prev.current = status;
   }, [status]);
 
-  if (status === 'done')
+  if (status === ITEM_STATUS.done)
     return (
       <div class="section verdict" tabIndex={-1} ref={outcome}>
-        <StatusBadge status="done">Done</StatusBadge>
+        <StatusBadge status={ITEM_STATUS.done}>Done</StatusBadge>
         <span class="meta">{item.done!.note}</span>
       </div>
     );
-  if (status === 'approved')
+  if (status === ITEM_STATUS.approved)
     return (
       <div class="section verdict" tabIndex={-1} ref={outcome}>
-        <StatusBadge status="approved">Approved · rev {item.rev}</StatusBadge>
+        <StatusBadge status={ITEM_STATUS.approved}>Approved · rev {item.rev}</StatusBadge>
         <span class="meta">Claude acts on it next.</span>
       </div>
     );
-  if (status === 'rejected')
+  if (status === ITEM_STATUS.rejected)
     return (
       <div class="section verdict" tabIndex={-1} ref={outcome}>
-        <StatusBadge status="rejected" />
+        <StatusBadge status={ITEM_STATUS.rejected} />
         <span class="meta">at {time(item.verdict!.at)}</span>
       </div>
     );
@@ -52,7 +55,7 @@ export function Verdict(props: {
       class="good"
       disabled={open > 0 || props.disabled}
       aria-describedby={open > 0 ? blockedId : undefined}
-      onClick={() => props.onVerdict('approved', item.rev)}
+      onClick={() => props.onVerdict(VERDICT.approved, item.rev)}
     >
       Approve
     </button>
@@ -65,12 +68,12 @@ export function Verdict(props: {
     ) : (
       <span class="meta">Approves exactly rev {item.rev}.</span>
     );
-  if (status === 'pending') {
+  if (status === ITEM_STATUS.pending) {
     return (
       <div class="section verdict" tabIndex={-1} ref={outcome}>
-        <StatusBadge status="pending" />
+        <StatusBadge status={ITEM_STATUS.pending} />
         {approve}
-        <button disabled={props.disabled} onClick={() => props.onVerdict('rejected', item.rev)}>
+        <button disabled={props.disabled} onClick={() => props.onVerdict(VERDICT.rejected, item.rev)}>
           Reject
         </button>
         {reason}
@@ -80,10 +83,10 @@ export function Verdict(props: {
   return (
     <div class="section verdict" tabIndex={-1} ref={outcome}>
       {approve}
-      <button disabled={props.disabled} onClick={() => props.onVerdict('rejected', item.rev)}>
+      <button disabled={props.disabled} onClick={() => props.onVerdict(VERDICT.rejected, item.rev)}>
         Reject
       </button>
-      <button class="ghost" disabled={props.disabled} onClick={() => props.onVerdict('pending', item.rev)}>
+      <button class="ghost" disabled={props.disabled} onClick={() => props.onVerdict(VERDICT.pending, item.rev)}>
         Leave pending
       </button>
       {reason}

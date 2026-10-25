@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import type { RunState } from '@shared/contract.ts';
 import type { RunStore } from '@server/kernel/ports.ts';
 import { readJson, removeTree, slug, writeAtomic } from './files.ts';
+import { RUN_STATUS } from '@shared/values.ts';
 
 /** `ownerPid`: the Claude Code process last serving the run, so a /mcp reconnect can serve it again. */
 interface RunFile {
@@ -134,7 +135,7 @@ export class FsRunStore implements RunStore {
     for (const project of await readdir(join(this.root, 'runs')).catch(() => [] as string[])) {
       for (const id of await readdir(join(this.root, 'runs', project)).catch(() => [] as string[])) {
         const runFile = await readJson<RunFile>(join(this.root, 'runs', project, id, 'run.json'));
-        if (runFile && runFile.ownerPid === ownerPid && runFile.state.status !== 'closed') ids.push(id);
+        if (runFile && runFile.ownerPid === ownerPid && runFile.state.status !== RUN_STATUS.closed) ids.push(id);
       }
     }
     return ids;

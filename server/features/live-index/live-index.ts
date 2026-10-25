@@ -7,6 +7,7 @@
  */
 import type { LiveEntry, RunState } from '@shared/contract.ts';
 import { pendingForUser } from '@shared/rules.ts';
+import { RUN_STATUS } from '@shared/values.ts';
 
 export function liveEntry(
   run: RunState,
@@ -43,7 +44,7 @@ const DAY = 24 * 60 * 60 * 1000;
 export function expired(runs: RunState[], now: string, retentionDays: number): string[] {
   const cutoff = Date.parse(now) - retentionDays * DAY;
   return runs
-    .filter((run) => run.status === 'closed' && run.closedAt && Date.parse(run.closedAt) < cutoff)
+    .filter((run) => run.status === RUN_STATUS.closed && run.closedAt && Date.parse(run.closedAt) < cutoff)
     .map((run) => run.id);
 }
 

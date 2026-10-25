@@ -20,6 +20,7 @@ import { updateItem } from '@server/features/update-item/update-item.ts';
 import { takeEvents, waitForEvents } from '@server/features/wait-for-events/wait-for-events.ts';
 import { WorkbenchError } from '@server/kernel/errors.ts';
 import type { Workbench } from '@server/infra/workbench.ts';
+import { RUN_STATUS } from '@shared/values.ts';
 
 type Result = { content: { type: 'text'; text: string }[]; isError?: boolean };
 
@@ -213,7 +214,11 @@ export function registerTools(server: McpServer, wb: Workbench): void {
     {
       description:
         'End the run. "paused" always works: it keeps everything and the run stays resumable. "closed" is final and needs every item rejected, or approved and marked done; otherwise it is refused, listing the open items, and you pause instead.',
-      inputSchema: { runId: RunId, status: z.enum(['closed', 'paused']), outcome: z.string().min(1).max(300) },
+      inputSchema: {
+        runId: RunId,
+        status: z.enum([RUN_STATUS.closed, RUN_STATUS.paused]),
+        outcome: z.string().min(1).max(300),
+      },
     },
     (input) => withEvents(input.runId, () => closeSession(deps, input)),
   );

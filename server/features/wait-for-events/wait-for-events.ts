@@ -11,6 +11,7 @@ import type { RecordedEvent, RunState } from '@shared/contract.ts';
 import type { EventLog, EventSignal, ImageStore, Limits } from '@server/kernel/ports.ts';
 import { setTurn } from '@server/kernel/run.ts';
 import { changeRun, loadRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
+import { PARTY } from '@shared/values.ts';
 
 /** What Claude reads: compact, flat, only what's needed to act. */
 export interface DeliveredEvent {
@@ -107,11 +108,11 @@ export async function waitForEvents(
   const woken = deps.signal.wait(runId, deps.limits.waitTimeoutMs);
   let outcome: 'event' | 'timeout';
   try {
-    await setTurnTo(deps, runId, 'user');
+    await setTurnTo(deps, runId, PARTY.user);
     if ((await deps.log.undelivered(runId)).length) deps.signal.ring(runId);
     outcome = await woken;
   } finally {
-    await setTurnTo(deps, runId, 'claude');
+    await setTurnTo(deps, runId, PARTY.claude);
   }
   const events = await takeEvents(deps, runId);
   return { events, timedOut: outcome === 'timeout' && events.length === 0 };

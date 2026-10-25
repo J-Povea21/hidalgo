@@ -41,12 +41,14 @@ export const toSafeHtml = (text: string): string =>
 export const toInlineHtml = (text: string): string =>
   memo(inlineCache, text, () => DOMPurify.sanitize(marked.parseInline(text, { async: false }) as string));
 
-export function Markdown(props: {
+interface MarkdownProps {
   text: string;
   diagrams: DiagramData[];
   onDiagramFailed: (id: string, error: string) => void;
   onZoom: (html: string) => void;
-}) {
+}
+
+export function Markdown(props: MarkdownProps) {
   // Split around diagram placeholders so each diagram is its own component.
   const parts = useMemo(() => props.text.split(PLACEHOLDER), [props.text]);
   return (
@@ -92,13 +94,15 @@ function loadMermaid() {
   return mermaidLoad;
 }
 
-/** Draws a diagram; if it can't, shows its outline instead and reports the failure. Never shows an error. */
-export function Diagram(props: {
+interface DiagramProps {
   id: string;
   data: DiagramData | undefined;
   onFailed: (id: string, error: string) => void;
   onZoom: (html: string) => void;
-}) {
+}
+
+/** Draws a diagram; if it can't, shows its outline instead and reports the failure. Never shows an error. */
+export function Diagram(props: DiagramProps) {
   const [svg, setSvg] = useState<string | undefined>(props.data ? svgCache.get(props.data.mermaid) : undefined);
   const [failed, setFailed] = useState(false);
 

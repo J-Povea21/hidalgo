@@ -3,6 +3,8 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { RunState } from '@shared/contract.ts';
 import { itemStatus, itemTitle, type ItemStatus, type TurnView } from '@client/core/selectors.ts';
+import { RUN_STATUS } from '@shared/values.ts';
+import { CLASS, classes } from '@client/ui/classes.ts';
 
 const FILL: Record<ItemStatus, [string, string]> = {
   questions: ['35%', 'var(--warn)'],
@@ -13,13 +15,15 @@ const FILL: Record<ItemStatus, [string, string]> = {
   pending: ['100%', 'var(--faint)'],
 };
 
-export function Progress(props: {
+interface ProgressProps {
   run: RunState;
   turn: TurnView;
   current: number;
   onGo: (i: number) => void;
   actions: ComponentChildren;
-}) {
+}
+
+export function Progress(props: ProgressProps) {
   const { run, turn } = props;
   const approved = run.items.filter((item) => ['approved', 'done'].includes(itemStatus(item))).length;
   const header = useRef<HTMLElement>(null);
@@ -57,7 +61,7 @@ export function Progress(props: {
               return (
                 <button
                   key={item.id}
-                  class={`seg ${index === props.current ? 'cur' : ''}`}
+                  class={classes('seg', index === props.current && CLASS.current)}
                   style={{ '--fill': fill, '--c': color } as Record<string, string>}
                   title={itemTitle(item)}
                   aria-label={`${itemTitle(item)}: ${itemStatus(item)}`}
@@ -73,17 +77,23 @@ export function Progress(props: {
   );
 }
 
+interface TurnLineProps {
+  turn: TurnView;
+  line?: string | undefined;
+  status: RunState['status'];
+}
+
 /** `data-turn` lets tests assert the state apart from its wording. */
-function TurnLine(props: { turn: TurnView; line?: string | undefined; status: RunState['status'] }) {
+function TurnLine(props: TurnLineProps) {
   const [cls, pulse, text] = {
     yours: ['yours', true, 'Your turn'],
     working: ['working', true, props.line ?? 'Claude is working'],
     idle: ['', false, "Claude isn't listening"],
-    done: ['', false, props.status === 'paused' ? 'Paused · resumable' : 'Run ended'],
+    done: ['', false, props.status === RUN_STATUS.paused ? 'Paused · resumable' : 'Run ended'],
     offline: ['', false, 'Not connected'],
   }[props.turn] as [string, boolean, string];
   return (
-    <span class={`status ${cls}`} role="status" aria-label="Turn" data-turn={props.turn}>
+    <span class={classes('status', cls)} role="status" aria-label="Turn" data-turn={props.turn}>
       {pulse && <span class="dotpulse" />}
       {text}
     </span>

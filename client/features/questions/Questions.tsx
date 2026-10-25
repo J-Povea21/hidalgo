@@ -9,6 +9,7 @@ import type { Item } from '@shared/contract.ts';
 import { openQuestions } from '@client/core/selectors.ts';
 import { loadDraft, saveDraft } from '@client/infra/drafts.ts';
 import { toInlineHtml } from '@client/ui/markdown.tsx';
+import { CLASS, classes, slideToward } from '@client/ui/classes.ts';
 
 type Draft = Record<string, { choice?: number; note?: string }>;
 const inline = (markdown: string) => ({ __html: toInlineHtml(markdown) });
@@ -16,18 +17,20 @@ const inline = (markdown: string) => ({ __html: toInlineHtml(markdown) });
 /** Long enough to see the pick land before the next question slides in. */
 const ADVANCE_MS = 260;
 
-export function Questions(props: {
+interface QuestionsProps {
   runId: string;
   item: Item;
   disabled: boolean;
   onSend: (answers: Record<string, { choice: number; note?: string }>) => Promise<boolean>;
-}) {
+}
+
+export function Questions(props: QuestionsProps) {
   const { item } = props;
   const open = openQuestions(item);
   const key = `answers:${item.id}`;
   const [draft, setDraft] = useState<Draft>(() => loadDraft(props.runId, key, {}));
   const [pos, setPos] = useState(0);
-  const [dir, setDir] = useState('');
+  const [slide, setSlide] = useState('');
   const card = useRef<HTMLDivElement>(null);
   /** Set when a pick moved on, so focus follows to the next question instead of dropping to the page. */
   const focusNext = useRef(false);
@@ -80,9 +83,9 @@ export function Questions(props: {
   const ready = Object.entries(draft).filter(
     ([id, pick]) => pick.choice !== undefined && open.some((openQuestion) => openQuestion.id === id),
   );
-  const go = (to: number) => {
-    setDir(to > current ? 'in-right' : 'in-left');
-    setPos(to);
+  const go = (target: number) => {
+    setSlide(slideToward(target, current));
+    setPos(target);
   };
   const choose = (choice: number) => setDraft({ ...draft, [question.id]: { ...answer, choice } });
   const commit = (choice: number) => {
@@ -109,12 +112,12 @@ export function Questions(props: {
         </h2>
         <span class="badge questions">{open.length} open</span>
       </div>
-      <div class={`qcard ${dir}`} key={question.id} ref={card}>
+      <div class={classes('qcard', slide)} key={question.id} ref={card}>
         <p class="qtext" dangerouslySetInnerHTML={inline(question.text)} />
         {question.context && <div class="qctx" dangerouslySetInnerHTML={inline(question.context)} />}
         {question.evidence.map((evidence, index) => (
           <div class="ev" key={index}>
-            <span class={`tag ${evidence.kind}`}>{evidence.kind}</span>
+            <span class={classes('tag', evidence.kind)}>{evidence.kind}</span>
             <span dangerouslySetInnerHTML={inline(evidence.text)} />
           </div>
         ))}
@@ -164,7 +167,11 @@ export function Questions(props: {
               key={oq.id}
               aria-current={index === current ? 'step' : undefined}
               aria-label={`Question ${index + 1}${draft[oq.id]?.choice !== undefined ? ', answered' : ''}`}
-              class={`dot ${draft[oq.id]?.choice !== undefined ? 'answered' : ''} ${index === current ? 'on' : ''}`}
+              class={classes(
+                'dot',
+                draft[oq.id]?.choice !== undefined && CLASS.answered,
+                index === current && CLASS.on,
+              )}
               onClick={() => go(index)}
             />
           ))}

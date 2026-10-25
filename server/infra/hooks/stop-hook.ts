@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { dataRoot } from '@server/infra/paths.ts';
 import type { LiveEntry } from '@shared/contract.ts';
+import { RUN_STATUS } from '@shared/values.ts';
 
 const MAX_BLOCKS = 3;
 
@@ -47,7 +48,8 @@ export function openRunsNobodyWaitsOn(liveDir: string, ownerPid: number): LiveEn
       const entry = JSON.parse(readFileSync(join(liveDir, name), 'utf8')) as LiveEntry & { awaiting?: boolean };
       // `awaiting` is the field's name before 0.6.0's rename; drop it once no older server can be running.
       const listening = entry.claudeListening ?? entry.awaiting;
-      if (entry.ownerPid === ownerPid && entry.status === 'open' && !listening && pidAlive(entry.pid)) out.push(entry);
+      if (entry.ownerPid === ownerPid && entry.status === RUN_STATUS.open && !listening && pidAlive(entry.pid))
+        out.push(entry);
     } catch {
       // A torn or foreign file is not a reason to block anyone.
     }

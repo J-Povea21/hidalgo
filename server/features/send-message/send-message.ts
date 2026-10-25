@@ -5,6 +5,7 @@
 import type { Clock, Ids } from '@server/kernel/ports.ts';
 import { addMessage } from '@server/kernel/run.ts';
 import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
+import { PARTY } from '@shared/values.ts';
 
 export interface SendMessageInput {
   runId: string;
@@ -18,7 +19,7 @@ export function sendMessage(deps: RunDeps & { ids: Ids; clock: Clock }, input: S
     const id = deps.ids.next('m');
     const next = addMessage(run, {
       text: input.text,
-      from: 'claude',
+      from: PARTY.claude,
       now: deps.clock.now(),
       id,
       replyTo: input.replyTo,

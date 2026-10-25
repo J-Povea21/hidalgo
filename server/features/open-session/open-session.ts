@@ -8,6 +8,7 @@ import { WorkbenchError } from '@server/kernel/errors.ts';
 import { replay } from '@server/kernel/events.ts';
 import type { Clock, EventLog, Ids, PagePublisher, RunStore } from '@server/kernel/ports.ts';
 import { newRun, reopen } from '@server/kernel/run.ts';
+import { RUN_STATUS } from '@shared/values.ts';
 
 export interface OpenSessionDeps {
   store: RunStore;
@@ -33,7 +34,7 @@ export async function openSession(
     const saved = await deps.store.load(input.resume);
     if (!saved)
       throw new WorkbenchError('not-found', `no run ${input.resume} to resume; list_runs shows the project's runs`);
-    if (saved.status === 'closed')
+    if (saved.status === RUN_STATUS.closed)
       throw new WorkbenchError('closed', `run ${input.resume} is closed and can't be resumed`);
     const run = reopen(replay(saved, await deps.log.after(saved.id, saved.appliedSeq)));
     await deps.store.save(run);

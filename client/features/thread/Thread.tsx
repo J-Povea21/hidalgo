@@ -8,6 +8,8 @@ import { loadDraft, saveDraft } from '@client/infra/drafts.ts';
 import { compress, MAX_PER_MESSAGE } from '@client/infra/images.ts';
 import { Markdown } from '@client/ui/markdown.tsx';
 import { time, toast, Typing } from '@client/ui/parts.tsx';
+import { PARTY } from '@shared/values.ts';
+import { CLASS, classes } from '@client/ui/classes.ts';
 
 export interface ThreadProps {
   runId: string;
@@ -91,9 +93,9 @@ export function Thread(props: ThreadProps) {
       <div class="feed" ref={feed} aria-live="polite">
         {props.messages.length === 0 && !props.typing && <div class="meta">No messages yet.</div>}
         {props.messages.map((message) => (
-          <div class={`msg ${message.from}`} key={message.id}>
+          <div class={classes('msg', message.from)} key={message.id}>
             <div class="who">
-              {message.from === 'claude' ? 'Claude' : 'You'} · {time(message.at)}
+              {message.from === PARTY.claude ? 'Claude' : 'You'} · {time(message.at)}
             </div>
             <Markdown
               text={message.text}
@@ -114,7 +116,7 @@ export function Thread(props: ThreadProps) {
         {props.typing && <Typing label={props.typing} />}
       </div>
       <div
-        class={`composewrap ${drag ? 'drag' : ''}`}
+        class={classes('composewrap', drag && CLASS.dragging)}
         onDragOver={(event) => {
           event.preventDefault();
           setDrag(true);
@@ -194,7 +196,13 @@ export function Thread(props: ThreadProps) {
 }
 
 /** Stored images need the token, which an <img> can't send: fetch them, show a blob URL. */
-function StoredImage(props: { name: string; load: (name: string) => Promise<string>; onZoom: (src: string) => void }) {
+interface StoredImageProps {
+  name: string;
+  load: (name: string) => Promise<string>;
+  onZoom: (src: string) => void;
+}
+
+function StoredImage(props: StoredImageProps) {
   const [src, setSrc] = useState<string>();
   useEffect(() => {
     let live = true;

@@ -5,13 +5,20 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { CardFields, Item } from '@shared/contract.ts';
 import { toInlineHtml, toSafeHtml } from '@client/ui/markdown.tsx';
+import { CLASS, classes } from '@client/ui/classes.ts';
 
 const inline = (markdown: string) => ({ __html: toInlineHtml(markdown) });
 
 /** How long a changed criterion stays highlighted: the length of its flash animation. */
 const FLASH_MS = 1700;
 
-export function CardView(props: { item: Item; editable: boolean; onEdit: (path: string, text: string) => void }) {
+interface CardViewProps {
+  item: Item;
+  editable: boolean;
+  onEdit: (path: string, text: string) => void;
+}
+
+export function CardView(props: CardViewProps) {
   const fields = props.item.fields as unknown as CardFields;
   const fresh = useFresh(props.item);
   return (
@@ -111,13 +118,13 @@ export function CardView(props: { item: Item; editable: boolean; onEdit: (path: 
             </ul>
           </div>
         )}
-        <p class={`meta provenance ${fields.assuming.length ? 'after' : ''}`}>{fields.provenance}</p>
+        <p class={classes('meta provenance', fields.assuming.length > 0 && CLASS.afterList)}>{fields.provenance}</p>
       </div>
     </>
   );
 }
 
-function Criterion(props: {
+interface CriterionProps {
   prefix?: string;
   text: string;
   path: string;
@@ -125,7 +132,9 @@ function Criterion(props: {
   edited: boolean;
   editable: boolean;
   onEdit: (path: string, text: string) => void;
-}) {
+}
+
+function Criterion(props: CriterionProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(props.text);
   const box = useRef<HTMLTextAreaElement>(null);
