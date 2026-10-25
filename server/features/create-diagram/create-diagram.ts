@@ -4,10 +4,10 @@
  * here, with the reason, and nothing reaches the page.
  */
 import { DiagramSpec } from '@shared/contract.ts';
-import { WorkbenchError } from '@server/kernel/errors.ts';
-import type { Ids } from '@server/kernel/ports.ts';
-import { addDiagram } from '@server/kernel/run.ts';
-import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
+import { WorkbenchError } from '@server/domain/errors.ts';
+import type { Ids } from '@server/domain/ports.ts';
+import { addDiagram } from '@server/domain/run.ts';
+import { changeRun, type RunDeps } from '@server/domain/unit-of-work.ts';
 import { toMermaid, toOutline } from './mermaid.ts';
 
 export function createDiagram(deps: RunDeps & { ids: Ids }, input: { runId: string; spec: unknown }) {

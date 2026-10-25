@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { access, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { RunState } from '@shared/contract.ts';
-import type { RunStore } from '@server/kernel/ports.ts';
+import type { RunStore } from '@server/domain/ports.ts';
 import { readJson, removeTree, slug, writeAtomic } from './files.ts';
 import { RUN_STATUS } from '@shared/values.ts';
 

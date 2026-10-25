@@ -4,10 +4,10 @@
  * hadn't absorbed, so nothing the user did is lost.
  */
 import type { RunState } from '@shared/contract.ts';
-import { WorkbenchError } from '@server/kernel/errors.ts';
-import { replay } from '@server/kernel/events.ts';
-import type { Clock, EventLog, Ids, PagePublisher, RunStore } from '@server/kernel/ports.ts';
-import { newRun, reopen } from '@server/kernel/run.ts';
+import { WorkbenchError } from '@server/domain/errors.ts';
+import { replay } from '@server/domain/events.ts';
+import type { Clock, EventLog, Ids, PagePublisher, RunStore } from '@server/domain/ports.ts';
+import { newRun, reopen } from '@server/domain/run.ts';
 import { RUN_STATUS } from '@shared/values.ts';
 
 export interface OpenSessionDeps {

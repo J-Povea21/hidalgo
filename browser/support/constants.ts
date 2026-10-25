@@ -3,7 +3,7 @@
  * the value, it is derived from the product's own constant, so the two can't drift apart.
  */
 import { devices } from '@playwright/test';
-import { ACTIVE_FOR_MS } from '@client/core/state.ts';
+import { ACTIVE_FOR_MS } from '@client/domain/state.ts';
 import { TURN_COLOR } from '@client/features/tab/useTab.ts';
 import { RETRY } from '@client/infra/live-feed.ts';
 

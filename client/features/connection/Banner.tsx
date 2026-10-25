@@ -2,7 +2,7 @@
 import type { ComponentChildren } from 'preact';
 import type { RunStatus } from '@shared/contract.ts';
 import { RUN_STATUS } from '@shared/values.ts';
-import { CONNECTION, type Connection } from '@client/core/state.ts';
+import { CONNECTION, type Connection } from '@client/domain/state.ts';
 import { classes } from '@client/ui/classes.ts';
 
 interface ConnectionBannerProps {

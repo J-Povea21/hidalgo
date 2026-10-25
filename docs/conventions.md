@@ -18,33 +18,33 @@ How tests are written is in [`testing.md`](testing.md).
   with `HMAC(token, "workbench-hello|<nonce>|<port>|<build>")`. Old pages must be able to
   verify new servers, so this string never changes.
 
-## Architecture: vertical slices over a pure kernel
+## Architecture: vertical slices over a pure domain
 
 ```mermaid
 flowchart LR
   subgraph server
     infra["infra/<br/>MCP, HTTP + SSE, disk, processes"] --> features
-    features["features/&lt;slice&gt;/<br/>one use case each"] --> kernel["kernel/<br/>pure rules"]
+    features["features/&lt;slice&gt;/<br/>one use case each"] --> domain["domain/<br/>pure rules, shared ports"]
   end
   subgraph client
-    app["app/<br/>wiring"] --> cfeatures["features/&lt;slice&gt;/"] --> core["core/<br/>pure state"]
+    app["app/<br/>wiring"] --> cfeatures["features/&lt;slice&gt;/"] --> cdomain["domain/<br/>pure state, ports"]
     app --> kinds["kinds/&lt;kind&gt;/"]
   end
-  kernel --> shared["shared/<br/>the contract"]
-  core --> shared
+  domain --> shared["shared/<br/>the contract"]
+  cdomain --> shared
 ```
 
-| Folder                     | Holds                                                      | May import               |
-| -------------------------- | ---------------------------------------------------------- | ------------------------ |
-| `shared/`                  | the contract both halves use: schemas, types, fixed values | nothing of ours          |
-| `server/kernel/`           | the rules every item kind obeys, as pure functions         | `shared/`                |
-| `server/features/<slice>/` | one use case per folder, with its tests                    | `kernel/`, `shared/`     |
-| `server/infra/`            | disk, HTTP, MCP, processes; wires the slices               | anything on the server   |
-| `client/core/`             | the page's state, what is derived from it, and its ports   | `shared/`                |
-| `client/infra/`            | what implements the ports: the server, drafts, images      | `core/`, `shared/`       |
-| `client/features/<slice>/` | one part of the page each                                  | `core/`, `ui/`, `infra/` |
-| `client/kinds/<kind>/`     | the view for one item kind                                 | `core/`, `ui/`           |
-| `client/app/`              | wires the page together                                    | anything on the client   |
+| Folder                     | Holds                                                      | May import                 |
+| -------------------------- | ---------------------------------------------------------- | -------------------------- |
+| `shared/`                  | the contract both halves use: schemas, types, fixed values | nothing of ours            |
+| `server/domain/`           | the rules every item kind obeys, as pure functions         | `shared/`                  |
+| `server/features/<slice>/` | one use case per folder, with its tests                    | `domain/`, `shared/`       |
+| `server/infra/`            | disk, HTTP, MCP, processes; wires the slices               | anything on the server     |
+| `client/domain/`           | the page's state, what is derived from it, and its ports   | `shared/`                  |
+| `client/infra/`            | what implements the ports: the server, drafts, images      | `domain/`, `shared/`       |
+| `client/features/<slice>/` | one part of the page each                                  | `domain/`, `ui/`, `infra/` |
+| `client/kinds/<kind>/`     | the view for one item kind                                 | `domain/`, `ui/`           |
+| `client/app/`              | wires the page together                                    | anything on the client     |
 
 A new feature is a new folder that touches nothing else. The rules above are enforced by
 `config/dependency-cruiser.cjs` in `pnpm run check`, so they hold without anyone
@@ -64,6 +64,24 @@ resolves the path aliases through `tsconfig.json`, and fails the check if it rea
 modules to mean anything. Revisit this if the editor feedback starts to matter more than
 one tool fewer.
 
+### Where ports live
+
+A port is part of the contract of the code that needs it, not of the code that implements
+it, so where it lives follows who uses it:
+
+- **Used by one slice:** in that slice, as `features/<slice>/ports.ts`
+  (`server/features/list-runs/ports.ts`). Reading the slice tells you everything it needs
+  from outside, and deleting the slice deletes its port. It declares only what the slice
+  calls: `LiveIndex` there has `alive()`, though infra's implementation also writes.
+- **Used by two or more slices:** in the shared `domain/ports.ts`. It has to move there:
+  slices may not import each other, so neither can own it.
+- **Used by no slice:** it isn't a port. Code only infra calls stays a plain method in
+  infra (the page address, `Workbench.pageUrl`).
+
+Infra implements ports wherever they live (`class FsLiveIndex implements LiveIndex`); it may
+import from slices, and slices still may not import infra. The errors a port can fail with
+live beside it.
+
 ### Adding to it
 
 - **A tool:** a slice in `server/features/<name>/` with its use case and tests, registered
@@ -73,7 +91,7 @@ one tool fewer.
   `client/kinds/index.ts`. The tools stay the same.
 - **A part of the page:** a slice in `client/features/<name>/`, wired in `client/app/`.
 - **Something the page needs from outside** (storage, the network): an interface in
-  `client/core/ports.ts`, and a class in `client/infra/` that `implements` it, so the
+  `client/domain/ports.ts`, and a class in `client/infra/` that `implements` it, so the
   contract is checked by the compiler and tests can stand in their own.
 
 ## Code style
@@ -103,8 +121,8 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
   constant. They live with what they describe:
   - `shared/values.ts` for the run's own values (it imports nothing, so the page can use it
     without loading zod);
-  - `client/core/connection.ts` for connection kinds, `client/core/state.ts` for actions;
-  - `client/core/selectors.ts` for turn views;
+  - `client/domain/connection.ts` for connection kinds, `client/domain/state.ts` for actions;
+  - `client/domain/selectors.ts` for turn views;
   - `client/ui/classes.ts` for CSS classes.
 - **A constant other code needs is exported from where it is defined, once.** The
   stream's event names (`STREAM_EVENT` in `shared/constants.ts`) are used by the server
@@ -134,10 +152,11 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
   - better-typed APIs: `event.currentTarget` in a handler, a const tuple for a zod enum.
 - **A method passed as a callback is bound** _(lint: `unbound-method`)_:
   `load={() => server.liveRuns()}`, never `load={server.liveRuns}`, which loses `this`.
-- **Errors are classes in their own file** (`server/kernel/errors.ts`,
-  `client/infra/errors.ts`), so callers can tell them apart with `instanceof`.
+- **Errors are classes in their own file, next to the contract they belong to**
+  (`server/domain/errors.ts`, `client/domain/errors.ts` beside the page's ports), so
+  callers can tell them apart with `instanceof` without knowing which adapter threw.
 - **Components render; behaviour lives elsewhere.** Hooks in `client/app/hooks.ts` hold
-  stateful behaviour (sending, navigation); pure functions in `client/core/selectors.ts`
+  stateful behaviour (sending, navigation); pure functions in `client/domain/selectors.ts`
   derive what to show. A component reads them and draws.
 - **Imports use the path aliases** `@shared/`, `@server/`, `@client/` and `@test/`
   (defined once, in `tsconfig.json`). `./` is only for a file in the same folder; never `../`.

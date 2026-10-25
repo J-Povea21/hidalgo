@@ -2,7 +2,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { RunState } from '@shared/contract.ts';
-import { itemStatus, itemTitle, type ItemStatus, TURN_VIEW, type TurnView } from '@client/core/selectors.ts';
+import { itemStatus, itemTitle, type ItemStatus, TURN_VIEW, type TurnView } from '@client/domain/selectors.ts';
 import { RUN_STATUS } from '@shared/values.ts';
 import { CLASS, classes } from '@client/ui/classes.ts';
 

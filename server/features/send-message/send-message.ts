@@ -1,10 +1,10 @@
 /**
  * Claude's message in a thread. A reply names the event it answers and the
- * kernel derives the thread from it; only a new message names a thread.
+ * domain derives the thread from it; only a new message names a thread.
  */
-import type { Clock, Ids } from '@server/kernel/ports.ts';
-import { addMessage } from '@server/kernel/run.ts';
-import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
+import type { Clock, Ids } from '@server/domain/ports.ts';
+import { addMessage } from '@server/domain/run.ts';
+import { changeRun, type RunDeps } from '@server/domain/unit-of-work.ts';
 import { PARTY } from '@shared/values.ts';
 
 export interface SendMessageInput {

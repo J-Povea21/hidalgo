@@ -12,16 +12,16 @@ module.exports = {
       to: { path: '^(server|client)/' },
     },
     {
-      name: 'kernel-is-pure',
-      comment: 'the kernel knows nothing about slices, adapters, Node or the browser',
+      name: 'domain-is-pure',
+      comment: 'the domain knows nothing about slices, adapters, Node or the browser',
       severity: 'error',
-      from: { path: '^server/kernel/' },
+      from: { path: '^server/domain/' },
       to: { path: '^(server/(features|infra)|client)/' },
     },
     {
-      name: 'kernel-uses-no-node-builtins',
+      name: 'domain-uses-no-node-builtins',
       severity: 'error',
-      from: { path: '^server/kernel/' },
+      from: { path: '^server/domain/' },
       to: { dependencyTypes: ['core'] },
     },
     {
@@ -58,10 +58,10 @@ module.exports = {
       to: { path: '^client/' },
     },
     {
-      name: 'client-core-is-pure',
-      comment: 'client/core holds state only: no features, views, network or browser adapters',
+      name: 'client-domain-is-pure',
+      comment: 'client/domain holds state and ports only: no features, views, network or browser adapters',
       severity: 'error',
-      from: { path: '^client/core/' },
+      from: { path: '^client/domain/' },
       to: { path: '^client/(features|kinds|infra|ui|app)/' },
     },
     {

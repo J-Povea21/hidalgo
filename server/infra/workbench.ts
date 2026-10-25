@@ -9,7 +9,7 @@ import { serve, type ServerType } from '@hono/node-server';
 import type { RunState } from '@shared/contract.ts';
 import { expired, liveEntry } from '@server/features/live-index/live-index.ts';
 import { recordPageEvent } from '@server/features/record-page-event/record-page-event.ts';
-import type { EventSignal, Limits, PageAddress, PagePublisher } from '@server/kernel/ports.ts';
+import type { EventSignal, Limits, PagePublisher } from '@server/domain/ports.ts';
 import { FsEventLog } from './fs/event-log.ts';
 import { FsImageStore } from './fs/image-store.ts';
 import { FsLiveIndex, ownStart } from './fs/live-index.ts';
@@ -73,7 +73,6 @@ export class Workbench {
   readonly live: FsLiveIndex;
   readonly signal: EventSignal;
   readonly page: PagePublisher;
-  readonly address: PageAddress;
   readonly limits: Limits;
   /** Records what the page sends; the HTTP adapter calls it. */
   readonly recordEvent: (runId: string, body: unknown) => Promise<{ seq: number; imageWarning?: string }>;
@@ -129,11 +128,11 @@ export class Workbench {
       },
     };
     this.hub.onViewer = (id) => void this.noteViewer(id);
-    this.address = { url: (runId) => this.urlOf(runId) };
     this.recordEvent = (runId, body) => recordPageEvent(this, runId, body);
   }
 
-  private urlOf(runId: string): string {
+  /** The run's page: this server's port, and the run's token in the fragment. */
+  pageUrl(runId: string): string {
     const token = this.tokens.get(runId);
     if (!token) {
       throw new Error(`run ${runId} has no token loaded`);
@@ -206,7 +205,7 @@ export class Workbench {
             port: this.port,
             pid: process.pid,
             processStartedAt: this.startedAt,
-            url: this.urlOf(run.id),
+            url: this.pageUrl(run.id),
             ownerPid: this.ownerPid,
             claudeListening: this.signal.waiting(run.id),
           },

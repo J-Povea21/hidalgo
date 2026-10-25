@@ -4,8 +4,8 @@
  */
 import { TOKEN_HEADER } from '@shared/constants.ts';
 import type { LiveEntry, PageEvent } from '@shared/contract.ts';
-import type { FeedListener, SentEvent, WorkbenchServer } from '@client/core/ports.ts';
-import { ApiError, NotConnectedError } from './errors.ts';
+import type { FeedListener, SentEvent, WorkbenchServer } from '@client/domain/ports.ts';
+import { ApiError, NotConnectedError } from '@client/domain/errors.ts';
 import { IDENTITY, type Identity, proveServer } from './identity.ts';
 import { LiveFeed, RETRY, type ProvableServer, type RetryPolicy } from './live-feed.ts';
 import type { Session } from './session.ts';

@@ -1,6 +1,6 @@
 /**
  * The small slices that change a run from Claude's side. Each is a thin use
- * case over the kernel; these tests check the wiring: saved, shown, result.
+ * case over the domain; these tests check the wiring: saved, shown, result.
  */
 import { describe, expect, it } from 'vitest';
 import { card, question } from '@test/fixtures.ts';
@@ -13,7 +13,7 @@ import { openSession } from './open-session/open-session.ts';
 import { sendMessage } from './send-message/send-message.ts';
 import { setStatus } from './set-status/set-status.ts';
 import { updateItem } from './update-item/update-item.ts';
-import { applyVerdict } from '@server/kernel/run.ts';
+import { applyVerdict } from '@server/domain/run.ts';
 
 async function setup() {
   const fakes = world();

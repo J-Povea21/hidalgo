@@ -8,7 +8,8 @@ import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { LiveEntry } from '@shared/contract.ts';
 import { isDead } from '@server/features/live-index/live-index.ts';
-import type { Clock, LiveIndex } from '@server/kernel/ports.ts';
+import type { Clock } from '@server/domain/ports.ts';
+import type { LiveIndex } from '@server/features/list-runs/ports.ts';
 import { isErrno, readJson, writeAtomic } from './files.ts';
 
 const STALE_MS = 2 * 60 * 1000;

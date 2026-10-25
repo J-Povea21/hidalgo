@@ -1,7 +1,7 @@
 /** Adds items in one call; each is checked against its kind's schema first. */
-import type { Ids } from '@server/kernel/ports.ts';
-import { addItems as add } from '@server/kernel/run.ts';
-import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
+import type { Ids } from '@server/domain/ports.ts';
+import { addItems as add } from '@server/domain/run.ts';
+import { changeRun, type RunDeps } from '@server/domain/unit-of-work.ts';
 
 export interface NewItem {
   kind: string;

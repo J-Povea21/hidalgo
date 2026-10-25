@@ -15,7 +15,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { BUILD, STREAM_EVENT } from '@shared/constants.ts';
 import { TOKEN_HEADER, type LiveEntry } from '@shared/contract.ts';
-import { WorkbenchError } from '@server/kernel/errors.ts';
+import { WorkbenchError } from '@server/domain/errors.ts';
 import type { PageHub } from './hub.ts';
 
 export interface HttpDeps {

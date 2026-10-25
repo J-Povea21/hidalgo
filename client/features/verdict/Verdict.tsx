@@ -8,7 +8,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import type { Item, VerdictValue } from '@shared/contract.ts';
 import { ITEM_STATUS, VERDICT } from '@shared/values.ts';
-import { itemStatus, openQuestions } from '@client/core/selectors.ts';
+import { itemStatus, openQuestions } from '@client/domain/selectors.ts';
 import { StatusBadge, time } from '@client/ui/parts.tsx';
 
 interface VerdictProps {

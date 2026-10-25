@@ -1,6 +1,6 @@
 /** The browser tab: a title that leads with whose turn it is, and a dot of the same state's colour. */
 import { useEffect } from 'preact/hooks';
-import type { TurnView } from '@client/core/selectors.ts';
+import type { TurnView } from '@client/domain/selectors.ts';
 
 /** The favicon dot's colour for each turn. The browser tests read these too. */
 export const TURN_COLOR: Record<TurnView, string> = {

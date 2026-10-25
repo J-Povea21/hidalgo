@@ -7,8 +7,8 @@
  */
 import { STREAM_EVENT } from '@shared/constants.ts';
 import type { RunState } from '@shared/contract.ts';
-import type { FeedListener } from '@client/core/ports.ts';
-import { CONNECTION, type Connection, LOST_AFTER_MS, type Presence } from '@client/core/state.ts';
+import type { FeedListener } from '@client/domain/ports.ts';
+import { CONNECTION, type Connection, LOST_AFTER_MS, type Presence } from '@client/domain/state.ts';
 import { IDENTITY, type Identity } from './identity.ts';
 import { readSse } from './sse.ts';
 

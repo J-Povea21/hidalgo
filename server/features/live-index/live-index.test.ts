@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveEntry } from '@shared/contract.ts';
 import { T0 } from '@test/fixtures.ts';
-import { newRun } from '@server/kernel/run.ts';
+import { newRun } from '@server/domain/run.ts';
 import { expired, isDead, liveEntry } from './live-index.ts';
 
 const entry = (heartbeat: string): LiveEntry => ({

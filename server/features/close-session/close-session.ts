@@ -2,9 +2,9 @@
  * Ends a run. Refused while any item has no outcome; a run with items left
  * pending can only be paused, which keeps it resumable.
  */
-import type { Clock } from '@server/kernel/ports.ts';
-import { close } from '@server/kernel/run.ts';
-import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
+import type { Clock } from '@server/domain/ports.ts';
+import { close } from '@server/domain/run.ts';
+import { changeRun, type RunDeps } from '@server/domain/unit-of-work.ts';
 
 export function closeSession(
   deps: RunDeps & { clock: Clock },

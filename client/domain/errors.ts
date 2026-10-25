@@ -1,4 +1,7 @@
-/** A request the server refused, or one the page wouldn't send. `message` is fit to show the user. */
+/**
+ * What the WorkbenchServer port can fail with (ports.ts): a request the server refused, or one
+ * the page wouldn't send. `message` is fit to show the user.
+ */
 export class ApiError extends Error {
   constructor(
     readonly status: number,

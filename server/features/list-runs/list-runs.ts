@@ -3,7 +3,8 @@
  * duplicate search checks so drafts not yet on the board are seen too.
  */
 import type { RunState } from '@shared/contract.ts';
-import type { LiveIndex, RunStore } from '@server/kernel/ports.ts';
+import type { RunStore } from '@server/domain/ports.ts';
+import type { LiveIndex } from './ports.ts';
 import { currentVerdict, itemTitle, pendingForUser } from '@shared/rules.ts';
 import { RUN_STATUS } from '@shared/values.ts';
 

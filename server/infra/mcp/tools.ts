@@ -18,7 +18,7 @@ import { sendMessage } from '@server/features/send-message/send-message.ts';
 import { setStatus } from '@server/features/set-status/set-status.ts';
 import { updateItem } from '@server/features/update-item/update-item.ts';
 import { takeEvents, waitForEvents } from '@server/features/wait-for-events/wait-for-events.ts';
-import { WorkbenchError } from '@server/kernel/errors.ts';
+import { WorkbenchError } from '@server/domain/errors.ts';
 import type { Workbench } from '@server/infra/workbench.ts';
 import { RUN_STATUS } from '@shared/values.ts';
 
@@ -81,7 +81,7 @@ export function registerTools(server: McpServer, wb: Workbench): void {
         if (alreadyOpen) {
           wb.hub.nudge(run.id, 'Claude resumed this run.');
         } else {
-          wb.open(wb.address.url(run.id));
+          wb.open(wb.pageUrl(run.id));
         }
         const events = resumed ? await takeEvents(deps, run.id) : [];
         return ok({

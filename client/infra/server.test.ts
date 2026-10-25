@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pageOpenedOnItsPort, SESSION, SomethingOnThePort } from '@test/something-on-the-port.ts';
-import { NotConnectedError } from './errors.ts';
+import { NotConnectedError } from '@client/domain/errors.ts';
 import { HttpWorkbenchServer } from './server.ts';
 
 beforeEach(pageOpenedOnItsPort);

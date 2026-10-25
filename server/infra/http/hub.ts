@@ -1,7 +1,7 @@
 /** Pushes each run's state to its open pages over SSE. Implements PagePublisher. */
 import { STREAM_EVENT } from '@shared/constants.ts';
 import type { RunState } from '@shared/contract.ts';
-import type { PagePublisher } from '@server/kernel/ports.ts';
+import type { PagePublisher } from '@server/domain/ports.ts';
 
 export type PageMessage =
   | { type: typeof STREAM_EVENT.state; state: RunState }

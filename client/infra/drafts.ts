@@ -3,7 +3,7 @@
  * a dropped connection or a moved page loses nothing. When the browser refuses storage
  * (a private window, blocked site data) the values live in memory for the tab's life.
  */
-import type { DraftStore } from '@client/core/ports.ts';
+import type { DraftStore } from '@client/domain/ports.ts';
 
 /** Drafts outlive the tab (localStorage); tab values, like which item is on screen, don't (sessionStorage). */
 type Lifetime = 'drafts' | 'tab';

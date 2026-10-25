@@ -61,18 +61,6 @@ export interface EventSignal {
   waiting(runId: string): boolean;
 }
 
-export interface LiveIndex {
-  write(entry: LiveEntry): Promise<void>;
-  remove(runId: string): Promise<void>;
-  /** Entries whose server is alive; dead ones are deleted on the way. */
-  alive(): Promise<LiveEntry[]>;
-}
-
-/** Where this server's page lives. */
-export interface PageAddress {
-  url(runId: string): string;
-}
-
 export interface Limits {
   imageBytesPerRun: number;
   imageWarnBytes: number;

@@ -4,8 +4,8 @@
  */
 import { useCallback, useEffect, useReducer, useState } from 'preact/hooks';
 import { PARTY, RUN_STATUS, VERDICT, type VerdictValue } from '@shared/values.ts';
-import { runThreadId, tabTitle, threadMessages, TURN_VIEW, turnView, typingIn } from '@client/core/selectors.ts';
-import { actions, CONNECTION, initialState, reduce } from '@client/core/state.ts';
+import { runThreadId, tabTitle, threadMessages, TURN_VIEW, turnView, typingIn } from '@client/domain/selectors.ts';
+import { actions, CONNECTION, initialState, reduce } from '@client/domain/state.ts';
 import { AskAbout } from '@client/features/ask-about/AskAbout.tsx';
 import { ConnectionBanner } from '@client/features/connection/Banner.tsx';
 import { OpenReviews } from '@client/features/open-reviews/OpenReviews.tsx';
@@ -13,7 +13,7 @@ import { Progress } from '@client/features/progress/Progress.tsx';
 import { Questions } from '@client/features/questions/Questions.tsx';
 import { useTab } from '@client/features/tab/useTab.ts';
 import { Thread } from '@client/features/thread/Thread.tsx';
-import type { WorkbenchServer } from '@client/core/ports.ts';
+import type { WorkbenchServer } from '@client/domain/ports.ts';
 import type { Session } from '@client/infra/session.ts';
 import { CLASS, classes } from '@client/ui/classes.ts';
 import { ChatIcon, LayersIcon, Lightbox, Toaster, toast } from '@client/ui/parts.tsx';

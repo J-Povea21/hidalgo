@@ -7,8 +7,8 @@
  * with the reason and never logged, so the user sees why at once.
  */
 import { PageEvent, type UnsequencedEvent } from '@shared/contract.ts';
-import { WorkbenchError } from '@server/kernel/errors.ts';
-import { applyEvent, sequenced } from '@server/kernel/events.ts';
+import { WorkbenchError } from '@server/domain/errors.ts';
+import { applyEvent, sequenced } from '@server/domain/events.ts';
 import type {
   Clock,
   EventLog,
@@ -18,8 +18,8 @@ import type {
   PagePublisher,
   RunLock,
   RunStore,
-} from '@server/kernel/ports.ts';
-import { loadRun } from '@server/kernel/unit-of-work.ts';
+} from '@server/domain/ports.ts';
+import { loadRun } from '@server/domain/unit-of-work.ts';
 
 export interface RecordDeps {
   store: RunStore;

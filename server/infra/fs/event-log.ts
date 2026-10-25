@@ -5,12 +5,12 @@
 import { readFile, truncate } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { RecordedEvent, UnsequencedEvent } from '@shared/contract.ts';
-import type { EventLog } from '@server/kernel/ports.ts';
+import type { EventLog } from '@server/domain/ports.ts';
 import { appendLine, isErrno, readJson, writeAtomic } from './files.ts';
 
 /**
  * Appends are serialised by the caller: every change to a run, the append included, runs under
- * the run's lock (kernel/unit-of-work). The last sequence number is read from the file on every
+ * the run's lock (domain/unit-of-work). The last sequence number is read from the file on every
  * append, not cached, so it stays right even if another server ever appended to the same run.
  */
 export class FsEventLog implements EventLog {

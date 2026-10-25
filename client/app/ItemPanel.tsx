@@ -1,6 +1,6 @@
 /** The item as it will be created, with its verdict; and the Previous / Next bar under the stage. */
 import type { Item, VerdictValue } from '@shared/contract.ts';
-import { ITEM_STATUS, itemStatus, itemTitle } from '@client/core/selectors.ts';
+import { ITEM_STATUS, itemStatus, itemTitle } from '@client/domain/selectors.ts';
 import { Verdict } from '@client/features/verdict/Verdict.tsx';
 import { KIND_VIEWS } from '@client/kinds/index.ts';
 import { CLASS, classes } from '@client/ui/classes.ts';

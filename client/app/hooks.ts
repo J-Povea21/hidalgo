@@ -1,9 +1,9 @@
 /** What the page shell keeps between renders: sending, which item is on screen, what's unread, the clock. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { PageEvent } from '@shared/contract.ts';
-import type { WorkbenchServer } from '@client/core/ports.ts';
+import type { WorkbenchServer } from '@client/domain/ports.ts';
 import { BrowserDraftStore } from '@client/infra/drafts.ts';
-import { ApiError } from '@client/infra/errors.ts';
+import { ApiError } from '@client/domain/errors.ts';
 import { slideToward } from '@client/ui/classes.ts';
 import { toast } from '@client/ui/parts.tsx';
 

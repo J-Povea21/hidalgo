@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { ImageStore } from '@server/kernel/ports.ts';
+import type { ImageStore } from '@server/domain/ports.ts';
 import { writeAtomic } from './files.ts';
 
 const EXT: Record<string, string> = { webp: 'webp', png: 'png', jpeg: 'jpg', gif: 'gif' };

@@ -1,19 +1,10 @@
 /** In-memory fakes for every port: no disk, network or real clock in slice tests. */
 import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '@shared/contract.ts';
-import type {
-  Clock,
-  EventLog,
-  Ids,
-  ImageStore,
-  Limits,
-  LiveIndex,
-  PageAddress,
-  PagePublisher,
-  RunStore,
-} from '@server/kernel/ports.ts';
+import type { Clock, EventLog, Ids, ImageStore, Limits, PagePublisher, RunStore } from '@server/domain/ports.ts';
+import type { LiveIndex } from '@server/features/list-runs/ports.ts';
 import { MemoryRunLock, MemorySignal } from '@server/infra/runtime.ts';
-import { sequenced } from '@server/kernel/events.ts';
-import { addItems, ask, newRun } from '@server/kernel/run.ts';
+import { sequenced } from '@server/domain/events.ts';
+import { addItems, ask, newRun } from '@server/domain/run.ts';
 import { card, counterIds, question, T0 } from './fixtures.ts';
 
 export class MemoryStore implements RunStore {
@@ -100,7 +91,6 @@ export function ids(): Ids {
   const counters: Record<string, number> = {};
   return { next: (prefix) => `${prefix}${(counters[prefix] = (counters[prefix] ?? 0) + 1)}` };
 }
-export const address: PageAddress = { url: (runId) => `http://127.0.0.1:51234/#run=${runId}&t=secret` };
 export const limits: Limits = { imageBytesPerRun: 1000, imageWarnBytes: 800, waitTimeoutMs: 200 };
 
 export function world() {
@@ -114,7 +104,6 @@ export function world() {
     live: new MemoryLive(),
     clock,
     ids: ids(),
-    address,
     limits,
   };
 }

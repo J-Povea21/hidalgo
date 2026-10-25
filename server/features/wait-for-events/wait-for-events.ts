@@ -8,9 +8,9 @@
  * events it hadn't seen.
  */
 import type { RecordedEvent, RunState } from '@shared/contract.ts';
-import type { EventLog, EventSignal, ImageStore, Limits } from '@server/kernel/ports.ts';
-import { setTurn } from '@server/kernel/run.ts';
-import { changeRun, loadRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
+import type { EventLog, EventSignal, ImageStore, Limits } from '@server/domain/ports.ts';
+import { setTurn } from '@server/domain/run.ts';
+import { changeRun, loadRun, type RunDeps } from '@server/domain/unit-of-work.ts';
 import { PARTY } from '@shared/values.ts';
 
 /** What Claude reads: compact, flat, only what's needed to act. */

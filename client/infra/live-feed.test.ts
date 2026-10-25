@@ -3,7 +3,7 @@ import { STREAM_EVENT } from '@shared/constants.ts';
 import { aRun } from '@test/builders.ts';
 import { until } from '@test/fixtures.ts';
 import { pageOpenedOnItsPort, SESSION, SomethingOnThePort } from '@test/something-on-the-port.ts';
-import type { ConnectionKind } from '@client/core/state.ts';
+import type { ConnectionKind } from '@client/domain/state.ts';
 import { HttpWorkbenchServer } from './server.ts';
 
 /** Retries a few milliseconds apart, so the story plays out quickly. */

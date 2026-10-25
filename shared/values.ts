@@ -10,7 +10,7 @@ export type VerdictValue = (typeof VERDICT)[keyof typeof VERDICT];
 export const RUN_STATUS = { open: 'open', paused: 'paused', closed: 'closed' } as const;
 export type RunStatus = (typeof RUN_STATUS)[keyof typeof RUN_STATUS];
 
-/** The two sides of a run: who wrote a message, and whose move it is (the page shows more nuance, client/core/selectors.ts). */
+/** The two sides of a run: who wrote a message, and whose move it is (the page shows more nuance, client/domain/selectors.ts). */
 export const PARTY = { user: 'user', claude: 'claude' } as const;
 export type Party = (typeof PARTY)[keyof typeof PARTY];
 export type Turn = Party;

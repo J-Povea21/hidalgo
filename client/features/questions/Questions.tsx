@@ -6,7 +6,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Item, Question } from '@shared/contract.ts';
-import { openQuestions } from '@client/core/selectors.ts';
+import { openQuestions } from '@client/domain/selectors.ts';
 import { BrowserDraftStore } from '@client/infra/drafts.ts';
 import { CLASS, classes, slideToward } from '@client/ui/classes.ts';
 import { toInlineHtml } from '@client/ui/markdown.tsx';
