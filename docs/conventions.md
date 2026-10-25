@@ -266,7 +266,9 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
 - **pnpm only** (`packageManager` in `package.json`); `check` refuses an npm lockfile.
   Every version is pinned exactly, and `check` runs `pnpm audit`. No dependency runs
   code at install: pnpm 10 refuses their scripts unless allowlisted, and `check` fails if
-  `package.json`, `.npmrc` or a `pnpm-workspace.yaml` allowlists any. The package's own
+  anything allowlists one (this package, a `pnpm-workspace.yaml`, the user's global config
+  or the environment). npm and a pnpm older than 10 would run them, so `engines` with
+  `engine-strict` makes both refuse to install. The package's own
   `prepare` script still runs, which is what wires the hook below.
 - **`dist/` is committed.** It's unusual for a library, but it's what a plugin needs:
   - Claude Code installs the plugin as a plain copy of the repository and starts the

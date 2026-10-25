@@ -39,7 +39,8 @@ console.log('ok');
 
 // 2. No dependency may run code at install, and installs come from the committed lockfile.
 //    pnpm 10 refuses dependencies' install scripts unless something allowlists them; any of
-//    these settings, in any of the places pnpm reads them, would let one run.
+//    these settings, wherever pnpm reads it (this package, the user's global config, the
+//    environment), would let one run. npm would run them all, so it must refuse to install.
 process.stdout.write('• dependency install scripts blocked… ');
 {
   const ALLOW_BUILDS = [
@@ -49,19 +50,26 @@ process.stdout.write('• dependency install scripts blocked… ');
     'dangerouslyAllowAllBuilds',
   ];
   const kebab = (name) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-  const inPackageJson = ALLOW_BUILDS.filter((name) => pkg.pnpm && name in pkg.pnpm);
-  const npmrc = readFileSync(join(root, '.npmrc'), 'utf8');
-  const inNpmrc = ALLOW_BUILDS.filter((name) => new RegExp(`^\\s*${kebab(name)}`, 'm').test(npmrc));
+  const effective = (name) =>
+    execFileSync('pnpm', ['config', 'get', kebab(name)], { cwd: root, encoding: 'utf8' }).trim();
   const workspace = join(root, 'pnpm-workspace.yaml');
   const workspaceText = existsSync(workspace) ? readFileSync(workspace, 'utf8') : '';
-  const inWorkspace = ALLOW_BUILDS.filter((name) => new RegExp(`^\\s*${name}\\s*:`, 'm').test(workspaceText));
   const allowed = [
-    ...inPackageJson.map((name) => `package.json pnpm.${name}`),
-    ...inNpmrc.map((name) => `.npmrc ${kebab(name)}`),
-    ...inWorkspace.map((name) => `pnpm-workspace.yaml ${name}`),
+    ...ALLOW_BUILDS.filter((name) => pkg.pnpm && name in pkg.pnpm).map((name) => `package.json pnpm.${name}`),
+    ...ALLOW_BUILDS.filter((name) => new RegExp(`^\\s*${name}\\s*:`, 'm').test(workspaceText)).map(
+      (name) => `pnpm-workspace.yaml ${name}`,
+    ),
+    ...ALLOW_BUILDS.filter((name) => !['undefined', '', 'false'].includes(effective(name))).map(
+      (name) => `pnpm config ${kebab(name)}=${effective(name)} (from .npmrc, your global config or the environment)`,
+    ),
   ];
   if (allowed.length) {
     fail(`these let dependencies run code at install; remove them: ${allowed.join(', ')}`);
+  }
+  const npmRefused =
+    pkg.engines?.npm === 'please-use-pnpm' && /^engine-strict=true$/m.test(readFileSync(join(root, '.npmrc'), 'utf8'));
+  if (!npmRefused) {
+    fail('npm must refuse to install (it would run install scripts): keep engines.npm and engine-strict=true');
   }
 }
 if (!existsSync(join(root, 'pnpm-lock.yaml'))) {
