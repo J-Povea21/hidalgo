@@ -62,7 +62,7 @@ export function Lightbox(props: { html?: string | undefined; src?: string | unde
   }, []);
   return (
     <div class="lightbox" role="dialog" aria-modal="true" aria-label="Enlarged view" tabIndex={-1} ref={box} onClick={props.onClose}>
-      {props.src ? <img src={props.src} alt="Enlarged image" /> : <div class="diagram" dangerouslySetInnerHTML={{ __html: props.html ?? '' }} />}
+      {props.src ? <img src={props.src} alt="Enlarged image" /> : <div class="diagram" tabIndex={0} aria-label="Diagram" role="region" dangerouslySetInnerHTML={{ __html: props.html ?? '' }} />}
       <button type="button" class="lightbox-close" onClick={props.onClose}>Close</button>
     </div>
   );

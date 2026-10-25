@@ -407,6 +407,18 @@ describe('resume after a restart', () => {
     expect(second.opened).toHaveLength(1);
   });
 
+  it('does not wait for a page that left this same server: that tab was closed', async () => {
+    const { call, opened, wb } = await boot(undefined, undefined, 5_000);
+    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const drop = await connect(portOf(opened[0]!), runId, tokenOf(opened[0]!));
+    await until(async () => !!(await wb.store.lastViewer(runId)));
+    drop();
+    await until(() => wb.hub.viewers(runId) === 0);
+    const started = Date.now();
+    expect(await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId })).toMatchObject({ opened: true });
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
   it('Claude can start a conversation in the run thread and in an item thread', async () => {
     const { call } = await boot();
     const { runId, threadId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });

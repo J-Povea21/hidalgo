@@ -7,7 +7,14 @@ import { marked } from 'marked';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { Diagram as DiagramData } from '../../shared/contract.ts';
 
-marked.setOptions({ gfm: true, breaks: true });
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/**
+ * Raw HTML in a message is shown as text, never parsed: Claude's Markdown has no need for it,
+ * and it keeps tag soup (mXSS samples, inline handlers) from ever reaching the sanitizer.
+ * DOMPurify still cleans everything Markdown itself produces.
+ */
+marked.use({ gfm: true, breaks: true, renderer: { html: ({ text }) => escapeHtml(text) } });
 
 const PLACEHOLDER = /\{\{diagram:([A-Za-z0-9_-]+)\}\}/g;
 
@@ -93,9 +100,12 @@ export function Diagram(props: { id: string; data: DiagramData | undefined; onFa
   if (!props.data) return <div class="diagram loading">Diagram not found.</div>;
   if (failed) return <div class="diagram outline" aria-label="Diagram as text">{props.data.outline}</div>;
   if (!svg) return <div class="diagram loading">Drawing diagram…</div>;
+  // The drawing is clickable for a mouse; the button is the keyboard's way in (and keeps the
+  // drawing's own text as its content, not hidden behind a button's name).
   return (
-    <button type="button" class="diagram" aria-label="Diagram. Open full size" onClick={() => props.onZoom(svg)}>
-      <span dangerouslySetInnerHTML={{ __html: svg }} />
-    </button>
+    <div class="diagram" onClick={() => props.onZoom(svg)}>
+      <div dangerouslySetInnerHTML={{ __html: svg }} />
+      <button type="button" class="link zoom" onClick={(e) => { e.stopPropagation(); props.onZoom(svg); }}>Open diagram full size</button>
+    </div>
   );
 }

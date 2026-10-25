@@ -1,75 +1,180 @@
 /**
- * The browser suite's fixture: the real bundled server over stdio, played by
+ * The browser suite's fixtures: the real bundled server over stdio, played by
  * the test as Claude (MCP tool calls), while Playwright plays the user in the
- * real page. One server, one temporary data folder per test.
+ * real page. One temporary data folder per test.
+ *
+ * Every page is guarded: an uncaught error or a Content-Security-Policy
+ * violation fails the test, and each request that carried the token is
+ * recorded so a test can prove the token never went somewhere.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { test as base } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const TOKEN_HEADER = 'x-workbench-token';
 
-export interface Workbench {
-  /** Calls a tool as Claude would; throws on a tool error, returns the parsed result. */
-  call(name: string, args: Record<string, unknown>): Promise<any>;
-  /** Starts a call without waiting for it (wait_for_events); resolves when it returns. */
-  start(name: string, args: Record<string, unknown>): Promise<any>;
+/** One Claude session: a workbench server and the MCP client that drives it. */
+export class Session {
+  private client!: Client;
+  private transport!: StdioClientTransport;
   /** The page addresses the server asked to open, in order. */
-  pages: string[];
-  /** Resolves with the next page address the server asks to open. */
-  nextPage(): Promise<string>;
-  data: string;
-}
+  readonly pages: string[] = [];
+  private waiters: ((url: string) => void)[] = [];
 
-async function boot(data: string): Promise<{ wb: Workbench; stop: () => Promise<void> }> {
-  const transport = new StdioClientTransport({
-    command: process.execPath,
-    args: [join(root, 'dist', 'server.mjs')],
-    env: { ...(process.env as Record<string, string>), CLAUDE_PLUGIN_DATA: data, WORKBENCH_OPEN: '0' },
-    stderr: 'pipe',
-  });
-  const pages: string[] = [];
-  const waiters: ((url: string) => void)[] = [];
-  transport.stderr?.on('data', (chunk: Buffer) => {
-    for (const m of String(chunk).matchAll(/workbench page: (\S+)/g)) {
-      pages.push(m[1]!);
-      waiters.shift()?.(m[1]!);
-    }
-  });
-  const client = new Client({ name: 'browser-suite', version: '1' });
-  await client.connect(transport);
+  /**
+   * `separate`: run the server under its own `sh`, so its parent process (the "Claude Code"
+   * that owns its runs) differs from the default session's. Without it, every server in a
+   * worker shares a parent and a second one would take over the first one's runs.
+   */
+  constructor(readonly data: string, private readonly separate = false) {}
 
-  const call = async (name: string, args: Record<string, unknown>) => {
-    const r = (await client.callTool({ name, arguments: args }, undefined, { timeout: 60_000 })) as { content: { text: string }[]; isError?: boolean };
+  async boot(): Promise<this> {
+    const server = join(root, 'dist', 'server.mjs');
+    this.transport = new StdioClientTransport({
+      command: this.separate ? '/bin/sh' : process.execPath,
+      // `; :` keeps sh from exec-ing node, so node's parent really is the sh.
+      args: this.separate ? ['-c', `"${process.execPath}" "${server}"; :`] : [server],
+      env: { ...(process.env as Record<string, string>), CLAUDE_PLUGIN_DATA: this.data, WORKBENCH_OPEN: '0' },
+      stderr: 'pipe',
+    });
+    this.transport.stderr?.on('data', (chunk: Buffer) => {
+      for (const m of String(chunk).matchAll(/workbench page: (\S+)/g)) {
+        this.pages.push(m[1]!);
+        this.waiters.shift()?.(m[1]!);
+      }
+    });
+    this.client = new Client({ name: 'browser-suite', version: '1' });
+    await this.client.connect(this.transport);
+    return this;
+  }
+
+  /** Calls a tool as Claude would; throws on a tool error, returns the parsed result. */
+  async call(name: string, args: Record<string, unknown>): Promise<any> {
+    const r = (await this.client.callTool({ name, arguments: args }, undefined, { timeout: 60_000 })) as { content: { text: string }[]; isError?: boolean };
     const body = JSON.parse(r.content[0]!.text);
     if (r.isError) throw new Error(`${name}: ${body.message ?? JSON.stringify(body)}`);
     return body;
-  };
-  const wb: Workbench = {
-    call,
-    start: (name, args) => call(name, args),
-    pages,
-    nextPage: () => new Promise((r) => waiters.push(r)),
-    data,
-  };
-  return { wb, stop: () => client.close() };
+  }
+
+  /**
+   * Starts a call without waiting for it (wait_for_events). A call still pending when the
+   * session stops rejects; that is expected and swallowed, the test awaits what it needs.
+   */
+  start(name: string, args: Record<string, unknown>): Promise<any> {
+    const p = this.call(name, args);
+    p.catch(() => undefined);
+    return p;
+  }
+
+  /** Resolves with the next page address the server asks to open. */
+  nextPage(): Promise<string> {
+    return new Promise((r) => this.waiters.push(r));
+  }
+
+  /**
+   * The run's page address, from the live index the server writes before open_session
+   * returns. (Its stderr line and the tool result travel on two pipes with no order.)
+   */
+  url(runId: string): string {
+    return (JSON.parse(readFileSync(join(this.data, 'workbench', 'live', `${runId}.json`), 'utf8')) as { url: string }).url;
+  }
+
+  /** Ends the session the normal way: stdin closes, the server says goodbye to its pages. */
+  async stop(): Promise<void> {
+    await this.client.close().catch(() => undefined);
+  }
+
+  /** Kills the server without a goodbye, as a crash would. */
+  async crash(): Promise<void> {
+    const pid = this.transport.pid;
+    if (pid) process.kill(pid, 'SIGKILL');
+    await this.client.close().catch(() => undefined);
+  }
+
+  /** A new server for the same session (same data, same owner), as after a /mcp reconnect. */
+  async restart(): Promise<void> {
+    await this.boot();
+  }
 }
 
-export const test = base.extend<{ wb: Workbench }>({
-  wb: async ({}, use) => {
+export interface Net {
+  /** URLs of every request that carried the run's token. */
+  tokenRequests: string[];
+}
+
+export const test = base.extend<{ wb: Session; net: Net; data: string; newSession: () => Promise<Session> }>({
+  data: async ({}, use) => {
     const data = mkdtempSync(join(tmpdir(), 'wb-browser-'));
-    const { wb, stop } = await boot(data);
-    await use(wb);
-    await stop();
+    await use(data);
     rmSync(data, { recursive: true, force: true });
+  },
+  wb: async ({ data }, use) => {
+    const wb = await new Session(data).boot();
+    await use(wb);
+    await wb.stop();
+  },
+  /** Another Claude session on the same machine (same data folder). */
+  newSession: async ({ data }, use) => {
+    const made: Session[] = [];
+    await use(async () => {
+      const s = await new Session(data, true).boot();
+      made.push(s);
+      return s;
+    });
+    for (const s of made) await s.stop();
+  },
+  net: async ({ page }, use) => {
+    const net: Net = { tokenRequests: [] };
+    page.on('request', (r) => { if (r.headers()[TOKEN_HEADER]) net.tokenRequests.push(r.url()); });
+    await use(net);
+  },
+  page: async ({ page }, use) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+    await page.addInitScript(() => {
+      document.addEventListener('securitypolicyviolation', (e) => {
+        ((window as unknown as { __csp: string[] }).__csp ??= []).push(`${e.violatedDirective} ${e.blockedURI} at ${e.sourceFile}:${e.lineNumber}:${e.columnNumber} sample=${e.sample}`);
+      });
+    });
+    await use(page);
+    for (const p of page.context().pages()) {
+      const csp = await p.evaluate(() => (window as unknown as { __csp?: string[] }).__csp ?? []).catch(() => [] as string[]);
+      errors.push(...csp.map((c) => `CSP violation: ${c}`));
+    }
+    expect(errors, 'the page threw or broke its Content-Security-Policy').toEqual([]);
   },
 });
 
-export { expect } from '@playwright/test';
+export { expect };
+
+/** The colour of the tab's favicon dot, read from its centre pixel. */
+export async function faviconColor(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    const href = document.querySelector<HTMLLinkElement>('link[rel=icon]')?.href;
+    if (!href) return 'none';
+    const img = new Image();
+    img.src = href;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = c.height = 32;
+    const g = c.getContext('2d')!;
+    g.drawImage(img, 0, 0);
+    const [r, gr, b] = g.getImageData(16, 16, 1, 1).data;
+    return `#${[r, gr, b].map((x) => x!.toString(16).padStart(2, '0')).join('')}`;
+  });
+}
+
+export const FAVICON = { yours: '#c27c0e', working: '#2f5bd3', idle: '#9b9a94', done: '#1f7a4d', offline: '#9b9a94' };
+
+/** The turn line's state (`data-turn`), apart from its wording. */
+export const turnOf = (page: Page) => page.locator('[data-turn]').getAttribute('data-turn');
+/** The connection state the page shows (`data-connection` on <html>). */
+export const connectionOf = (page: Page) => page.locator('html').getAttribute('data-connection');
 
 /** A valid card, overridable per test. */
 export const card = (title = 'Formulación - OfficesExist validator returns 500 on a non-array') => ({
@@ -77,7 +182,7 @@ export const card = (title = 'Formulación - OfficesExist validator returns 500 
   tags: ['backend', 'bug'],
   proposal: { priority: 'high', shape: 'one card, one PR', status: 'ready for work', related: 'none' },
   body: { what: '`officeIds` sent as anything other than an array returns a 500.', where: ['`src/offices-exist.decorator.ts:12`'] },
-  criteria: [{ mode: 'code', text: 'The validator guards its own input' }],
+  criteria: [{ mode: 'code', text: 'The validator guards its own input' }, { mode: 'test', text: 'A unit test covers each non-array input' }],
   manualQa: ['Submitting the activity form with valid offices still saves'],
   assuming: [],
   provenance: 'browser suite',
@@ -86,6 +191,15 @@ export const card = (title = 'Formulación - OfficesExist validator returns 500 
 export const question = {
   text: 'Fix the other validators here or separately?',
   evidence: [{ kind: 'verified', text: '4 matches' }],
-  options: [{ label: 'Separately', detail: 'One file.' }, { label: 'Here', detail: 'All at once.' }],
+  options: [{ label: 'Separately', detail: 'One file.' }, { label: 'Here', detail: 'All at once.' }, { label: 'Neither', detail: 'Leave them.' }],
   recommended: 0,
 };
+
+/** Opens a run with the given items and returns its ids and page address. */
+export async function openRun(wb: Session, items: { fields?: unknown; questions?: unknown[] }[] = [{}], subject = 's') {
+  const { runId, threadId } = await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject });
+  const { added } = items.length
+    ? await wb.call('add_items', { runId, items: items.map((i, k) => ({ kind: 'card', fields: i.fields ?? card(`Card ${k + 1}`), ...(i.questions ? { questions: i.questions } : {}) })) })
+    : { added: [] };
+  return { runId, threadId, added: added as { id: string; rev: number; threadId: string }[], url: wb.url(runId) };
+}

@@ -12,7 +12,8 @@ export { itemStatus, itemTitle, openQuestions, runThreadId, type ItemStatus } fr
  */
 export type TurnView = 'yours' | 'working' | 'idle' | 'done' | 'offline';
 
-const OFFLINE = new Set<PageState['connection']['kind']>(['ended', 'lost', 'moved', 'stale']);
+/** Not talking to Claude's session right now, for whatever reason: nobody's turn can be shown. */
+const OFFLINE = new Set<PageState['connection']['kind']>(['reconnecting', 'ended', 'lost', 'moved', 'stale']);
 
 export function turnView(s: PageState, now: number): TurnView {
   if (!s.run) return 'working';

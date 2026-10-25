@@ -74,8 +74,10 @@ describe('selectors', () => {
     expect(title.endsWith('…')).toBe(true);
   });
 
-  it('turn is offline once the session ended', () => {
+  it('turn is offline once the session ended, and while reconnecting', () => {
     const s = reduce(live(listening), { type: 'connection', connection: { kind: 'ended', reason: 'x' } });
     expect(turnView(s, NOW)).toBe('offline');
+    const r = reduce(live(working), { type: 'connection', connection: { kind: 'reconnecting', since: 0 } });
+    expect(turnView(r, NOW)).toBe('offline');
   });
 });

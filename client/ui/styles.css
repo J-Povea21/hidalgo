@@ -79,7 +79,7 @@ textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px 
 @keyframes inR { from { opacity:0; transform:translateX(40px); } }
 @keyframes inL { from { opacity:0; transform:translateX(-40px); } }
 .col { display:flex; flex-direction:column; gap:16px; min-width:0; }
-.sticky { position:sticky; top:118px; }
+.sticky { position:sticky; top:calc(var(--header-h, 106px) + 12px); }
 @media (max-width: 920px) { .sticky { position:static; } }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
 .phead { padding:12px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:8px; }
@@ -128,7 +128,7 @@ textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px 
 .msg { font-size:14px; padding:8px 11px; border-radius:12px; max-width:92%; animation:fadeUp .35s var(--ease) both; }
 .msg.claude { background:var(--code); border-bottom-left-radius:4px; }
 .msg.user { background:var(--accent-soft); align-self:flex-end; border-bottom-right-radius:4px; }
-.msg .who { font-size:11px; color:var(--faint); margin-bottom:2px; }
+.msg .who { font-size:11px; color:var(--muted); margin-bottom:2px; }
 .msg img { display:block; max-width:100%; max-height:220px; border-radius:8px; margin-top:6px; cursor:zoom-in; }
 @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } }
 .typing { display:inline-flex; gap:4px; padding:12px 14px; background:var(--code); border-radius:12px; border-bottom-left-radius:4px; align-self:flex-start; animation:fadeUp .3s var(--ease) both; }
@@ -162,7 +162,8 @@ textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px 
 
 /* card preview */
 .preview { position:relative; transition:opacity .4s; }
-.preview.pending { opacity:.62; }
+/* Questions still open: marked by the border, not by dimming, which would drop the text below 4.5:1. */
+.preview.pending { border-style:dashed; border-color:var(--warn); }
 .preview.working::after { content:''; position:absolute; inset:0; background:linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--shimmer) 70%, transparent) 50%, transparent 70%); background-size:250% 100%; animation:shimmer 1.4s linear infinite; pointer-events:none; }
 @keyframes shimmer { from { background-position:150% 0; } to { background-position:-100% 0; } }
 .cardtitle { padding:16px; border-bottom:1px solid var(--line); }
@@ -200,7 +201,10 @@ textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px 
 .empty { padding:60px 16px; text-align:center; color:var(--muted); }
 
 /* buttons that wrap media: no button chrome, still focusable */
-button.diagram { display:block; width:100%; font:inherit; color:inherit; text-align:inherit; }
+.diagram .zoom { display:block; margin:6px auto 0; font-size:12px; }
+/* Mermaid's own label colours fail contrast in dark mode: labels take the page's ink on its panel. */
+.diagram .edgeLabel, .diagram .edgeLabel p, .diagram .edgeLabel span { color:var(--ink) !important; background-color:var(--panel) !important; }
+.diagram .edgeLabel rect { fill:var(--panel) !important; }
 button.stored { display:block; padding:0; border:0; background:none; margin-top:6px; cursor:zoom-in; }
 button.stored img { margin-top:0; }
 .lightbox:focus { outline:none; }

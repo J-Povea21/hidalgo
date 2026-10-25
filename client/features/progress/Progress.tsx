@@ -1,5 +1,6 @@
 /** The header: what this run is, whose turn it is, what Claude is doing, and where each item stands. */
 import type { ComponentChildren } from 'preact';
+import { useEffect, useRef } from 'preact/hooks';
 import type { RunState } from '../../../shared/contract.ts';
 import { itemStatus, itemTitle, type ItemStatus, type TurnView } from '../../core/selectors.ts';
 
@@ -11,8 +12,19 @@ const FILL: Record<ItemStatus, [string, string]> = {
 export function Progress(props: { run: RunState; turn: TurnView; current: number; onGo: (i: number) => void; actions: ComponentChildren }) {
   const { run, turn } = props;
   const approved = run.items.filter((i) => ['approved', 'done'].includes(itemStatus(i))).length;
+  const header = useRef<HTMLElement>(null);
+  // The header wraps on narrow screens and long subjects: publish its height so sticky panels sit below it.
+  useEffect(() => {
+    const el = header.current;
+    if (!el) return;
+    const publish = () => document.documentElement.style.setProperty('--header-h', `${el.offsetHeight}px`);
+    publish();
+    const watch = new ResizeObserver(publish);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
   return (
-    <header class="top">
+    <header class="top" ref={header}>
       <div class="in">
         <div class="row">
           <h1>{run.subject}</h1>

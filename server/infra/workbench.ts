@@ -57,6 +57,8 @@ export function openInBrowser(url: string): void {
 
 export class Workbench {
   readonly clock = systemClock;
+  /** When this server started: a page last seen before it may still be retrying to reach it. */
+  private readonly bornAt = Date.parse(systemClock.now());
   readonly ids = randomIds;
   readonly lock = new MemoryRunLock();
   readonly hub = new PageHub();
@@ -185,14 +187,14 @@ export class Workbench {
   }
 
   /**
-   * How many pages are connected to the run, giving one that was connected recently (before
-   * this server started, say) the time to reconnect by itself: a resume should reuse that tab,
-   * not open a second one while the first sits between retries.
+   * How many pages are connected to the run, giving one that was connected to the previous
+   * server recently the time to reconnect by itself: a resume should reuse that tab, not open
+   * a second one while the first sits between retries. A page this server saw leave is gone.
    */
   async reattach(runId: string): Promise<number> {
     if (this.hub.viewers(runId) > 0) return this.hub.viewers(runId);
-    const seen = await this.store.lastViewer(runId);
-    if (!seen || Date.parse(this.clock.now()) - Date.parse(seen) > RECENT_VIEWER_MS) return 0;
+    const seen = Date.parse((await this.store.lastViewer(runId)) ?? '');
+    if (!(seen < this.bornAt) || Date.parse(this.clock.now()) - seen > RECENT_VIEWER_MS) return 0;
     await this.hub.waitForViewer(runId, this.config.reattachWaitMs ?? REATTACH_WAIT_MS);
     return this.hub.viewers(runId);
   }
