@@ -9,11 +9,12 @@
 import { PageEvent, type RecordedEvent, type UnsequencedEvent } from '../../../shared/contract.ts';
 import { WorkbenchError } from '../../kernel/errors.ts';
 import { applyEvent } from '../../kernel/events.ts';
-import type { Clock, EventLog, EventSignal, ImageStore, Limits, PagePublisher, RunStore } from '../../kernel/ports.ts';
+import type { Clock, EventLog, EventSignal, ImageStore, Limits, PagePublisher, RunLock, RunStore } from '../../kernel/ports.ts';
 import { loadRun } from '../../kernel/unit-of-work.ts';
 
 export interface RecordDeps {
   store: RunStore;
+  lock: RunLock;
   log: EventLog;
   images: ImageStore;
   signal: EventSignal;
@@ -25,39 +26,50 @@ export interface RecordDeps {
 /** Decoded size of a data: URL, without decoding it. */
 const dataUrlBytes = (url: string) => Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4);
 
+const formatBytes = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`);
+
+/** The event as the log keeps it: a message's images by stored file name. */
+const toRecorded = (event: PageEvent, images: string[], at: string): UnsequencedEvent =>
+  event.type === 'message' ? { ...event, images, at } : { ...event, at };
+
+/**
+ * Stores the message's images, checking the run's limit first; returns their
+ * file names and whether the run is now close to the limit.
+ */
+async function storeImages(deps: RecordDeps, runId: string, urls: string[]): Promise<{ names: string[]; nearLimit: boolean }> {
+  if (!urls.length) return { names: [], nearLimit: false };
+  if (urls.some((u) => !/^data:image\/(webp|png|jpeg|gif);base64,/.test(u))) {
+    throw new WorkbenchError('invalid', 'images must be WebP, PNG, JPEG or GIF data URLs');
+  }
+  const total = (await deps.images.usedBytes(runId)) + urls.reduce((n, u) => n + dataUrlBytes(u), 0);
+  if (total > deps.limits.imageBytesPerRun) {
+    throw new WorkbenchError('limit', `these images would take this run to ${formatBytes(total)}; the limit is ${formatBytes(deps.limits.imageBytesPerRun)}`);
+  }
+  const names: string[] = [];
+  for (const url of urls) names.push(await deps.images.save(runId, url));
+  return { names, nearLimit: total > deps.limits.imageWarnBytes };
+}
+
 export async function recordPageEvent(deps: RecordDeps, runId: string, raw: unknown): Promise<{ seq: number; imageWarning?: string }> {
   const parsed = PageEvent.safeParse(raw);
   if (!parsed.success) throw new WorkbenchError('invalid', 'event is not valid', parsed.error.issues);
   const event = parsed.data;
-  const run = await loadRun(deps.store, runId);
-  const at = deps.clock.now();
 
-  // Dry run against the current state: refuse before logging anything.
-  const draft = { ...event, ...(event.type === 'message' ? { images: [] } : {}), at, seq: run.appliedSeq + 1 } as RecordedEvent;
-  applyEvent(run, draft);
+  // The whole check-log-apply happens under the run's lock, so nothing changes the run in between.
+  return deps.lock.exclusive(runId, async () => {
+    const run = await loadRun(deps.store, runId);
+    const at = deps.clock.now();
 
-  let images: string[] = [];
-  let imageWarning: string | undefined;
-  if (event.type === 'message' && event.images.length) {
-    for (const url of event.images) {
-      if (!/^data:image\/(webp|png|jpeg|gif);base64,/.test(url)) throw new WorkbenchError('invalid', 'images must be WebP, PNG, JPEG or GIF data URLs');
-    }
-    const used = await deps.images.usedBytes(runId);
-    const incoming = event.images.reduce((n, u) => n + dataUrlBytes(u), 0);
-    if (used + incoming > deps.limits.imageBytesPerRun) {
-      const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`);
-      throw new WorkbenchError('limit', `these images would take this run to ${size(used + incoming)}; the limit is ${size(deps.limits.imageBytesPerRun)}`);
-    }
-    images = [];
-    for (const url of event.images) images.push(await deps.images.save(runId, url));
-    if (used + incoming > deps.limits.imageWarnBytes) imageWarning = 'This run is close to its image limit.';
-  }
+    // Dry run against the current state: refuse before logging or storing anything.
+    applyEvent(run, { ...toRecorded(event, [], at), seq: run.appliedSeq + 1 } as RecordedEvent);
 
-  const recorded = { ...event, ...(event.type === 'message' ? { images } : {}), at } as UnsequencedEvent;
-  const seq = await deps.log.append(runId, recorded);
-  const next = applyEvent(run, { ...recorded, seq } as RecordedEvent);
-  await deps.store.save(next);
-  deps.page.publish(next);
-  deps.signal.ring(runId);
-  return { seq, ...(imageWarning ? { imageWarning } : {}) };
+    const { names, nearLimit } = await storeImages(deps, runId, event.type === 'message' ? event.images : []);
+    const recorded = toRecorded(event, names, at);
+    const seq = await deps.log.append(runId, recorded);
+    const next = applyEvent(run, { ...recorded, seq } as RecordedEvent);
+    await deps.store.save(next);
+    deps.page.publish(next);
+    deps.signal.ring(runId);
+    return { seq, ...(nearLimit ? { imageWarning: 'This run is close to its image limit.' } : {}) };
+  });
 }

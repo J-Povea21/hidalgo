@@ -11,7 +11,6 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import { recordPageEvent } from '../server/features/record-page-event/record-page-event.ts';
 import { registerTools } from '../server/infra/mcp/tools.ts';
 import { Workbench } from '../server/infra/workbench.ts';
 import { card, question } from './fixtures.ts';
@@ -25,12 +24,11 @@ async function boot(dataRoot?: string, ownerPid?: number) {
   writeFileSync(join(clientDir, 'index.html'), '<!doctype html><title>t</title>');
   const opened: string[] = [];
   const wb = new Workbench({
-    dataRoot: root, clientDir, retentionDays: 7, heartbeatMs: 60_000,
+    dataRoot: root, clientDir, retentionDays: 7, heartbeatMs: 60_000, goodbyeGraceMs: 0,
     limits: { imageBytesPerRun: 1_000_000, imageWarnBytes: 800_000, waitTimeoutMs: 3_000 },
     openBrowser: (u) => opened.push(u),
     ...(ownerPid ? { ownerPid } : {}),
   });
-  wb.recordEvent = (runId, body) => recordPageEvent(wb, runId, body);
   const server = new McpServer({ name: 'workbench', version: 'test' });
   registerTools(server, wb);
   const [a, b] = InMemoryTransport.createLinkedPair();
@@ -239,6 +237,26 @@ describe('HTTP security', () => {
     const port = portOf(opened[0]!);
     expect((await http(port, '/../../../etc/passwd')).status).toBe(404);
     expect((await http(port, '/%2e%2e/%2e%2e/etc/passwd')).status).toBe(404);
+  });
+});
+
+describe('serving', () => {
+  it('two runs served at the same moment by a fresh server share one server and one port', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'wb-serve-'));
+    cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+    const before = await boot(root);
+    const a = (await before.call('open_session', { skill: 'card', project: 'MiPlan', subject: 'a' })).runId;
+    const b = (await before.call('open_session', { skill: 'card', project: 'MiPlan', subject: 'b' })).runId;
+    await before.wb.shutdown('restart');
+
+    const after = await boot(root);
+    await Promise.all([after.wb.serve(a), after.wb.serve(b)]);
+    const port = after.wb.boundPort;
+    // A double bind loses the race for the old port and moves to a random one, stranding the tab.
+    expect(port).toBe(portOf(before.opened[0]!));
+    for (const run of [a, b]) {
+      expect((await http(port, `/api/hello?run=${run}&nonce=${'ef'.repeat(16)}`)).status).toBe(200);
+    }
   });
 });
 

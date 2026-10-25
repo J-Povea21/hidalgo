@@ -1,6 +1,20 @@
-/** Clock, ids and the in-memory bell that wakes a pending wait_for_events. */
+/** Clock, ids, the per-run lock, and the in-memory bell that wakes a pending wait_for_events. */
 import { randomBytes } from 'node:crypto';
-import type { Clock, EventSignal, Ids } from '../kernel/ports.ts';
+import type { Clock, EventSignal, Ids, RunLock } from '../kernel/ports.ts';
+
+/** One queue per run: each call runs after the previous one for that run settles. */
+export class MemoryRunLock implements RunLock {
+  private tails = new Map<string, Promise<unknown>>();
+
+  exclusive<T>(runId: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.tails.get(runId) ?? Promise.resolve();
+    const next = prev.then(fn, fn);
+    const tail = next.catch(() => undefined);
+    this.tails.set(runId, tail);
+    void tail.then(() => { if (this.tails.get(runId) === tail) this.tails.delete(runId); });
+    return next;
+  }
+}
 
 export const systemClock: Clock = { now: () => new Date().toISOString() };
 

@@ -35,6 +35,13 @@ export interface ImageStore {
   path(runId: string, name: string): string;
 }
 
+/**
+ * Serialises everything that reads and then rewrites a run. Claude's tool calls
+ * and the page's events arrive at the same time by design, so without this one
+ * change would overwrite another, or an event be delivered twice. Not reentrant.
+ */
+export interface RunLock { exclusive<T>(runId: string, fn: () => Promise<T>): Promise<T> }
+
 /** Pushes the run's state to the open page. */
 export interface PagePublisher { publish(run: RunState): void }
 

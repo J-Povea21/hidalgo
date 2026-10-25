@@ -1,6 +1,7 @@
 /** In-memory fakes for every port: no disk, network or real clock in slice tests. */
 import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '../shared/contract.ts';
-import type { Clock, EventLog, EventSignal, Ids, ImageStore, Limits, LiveIndex, PageAddress, PagePublisher, RunStore } from '../server/kernel/ports.ts';
+import type { Clock, EventLog, Ids, ImageStore, Limits, LiveIndex, PageAddress, PagePublisher, RunStore } from '../server/kernel/ports.ts';
+import { MemoryRunLock, MemorySignal } from '../server/infra/runtime.ts';
 import { T0 } from './fixtures.ts';
 
 export class MemoryStore implements RunStore {
@@ -40,18 +41,6 @@ export class MemoryImages implements ImageStore {
   path(runId: string, name: string) { return `/data/runs/${runId}/images/${name}`; }
 }
 
-export class ManualSignal implements EventSignal {
-  pending = new Map<string, () => void>();
-  ring(runId: string) { this.pending.get(runId)?.(); }
-  wait(runId: string, timeoutMs: number) {
-    return new Promise<'event' | 'timeout'>((resolve) => {
-      const t = setTimeout(() => { this.pending.delete(runId); resolve('timeout'); }, timeoutMs);
-      this.pending.set(runId, () => { clearTimeout(t); this.pending.delete(runId); resolve('event'); });
-    });
-  }
-  waiting(runId: string) { return this.pending.has(runId); }
-}
-
 export class CapturePage implements PagePublisher {
   shown: RunState[] = [];
   publish(run: RunState) { this.shown.push(structuredClone(run)); }
@@ -75,7 +64,7 @@ export const limits: Limits = { imageBytesPerRun: 1000, imageWarnBytes: 800, wai
 
 export function world() {
   return {
-    store: new MemoryStore(), log: new MemoryLog(), images: new MemoryImages(), signal: new ManualSignal(),
+    store: new MemoryStore(), log: new MemoryLog(), images: new MemoryImages(), signal: new MemorySignal(), lock: new MemoryRunLock(),
     page: new CapturePage(), live: new MemoryLive(), clock, ids: ids(), address, limits,
   };
 }

@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { serve, type ServerType } from '@hono/node-server';
 import type { RunState } from '../../shared/contract.ts';
 import { expired, liveEntry } from '../features/live-index/live-index.ts';
+import { recordPageEvent } from '../features/record-page-event/record-page-event.ts';
 import type { EventSignal, Limits, PageAddress, PagePublisher } from '../kernel/ports.ts';
 import { FsEventLog } from './fs/event-log.ts';
 import { FsImageStore } from './fs/image-store.ts';
@@ -15,7 +16,7 @@ import { FsLiveIndex, ownStart } from './fs/live-index.ts';
 import { FsRunStore } from './fs/run-store.ts';
 import { createApp } from './http/app.ts';
 import { PageHub } from './http/hub.ts';
-import { MemorySignal, randomIds, systemClock } from './runtime.ts';
+import { MemoryRunLock, MemorySignal, randomIds, systemClock } from './runtime.ts';
 
 export interface WorkbenchConfig {
   dataRoot: string;
@@ -23,6 +24,8 @@ export interface WorkbenchConfig {
   limits: Limits;
   retentionDays: number;
   heartbeatMs: number;
+  /** How long shutdown waits for the goodbye to reach the pages. 0 in tests. */
+  goodbyeGraceMs?: number;
   /** Open the page in the browser; replaced in tests. */
   openBrowser?: (url: string) => void;
   /** The owning Claude Code process; defaults to our parent. Set in tests to act as another session. */
@@ -37,33 +40,41 @@ export const DEFAULT_LIMITS: Limits = {
 };
 
 export function openInBrowser(url: string): void {
-  const [cmd, args] = process.platform === 'darwin' ? ['open', [url]]
+  const [cmd, args]: [string, string[]] = process.platform === 'darwin' ? ['open', [url]]
     : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
     : ['xdg-open', [url]];
-  spawn(cmd as string, args as string[], { stdio: 'ignore', detached: true }).unref();
+  spawn(cmd, args, { stdio: 'ignore', detached: true }).unref();
 }
 
 export class Workbench {
   readonly clock = systemClock;
   readonly ids = randomIds;
+  readonly lock = new MemoryRunLock();
+  readonly hub = new PageHub();
   readonly store: FsRunStore;
   readonly log: FsEventLog;
   readonly images: FsImageStore;
   readonly live: FsLiveIndex;
-  readonly hub = new PageHub();
   readonly signal: EventSignal;
   readonly page: PagePublisher;
   readonly address: PageAddress;
   readonly limits: Limits;
+  /** Records what the page sends; the HTTP adapter calls it. */
+  readonly recordEvent: (runId: string, body: unknown) => Promise<{ seq: number; imageWarning?: string }>;
 
-  private http?: ServerType;
-  private port = 0;
-  private served = new Set<string>();
-  private heartbeat?: NodeJS.Timeout;
+  private readonly ownerPid: number;
   private readonly startedAt = ownStart();
+  private readonly tokens = new Map<string, string>();
+  private readonly served = new Set<string>();
+  private http?: ServerType;
+  /** Bound once; concurrent first calls to serve() share this instead of each binding a server. */
+  private listening?: Promise<number>;
+  private port = 0;
+  private heartbeat?: NodeJS.Timeout;
 
   constructor(private readonly config: WorkbenchConfig) {
     this.limits = config.limits;
+    this.ownerPid = config.ownerPid ?? process.ppid;
     this.store = new FsRunStore(config.dataRoot);
     const folderOf = (id: string) => this.store.folder(id);
     this.log = new FsEventLog(folderOf);
@@ -83,13 +94,14 @@ export class Workbench {
       ring: (id) => bell.ring(id),
       waiting: (id) => bell.waiting(id),
       wait: async (id, ms) => {
-        const p = bell.wait(id, ms);
+        const woken = bell.wait(id, ms);
         announce(id);
-        try { return await p; } finally { announce(id); }
+        try { return await woken; } finally { announce(id); }
       },
     };
     this.page = { publish: (run) => { this.hub.publish(run); void this.beatRun(run); } };
     this.address = { url: (runId) => this.urlOf(runId) };
+    this.recordEvent = (runId, body) => recordPageEvent(this, runId, body);
   }
 
   private urlOf(runId: string): string {
@@ -98,18 +110,15 @@ export class Workbench {
     return `http://127.0.0.1:${this.port}/#run=${encodeURIComponent(runId)}&t=${token}`;
   }
 
-  private tokens = new Map<string, string>();
-
   /** Binds the page's port on first use, preferring the one a resumed run used before. */
   async serve(runId: string): Promise<void> {
     const token = await this.store.token(runId);
-    if (token) this.tokens.set(runId, token);
+    if (!token) throw new Error(`run ${runId} has no token and can't be served`);
+    this.tokens.set(runId, token);
     await this.images.open(runId);
-    if (!this.http) {
-      const preferred = (await this.store.port(runId)) ?? 0;
-      this.port = await this.listen(preferred).catch(() => this.listen(0));
-    }
-    await this.store.rememberServing(runId, this.port, this.config.ownerPid ?? process.ppid);
+    this.listening ??= this.store.port(runId).then((preferred) => this.listen(preferred ?? 0).catch(() => this.listen(0)));
+    this.port = await this.listening;
+    await this.store.rememberServing(runId, this.port, this.ownerPid);
     this.served.add(runId);
     await this.beat(runId);
     this.heartbeat ??= setInterval(() => { for (const id of this.served) void this.beat(id); }, this.config.heartbeatMs);
@@ -133,23 +142,25 @@ export class Workbench {
         waiting: (id) => this.signal.waiting(id),
         clientDir: this.config.clientDir,
       });
-      const server = serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, (info: AddressInfo) => resolve(info.port));
+      const server = serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, (info: AddressInfo) => {
+        this.http = server;
+        resolve(info.port);
+      });
       server.once('error', reject);
-      this.http = server;
     });
   }
 
-  /** Set by the composition in main.ts once the slices are wired. */
-  recordEvent: (runId: string, body: unknown) => Promise<{ seq: number; imageWarning?: string }> = async () => {
-    throw new Error('not wired');
-  };
-
+  /** Rewrites the run's live entry. Never throws: a missed heartbeat is retried on the next one. */
   private async beatRun(run: RunState): Promise<void> {
     if (!this.served.has(run.id) || !this.port) return;
-    await this.live.write(liveEntry(run, {
-      port: this.port, pid: process.pid, processStartedAt: this.startedAt, url: this.urlOf(run.id),
-      ownerPid: this.config.ownerPid ?? process.ppid, awaiting: this.signal.waiting(run.id),
-    }, this.clock.now())).catch(() => undefined);
+    try {
+      await this.live.write(liveEntry(run, {
+        port: this.port, pid: process.pid, processStartedAt: this.startedAt, url: this.urlOf(run.id),
+        ownerPid: this.ownerPid, awaiting: this.signal.waiting(run.id),
+      }, this.clock.now()));
+    } catch {
+      // the next heartbeat tries again
+    }
   }
 
   private async beat(runId: string): Promise<void> {
@@ -174,7 +185,7 @@ export class Workbench {
    * say the run moved and get a fresh page on resume.
    */
   async reserveOwnRuns(): Promise<string[]> {
-    const ids = await this.store.ownedBy(this.config.ownerPid ?? process.ppid);
+    const ids = await this.store.ownedBy(this.ownerPid);
     for (const id of ids) await this.serve(id).catch(() => undefined);
     return ids;
   }
@@ -195,7 +206,8 @@ export class Workbench {
     this.hub.goodbye(reason);
     if (this.heartbeat) clearInterval(this.heartbeat);
     for (const id of this.served) await this.live.remove(id).catch(() => undefined);
-    await new Promise((r) => setTimeout(r, 150)); // let the goodbye reach the pages
+    const grace = this.config.goodbyeGraceMs ?? 150;
+    if (grace) await new Promise((r) => setTimeout(r, grace));
     this.http?.close();
   }
 

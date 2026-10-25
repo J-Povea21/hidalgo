@@ -5,7 +5,7 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { CardFields, DiagramSpec, QuestionSpec } from '../../../shared/contract.ts';
+import { DiagramSpec, ItemKinds, QuestionSpec, type ItemKind } from '../../../shared/contract.ts';
 import { addItems } from '../../features/add-items/add-items.ts';
 import { ask } from '../../features/ask/ask.ts';
 import { closeSession } from '../../features/close-session/close-session.ts';
@@ -30,15 +30,14 @@ const err = (e: unknown): Result => {
 };
 
 const RunId = z.string().describe('The run id open_session returned.');
-const ItemInput = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('card'), fields: CardFields, questions: z.array(QuestionSpec).optional() }),
-]);
+/** One input shape per registered kind, derived from ItemKinds: adding a kind needs no change here. */
+const [firstKind, ...otherKinds] = (Object.entries(ItemKinds) as [ItemKind, (typeof ItemKinds)[ItemKind]][]).map(([kind, fields]) =>
+  z.object({ kind: z.literal(kind), fields, questions: z.array(QuestionSpec).optional() }));
+const ItemInput = z.discriminatedUnion('kind', [firstKind!, ...otherKinds]);
 
 export function registerTools(server: McpServer, wb: Workbench): void {
-  const deps = {
-    store: wb.store, page: wb.page, log: wb.log, clock: wb.clock, ids: wb.ids, signal: wb.signal,
-    images: wb.images, limits: wb.limits, address: wb.address, live: wb.live,
-  };
+  // The workbench carries every port the slices need; each slice takes only what its type names.
+  const deps = wb;
 
   /** Runs the slice, then attaches whatever the user did since the last delivery. */
   const withEvents = async (runId: string, act: () => Promise<unknown>): Promise<Result> => {
@@ -67,10 +66,11 @@ export function registerTools(server: McpServer, wb: Workbench): void {
       await wb.serve(run.id);
       // A page already connected to this run is the one the user has: tell it, don't open another.
       const viewers = wb.hub.viewers(run.id);
-      if (resumed && viewers > 0) wb.hub.nudge(run.id, 'Claude resumed this run.');
+      const alreadyOpen = resumed && viewers > 0;
+      if (alreadyOpen) wb.hub.nudge(run.id, 'Claude resumed this run.');
       else wb.open(wb.address.url(run.id));
       const events = resumed ? await takeEvents(deps, run.id) : [];
-      return ok({ runId: run.id, resumed, opened: !(resumed && viewers > 0), ...(resumed && viewers > 0 ? { alreadyOpen: viewers } : {}), ...(events.length ? { events } : {}) });
+      return ok({ runId: run.id, resumed, opened: !alreadyOpen, ...(alreadyOpen ? { alreadyOpen: viewers } : {}), ...(events.length ? { events } : {}) });
     } catch (e) {
       return err(e);
     }

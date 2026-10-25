@@ -8,7 +8,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { recordPageEvent } from '../features/record-page-event/record-page-event.ts';
 import { registerTools } from './mcp/tools.ts';
 import { DEFAULT_LIMITS, Workbench } from './workbench.ts';
 
@@ -24,7 +23,6 @@ const wb = new Workbench({
   // WORKBENCH_OPEN=0 serves the page without opening a browser (smoke tests, headless checks).
   ...(process.env['WORKBENCH_OPEN'] === '0' ? { openBrowser: (url: string) => process.stderr.write(`workbench page: ${url}\n`) } : {}),
 });
-wb.recordEvent = (runId, body) => recordPageEvent(wb, runId, body);
 
 const server = new McpServer(
   { name: 'workbench', version: '0.1.0' },
