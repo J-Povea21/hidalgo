@@ -9,14 +9,14 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "hooks": "node scripts/setup-hooks.mjs",
-    "build": "node scripts/setup-hooks.mjs && node scripts/build.mjs",
+    "prepare": "node scripts/setup-hooks.mjs",
+    "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node scripts/setup-hooks.mjs && vitest run --config config/vitest.config.ts",
+    "test": "vitest run --config config/vitest.config.ts",
     "deps": "depcruise --config config/dependency-cruiser.cjs server client shared",
-    "check": "node scripts/setup-hooks.mjs && node scripts/check.mjs",
+    "check": "node scripts/check.mjs",
     "demo": "node scripts/demo.mjs",
-    "test:browser": "node scripts/setup-hooks.mjs && node scripts/build.mjs && playwright test --config config/playwright.config.ts",
+    "test:browser": "node scripts/build.mjs && playwright test --config config/playwright.config.ts",
     "lint": "eslint --config config/eslint.config.mjs .",
     "format": "prettier --write ."
   },

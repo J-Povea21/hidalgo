@@ -1,9 +1,5 @@
-// Points git at the committed hooks, so the pre-push check is active for anyone
-// who has built, tested or checked workbench once. Idempotent and silent.
-//
-// It can't run on `pnpm install`: .npmrc sets ignore-scripts=true so no
-// dependency runs code at install, and that switch also stops our own
-// prepare script.
+// Points git at the committed hooks, so the pre-push check is active from the first
+// `pnpm install` (it is the package's `prepare` script). Idempotent and silent.
 import { execFileSync } from 'node:child_process';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

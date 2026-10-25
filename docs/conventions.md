@@ -264,8 +264,10 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
 ## Build and dependencies
 
 - **pnpm only** (`packageManager` in `package.json`); `check` refuses an npm lockfile.
-  Every version is pinned exactly, install scripts are off (`.npmrc`), and `check` runs
-  `pnpm audit`.
+  Every version is pinned exactly, and `check` runs `pnpm audit`. No dependency runs
+  code at install: pnpm 10 refuses their scripts unless allowlisted, and `check` fails if
+  `package.json`, `.npmrc` or a `pnpm-workspace.yaml` allowlists any. The package's own
+  `prepare` script still runs, which is what wires the hook below.
 - **`dist/` is committed.** It's unusual for a library, but it's what a plugin needs:
   - Claude Code installs the plugin as a plain copy of the repository and starts the
     server from `.mcp.json` when the session opens, before any skill runs. A skill's
@@ -282,8 +284,8 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
 
 - `pnpm run check` is the single definition of every check: dependency rules, types,
   format, lint, tests, audit, a reproducible bundle, and the size budget.
-- The first `pnpm run build`, `test` or `check` points git at `.githooks/pre-push`, which
-  runs `check` before any push that touches `servers/workbench/`. There is no CI yet, so
+- `pnpm install` points git at `.githooks/pre-push` (the `prepare` script), which runs
+  `check` before any push that touches `servers/workbench/`. There is no CI yet, so
   this hook is the gate; `git push --no-verify` skips it.
 - **Every script is Node, never shell**, so it runs the same on macOS, Linux and Windows.
   The hook itself is one line of `sh` that hands over to `scripts/pre-push.mjs`; Git runs

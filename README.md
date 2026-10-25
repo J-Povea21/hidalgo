@@ -38,7 +38,7 @@ Closed runs are removed after 7 days; unfinished runs are kept until you decide.
 
 ```bash
 cd servers/workbench
-pnpm install --frozen-lockfile  # no dependency runs code at install (.npmrc)
+pnpm install --frozen-lockfile  # also turns on the pre-push check; no dependency runs code
 pnpm run check                  # every check: what the pre-push hook runs
 pnpm test                       # unit, component and end-to-end tests
 pnpm run test:browser           # the page in a real browser; run it before pushing

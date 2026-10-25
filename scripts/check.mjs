@@ -37,10 +37,32 @@ if (loose.length) {
 }
 console.log('ok');
 
-// 2. Install scripts stay off, and installs come from the committed lockfile.
-process.stdout.write('• install scripts disabled… ');
-if (!/^ignore-scripts=true$/m.test(readFileSync(join(root, '.npmrc'), 'utf8'))) {
-  fail('.npmrc must set ignore-scripts=true');
+// 2. No dependency may run code at install, and installs come from the committed lockfile.
+//    pnpm 10 refuses dependencies' install scripts unless something allowlists them; any of
+//    these settings, in any of the places pnpm reads them, would let one run.
+process.stdout.write('• dependency install scripts blocked… ');
+{
+  const ALLOW_BUILDS = [
+    'onlyBuiltDependencies',
+    'onlyBuiltDependenciesFile',
+    'neverBuiltDependencies',
+    'dangerouslyAllowAllBuilds',
+  ];
+  const kebab = (name) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+  const inPackageJson = ALLOW_BUILDS.filter((name) => pkg.pnpm && name in pkg.pnpm);
+  const npmrc = readFileSync(join(root, '.npmrc'), 'utf8');
+  const inNpmrc = ALLOW_BUILDS.filter((name) => new RegExp(`^\\s*${kebab(name)}`, 'm').test(npmrc));
+  const workspace = join(root, 'pnpm-workspace.yaml');
+  const workspaceText = existsSync(workspace) ? readFileSync(workspace, 'utf8') : '';
+  const inWorkspace = ALLOW_BUILDS.filter((name) => new RegExp(`^\\s*${name}\\s*:`, 'm').test(workspaceText));
+  const allowed = [
+    ...inPackageJson.map((name) => `package.json pnpm.${name}`),
+    ...inNpmrc.map((name) => `.npmrc ${kebab(name)}`),
+    ...inWorkspace.map((name) => `pnpm-workspace.yaml ${name}`),
+  ];
+  if (allowed.length) {
+    fail(`these let dependencies run code at install; remove them: ${allowed.join(', ')}`);
+  }
 }
 if (!existsSync(join(root, 'pnpm-lock.yaml'))) {
   fail('pnpm-lock.yaml is missing: install with pnpm, never npm');
