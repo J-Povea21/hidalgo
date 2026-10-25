@@ -13,12 +13,20 @@ import { readJson, writeAtomic } from './files.ts';
 
 const STALE_MS = 2 * 60 * 1000;
 
-/** When the OS says a process started, or undefined if it isn't running. */
-function processStart(pid: number): number | undefined {
+/** How far apart two readings of one process's start time may be (they are rounded to the second). */
+const SAME_START_MS = 5000;
+
+/**
+ * Whether a process is running, and when the OS says it started. The start time is unknown
+ * where `ps` is missing (Windows) or fails; that is never a reason to call a process dead.
+ */
+type ProcessReading = { running: false } | { running: true; startedAt?: number };
+
+function processStart(pid: number): ProcessReading {
   try {
     process.kill(pid, 0);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EPERM') return undefined;
+    if ((error as NodeJS.ErrnoException).code !== 'EPERM') return { running: false };
   }
   try {
     const out = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
@@ -26,16 +34,24 @@ function processStart(pid: number): number | undefined {
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
     const startedAt = Date.parse(out);
-    return Number.isNaN(startedAt) ? Date.now() : startedAt;
+    return Number.isNaN(startedAt) ? { running: true } : { running: true, startedAt };
   } catch {
-    return Date.now(); // alive but unreadable: never call it dead on that alone
+    return { running: true };
   }
 }
 
-/** Alive means the pid runs AND it started when this entry says (± a few seconds): a reused pid doesn't count. */
-export function processAlive(pid: number, startedAt: string): boolean {
-  const started = processStart(pid);
-  return started !== undefined && Math.abs(started - Date.parse(startedAt)) < 5000;
+/**
+ * Alive means the pid runs AND, when its start time can be read, it started when this entry
+ * says: a pid reused by another program doesn't count.
+ */
+export function processAlive(
+  pid: number,
+  startedAt: string,
+  read: (pid: number) => ProcessReading = processStart,
+): boolean {
+  const found = read(pid);
+  if (!found.running) return false;
+  return found.startedAt === undefined || Math.abs(found.startedAt - Date.parse(startedAt)) < SAME_START_MS;
 }
 
 /** This process's own start time, in the same terms `processAlive` checks. */
