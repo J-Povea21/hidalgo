@@ -36,9 +36,9 @@ export async function appendLine(file: string, line: string): Promise<void> {
 export async function readJson<T>(file: string): Promise<T | undefined> {
   try {
     return JSON.parse(await readFile(file, 'utf8')) as T;
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
-    throw e;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
   }
 }
 
@@ -47,5 +47,10 @@ export async function removeTree(path: string): Promise<void> {
 }
 
 /** A folder-safe version of a project name ("Mi Titulo" → "mi-titulo"). */
-export const slug = (s: string) =>
-  s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project';
+export const slug = (text: string) =>
+  text
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'project';

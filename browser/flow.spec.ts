@@ -2,9 +2,14 @@
 import { card, connectionOf, expect, FAVICON, faviconColor, openRun, question, test, turnOf } from './harness.ts';
 
 test('B-1 answer the questions, approve, and the run closes', async ({ page, wb }) => {
-  const { runId, added, url } = await openRun(wb, [{ questions: [question, { ...question, text: 'Second question?' }] }, {}]);
+  const { runId, added, url } = await openRun(wb, [
+    { questions: [question, { ...question, text: 'Second question?' }] },
+    {},
+  ]);
   const chunks: string[] = [];
-  page.on('request', (r) => { if (/mermaid/i.test(r.url())) chunks.push(r.url()); });
+  page.on('request', (request) => {
+    if (/mermaid/i.test(request.url())) chunks.push(request.url());
+  });
   await page.goto(url);
   await expect(page.getByRole('heading', { name: 'Card 1' })).toBeVisible();
   expect(chunks, 'Mermaid loads only for a diagram').toEqual([]);
@@ -19,8 +24,12 @@ test('B-1 answer the questions, approve, and the run closes', async ({ page, wb 
   const { events } = await waiting;
   expect(events).toHaveLength(1);
   expect(events[0]).toMatchObject({
-    type: 'answers', item: added[0]!.id,
-    answers: [{ question: question.text, chose: 'Here' }, { question: 'Second question?', chose: 'Neither', note: 'leave them for now' }],
+    type: 'answers',
+    item: added[0]!.id,
+    answers: [
+      { question: question.text, chose: 'Here' },
+      { question: 'Second question?', chose: 'Neither', note: 'leave them for now' },
+    ],
   });
   await expect(page.getByText('Nothing left to decide on this item')).toBeVisible();
   await expect(page.locator('.ruling').filter({ hasText: 'Here' })).toBeVisible();
@@ -48,36 +57,44 @@ test('B-7 reject, leave pending then approve, and a revision brings the buttons 
   const { runId, added, url } = await openRun(wb, [{}, {}, {}]);
   await page.goto(url);
 
-  let w = wb.start('wait_for_events', { runId });
+  let waiting = wb.start('wait_for_events', { runId });
   await page.getByRole('button', { name: 'Reject' }).click();
-  expect((await w).events[0]).toMatchObject({ verdict: 'rejected' });
+  expect((await waiting).events[0]).toMatchObject({ verdict: 'rejected' });
   await expect(page.locator('.verdict .badge.rejected')).toBeVisible();
 
   await page.getByRole('button', { name: 'Next →' }).click();
-  w = wb.start('wait_for_events', { runId });
+  waiting = wb.start('wait_for_events', { runId });
   await page.getByRole('button', { name: 'Leave pending' }).click();
-  expect((await w).events[0]).toMatchObject({ verdict: 'pending', item: added[1]!.id });
+  expect((await waiting).events[0]).toMatchObject({ verdict: 'pending', item: added[1]!.id });
   await expect(page.locator('.verdict .badge.pending')).toBeVisible();
-  w = wb.start('wait_for_events', { runId });
+  waiting = wb.start('wait_for_events', { runId });
   await page.getByRole('button', { name: 'Approve' }).click();
-  expect((await w).events[0]).toMatchObject({ verdict: 'approved', item: added[1]!.id });
+  expect((await waiting).events[0]).toMatchObject({ verdict: 'approved', item: added[1]!.id });
 
   await wb.call('update_item', { runId, itemId: added[1]!.id, patch: { tags: ['revised'] } });
   await expect(page.getByText('Approves exactly rev 2.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Approve' })).toBeEnabled();
 });
 
-test('B-8 chat: Ctrl/⌘+Enter sends, Enter is a newline, replies land, the run drawer shows unread', async ({ page, wb }) => {
+test('B-8 chat: Ctrl/⌘+Enter sends, Enter is a newline, replies land, the run drawer shows unread', async ({
+  page,
+  wb,
+}) => {
   const { runId, threadId, added, url } = await openRun(wb);
   await page.goto(url);
   const box = page.getByLabel('About this item only.');
   await box.fill('first line');
   await box.press('Enter');
   await box.pressSequentially('second line');
-  const w = wb.start('wait_for_events', { runId });
+  const waiting = wb.start('wait_for_events', { runId });
   await box.press('ControlOrMeta+Enter');
-  const [ev] = (await w).events;
-  expect(ev).toMatchObject({ type: 'message', item: added[0]!.id, thread: added[0]!.threadId, text: 'first line\nsecond line' });
+  const [ev] = (await waiting).events;
+  expect(ev).toMatchObject({
+    type: 'message',
+    item: added[0]!.id,
+    thread: added[0]!.threadId,
+    text: 'first line\nsecond line',
+  });
   await expect(box).toHaveValue('');
   await expect(box).toBeFocused();
 
@@ -101,9 +118,14 @@ test('B-9 editing a criterion sends the edit, and the new revision says it was e
   const editor = page.getByLabel('Edit criterion');
   await expect(editor).toBeFocused();
   await editor.fill('The validator rejects a non-array with a 400');
-  const w = wb.start('wait_for_events', { runId });
+  const waiting = wb.start('wait_for_events', { runId });
   await page.getByRole('button', { name: 'Save edit' }).click();
-  expect((await w).events[0]).toMatchObject({ type: 'edit', item: added[0]!.id, path: 'criteria.0.text', text: 'The validator rejects a non-array with a 400' });
+  expect((await waiting).events[0]).toMatchObject({
+    type: 'edit',
+    item: added[0]!.id,
+    path: 'criteria.0.text',
+    text: 'The validator rejects a non-array with a 400',
+  });
   await expect(page.getByText('edited by you · will be re-probed')).toBeVisible();
   await expect(page.getByText('Approves exactly rev 2.')).toBeVisible();
 });
@@ -114,13 +136,18 @@ test('B-11 item navigation, and position and drafts survive a reload', async ({ 
   await page.getByRole('button', { name: 'Next →' }).click();
   await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.getByRole('heading', { name: 'Card 3' })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Items in this run' }).getByRole('button', { name: 'Card 2: ready' })).toBeVisible();
+  await expect(
+    page.getByRole('navigation', { name: 'Items in this run' }).getByRole('button', { name: 'Card 2: ready' }),
+  ).toBeVisible();
   await page.getByLabel('About this item only.').fill('a draft I have not sent');
 
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Card 3' })).toBeVisible();
   await expect(page.getByLabel('About this item only.')).toHaveValue('a draft I have not sent');
-  await page.getByRole('navigation', { name: 'Items in this run' }).getByRole('button', { name: 'Card 1: ready' }).click();
+  await page
+    .getByRole('navigation', { name: 'Items in this run' })
+    .getByRole('button', { name: 'Card 1: ready' })
+    .click();
   await expect(page.getByRole('heading', { name: 'Card 1' })).toBeVisible();
 });
 
@@ -129,11 +156,16 @@ test('B-15 hostile Markdown from Claude runs nothing', async ({ page, wb }) => {
   await page.goto(url);
   await page.getByRole('button', { name: /^Run/ }).click();
   await wb.call('send_message', {
-    runId, threadId,
+    runId,
+    threadId,
     text: 'img <img src=x onerror="window.__x=1"> and [a link](javascript:window.__x=2) and <svg><script>window.__x=3</script></svg> and <math><mtext><table><mglyph><style><img src=x onerror="window.__x=4">',
   });
   await expect(page.locator('.msg.claude').first()).toBeVisible();
-  await page.locator('.msg.claude a').first().click({ trial: true }).catch(() => undefined);
+  await page
+    .locator('.msg.claude a')
+    .first()
+    .click({ trial: true })
+    .catch(() => undefined);
   expect(await page.evaluate(() => (window as unknown as { __x?: number }).__x)).toBeUndefined();
   expect(await connectionOf(page)).toBe('live');
 });

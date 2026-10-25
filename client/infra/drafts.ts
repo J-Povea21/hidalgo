@@ -6,45 +6,46 @@
 const mem = new Map<string, string>();
 
 export function loadDraft<T>(runId: string, key: string, fallback: T): T {
-  const k = `wb:${runId}:${key}`;
+  const storageKey = `wb:${runId}:${key}`;
   try {
-    const v = localStorage.getItem(k);
-    return v === null ? fallback : (JSON.parse(v) as T);
+    const stored = localStorage.getItem(storageKey);
+    return stored === null ? fallback : (JSON.parse(stored) as T);
   } catch {
-    const v = mem.get(k);
-    return v === undefined ? fallback : (JSON.parse(v) as T);
+    const stored = mem.get(storageKey);
+    return stored === undefined ? fallback : (JSON.parse(stored) as T);
   }
 }
 
 export function saveDraft(runId: string, key: string, value: unknown): void {
-  const k = `wb:${runId}:${key}`;
-  const empty = value === '' || value === undefined || (typeof value === 'object' && value !== null && !Object.keys(value).length);
+  const storageKey = `wb:${runId}:${key}`;
+  const empty =
+    value === '' || value === undefined || (typeof value === 'object' && value !== null && !Object.keys(value).length);
   try {
-    if (empty) localStorage.removeItem(k);
-    else localStorage.setItem(k, JSON.stringify(value));
+    if (empty) localStorage.removeItem(storageKey);
+    else localStorage.setItem(storageKey, JSON.stringify(value));
   } catch {
-    if (empty) mem.delete(k);
-    else mem.set(k, JSON.stringify(value));
+    if (empty) mem.delete(storageKey);
+    else mem.set(storageKey, JSON.stringify(value));
   }
 }
 
 /** A value for this tab only (sessionStorage), e.g. which item is on screen; same fallback as drafts. */
 export function loadTabValue<T>(runId: string, key: string, fallback: T): T {
-  const k = `wb:${runId}:${key}`;
+  const storageKey = `wb:${runId}:${key}`;
   try {
-    const v = sessionStorage.getItem(k);
-    return v === null ? fallback : (JSON.parse(v) as T);
+    const stored = sessionStorage.getItem(storageKey);
+    return stored === null ? fallback : (JSON.parse(stored) as T);
   } catch {
-    const v = mem.get(`tab:${k}`);
-    return v === undefined ? fallback : (JSON.parse(v) as T);
+    const stored = mem.get(`tab:${storageKey}`);
+    return stored === undefined ? fallback : (JSON.parse(stored) as T);
   }
 }
 
 export function saveTabValue(runId: string, key: string, value: unknown): void {
-  const k = `wb:${runId}:${key}`;
+  const storageKey = `wb:${runId}:${key}`;
   try {
-    sessionStorage.setItem(k, JSON.stringify(value));
+    sessionStorage.setItem(storageKey, JSON.stringify(value));
   } catch {
-    mem.set(`tab:${k}`, JSON.stringify(value));
+    mem.set(`tab:${storageKey}`, JSON.stringify(value));
   }
 }

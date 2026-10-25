@@ -19,22 +19,22 @@ export class PageHub implements PagePublisher {
 
   publish(run: RunState): void {
     this.latest.set(run.id, run);
-    for (const l of this.listeners.get(run.id) ?? []) l({ type: 'state', state: run });
+    for (const listener of this.listeners.get(run.id) ?? []) listener({ type: 'state', state: run });
   }
 
   current(runId: string): RunState | undefined {
     return this.latest.get(runId);
   }
 
-  subscribe(runId: string, l: Listener): () => void {
+  subscribe(runId: string, listener: Listener): () => void {
     const set = this.listeners.get(runId) ?? new Set();
-    set.add(l);
+    set.add(listener);
     this.listeners.set(runId, set);
     const now = this.latest.get(runId);
-    if (now) l({ type: 'state', state: now });
+    if (now) listener({ type: 'state', state: now });
     this.onViewer?.(runId);
     for (const arrived of this.arrivals.get(runId) ?? []) arrived();
-    return () => set.delete(l);
+    return () => set.delete(listener);
   }
 
   /** Resolves true as soon as a page connects to the run, false if none does within `ms`. */
@@ -43,7 +43,11 @@ export class PageHub implements PagePublisher {
     return new Promise((resolve) => {
       const set = this.arrivals.get(runId) ?? new Set();
       this.arrivals.set(runId, set);
-      const done = (seen: boolean) => { clearTimeout(timer); set.delete(arrived); resolve(seen); };
+      const done = (seen: boolean) => {
+        clearTimeout(timer);
+        set.delete(arrived);
+        resolve(seen);
+      };
       const arrived = () => done(true);
       const timer = setTimeout(() => done(false), ms);
       set.add(arrived);
@@ -56,11 +60,11 @@ export class PageHub implements PagePublisher {
   }
 
   nudge(runId: string, text: string): void {
-    for (const l of this.listeners.get(runId) ?? []) l({ type: 'nudge', text });
+    for (const listener of this.listeners.get(runId) ?? []) listener({ type: 'nudge', text });
   }
 
   /** The session is ending normally: tell every open page before the server exits. */
   goodbye(reason: string): void {
-    for (const set of this.listeners.values()) for (const l of set) l({ type: 'goodbye', reason });
+    for (const set of this.listeners.values()) for (const listener of set) listener({ type: 'goodbye', reason });
   }
 }

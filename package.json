@@ -16,7 +16,9 @@
     "deps": "depcruise --config config/dependency-cruiser.cjs server client shared",
     "check": "node scripts/setup-hooks.mjs && node scripts/check.mjs",
     "demo": "node scripts/demo.mjs",
-    "test:browser": "node scripts/setup-hooks.mjs && node scripts/build.mjs && playwright test --config config/playwright.config.ts"
+    "test:browser": "node scripts/setup-hooks.mjs && node scripts/build.mjs && playwright test --config config/playwright.config.ts",
+    "lint": "eslint --config config/eslint.config.mjs .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@hono/node-server": "2.1.5",
@@ -32,11 +34,20 @@
     "dependency-cruiser": "18.7.0",
     "dompurify": "3.4.17",
     "esbuild": "0.28.2",
+    "eslint": "10.12.0",
     "happy-dom": "21.0.4",
     "marked": "18.1.1",
     "mermaid": "12.2.0",
     "preact": "11.0.2",
+    "prettier": "3.9.9",
     "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
     "vitest": "5.0.5"
+  },
+  "prettier": {
+    "printWidth": 120,
+    "singleQuote": true,
+    "trailingComma": "all",
+    "arrowParens": "always"
   }
 }

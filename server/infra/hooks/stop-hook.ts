@@ -18,23 +18,36 @@ import type { LiveEntry } from '@shared/contract.ts';
 const MAX_BLOCKS = 3;
 
 function readStdin(): string {
-  try { return readFileSync(0, 'utf8'); } catch { return ''; }
+  try {
+    return readFileSync(0, 'utf8');
+  } catch {
+    return '';
+  }
 }
 
 function pidAlive(pid: number): boolean {
-  try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
 }
 
 export function openRunsNobodyWaitsOn(liveDir: string, ownerPid: number): LiveEntry[] {
   let names: string[] = [];
-  try { names = readdirSync(liveDir).filter((n) => n.endsWith('.json')); } catch { return []; }
+  try {
+    names = readdirSync(liveDir).filter((name) => name.endsWith('.json'));
+  } catch {
+    return [];
+  }
   const out: LiveEntry[] = [];
-  for (const n of names) {
+  for (const name of names) {
     try {
-      const e = JSON.parse(readFileSync(join(liveDir, n), 'utf8')) as LiveEntry & { awaiting?: boolean };
+      const entry = JSON.parse(readFileSync(join(liveDir, name), 'utf8')) as LiveEntry & { awaiting?: boolean };
       // `awaiting` is the field's name before 0.6.0's rename; drop it once no older server can be running.
-      const listening = e.claudeListening ?? e.awaiting;
-      if (e.ownerPid === ownerPid && e.status === 'open' && !listening && pidAlive(e.pid)) out.push(e);
+      const listening = entry.claudeListening ?? entry.awaiting;
+      if (entry.ownerPid === ownerPid && entry.status === 'open' && !listening && pidAlive(entry.pid)) out.push(entry);
     } catch {
       // A torn or foreign file is not a reason to block anyone.
     }
@@ -53,18 +66,25 @@ function main(): void {
     return;
   }
   let count = 0;
-  try { count = (JSON.parse(readFileSync(counter, 'utf8')) as { count: number }).count; } catch { /* first time */ }
+  try {
+    count = (JSON.parse(readFileSync(counter, 'utf8')) as { count: number }).count;
+  } catch {
+    /* first time */
+  }
   if (count >= MAX_BLOCKS) {
     rmSync(counter, { force: true });
     return;
   }
   writeFileSync(counter, JSON.stringify({ count: count + 1 }));
-  const runs = open.map((e) => `${e.runId} (${e.project}: ${e.subject})`).join(', ');
-  process.stdout.write(JSON.stringify({
-    decision: 'block',
-    reason: `A workbench run is open and nobody is listening to its page: ${runs}. ` +
-      'Call wait_for_events for it so the user\'s next action reaches you, or close_session (status "paused" if items are left pending).',
-  }));
+  const runs = open.map((entry) => `${entry.runId} (${entry.project}: ${entry.subject})`).join(', ');
+  process.stdout.write(
+    JSON.stringify({
+      decision: 'block',
+      reason:
+        `A workbench run is open and nobody is listening to its page: ${runs}. ` +
+        'Call wait_for_events for it so the user\'s next action reaches you, or close_session (status "paused" if items are left pending).',
+    }),
+  );
 }
 
 main();

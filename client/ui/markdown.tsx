@@ -7,7 +7,7 @@ import { marked } from 'marked';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { Diagram as DiagramData } from '@shared/contract.ts';
 
-const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 
 /**
  * Raw HTML in a message is shown as text, never parsed: Claude's Markdown has no need for it,
@@ -41,16 +41,27 @@ export const toSafeHtml = (text: string): string =>
 export const toInlineHtml = (text: string): string =>
   memo(inlineCache, text, () => DOMPurify.sanitize(marked.parseInline(text, { async: false }) as string));
 
-export function Markdown(props: { text: string; diagrams: DiagramData[]; onDiagramFailed: (id: string, error: string) => void; onZoom: (html: string) => void }) {
+export function Markdown(props: {
+  text: string;
+  diagrams: DiagramData[];
+  onDiagramFailed: (id: string, error: string) => void;
+  onZoom: (html: string) => void;
+}) {
   // Split around diagram placeholders so each diagram is its own component.
   const parts = useMemo(() => props.text.split(PLACEHOLDER), [props.text]);
   return (
     <div class="md">
-      {parts.map((part, i) =>
-        i % 2 === 1 ? (
-          <Diagram key={`d${i}`} data={props.diagrams.find((d) => d.id === part)} id={part} onFailed={props.onDiagramFailed} onZoom={props.onZoom} />
+      {parts.map((part, index) =>
+        index % 2 === 1 ? (
+          <Diagram
+            key={`d${index}`}
+            data={props.diagrams.find((diagram) => diagram.id === part)}
+            id={part}
+            onFailed={props.onDiagramFailed}
+            onZoom={props.onZoom}
+          />
         ) : part.trim() ? (
-          <div key={`t${i}`} dangerouslySetInnerHTML={{ __html: toSafeHtml(part) }} />
+          <div key={`t${index}`} dangerouslySetInnerHTML={{ __html: toSafeHtml(part) }} />
         ) : null,
       )}
     </div>
@@ -64,48 +75,79 @@ const svgCache = new Map<string, string>();
 const reportedFailures = new Set<string>();
 
 function loadMermaid() {
-  mermaidLoad ??= import('mermaid').then((m) => {
+  mermaidLoad ??= import('mermaid').then((module) => {
     const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-    m.default.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'neutral', securityLevel: 'strict', fontFamily: 'ui-sans-serif, system-ui, sans-serif' });
-    return m.default;
+    module.default.initialize({
+      startOnLoad: false,
+      theme: dark ? 'dark' : 'neutral',
+      securityLevel: 'strict',
+      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    });
+    return module.default;
   });
   // A failed chunk load must not break every diagram until reload: let the next one retry.
-  mermaidLoad.catch(() => { mermaidLoad = undefined; });
+  mermaidLoad.catch(() => {
+    mermaidLoad = undefined;
+  });
   return mermaidLoad;
 }
 
 /** Draws a diagram; if it can't, shows its outline instead and reports the failure. Never shows an error. */
-export function Diagram(props: { id: string; data: DiagramData | undefined; onFailed: (id: string, error: string) => void; onZoom: (html: string) => void }) {
+export function Diagram(props: {
+  id: string;
+  data: DiagramData | undefined;
+  onFailed: (id: string, error: string) => void;
+  onZoom: (html: string) => void;
+}) {
   const [svg, setSvg] = useState<string | undefined>(props.data ? svgCache.get(props.data.mermaid) : undefined);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    const d = props.data;
-    if (!d || svg || failed) return;
+    const diagram = props.data;
+    if (!diagram || svg || failed) return;
     let live = true;
     loadMermaid()
-      .then((m) => m.render(`wbd${++renderSeq}`, d.mermaid))
-      .then(({ svg }) => { svgCache.set(d.mermaid, svg); if (live) setSvg(svg); })
-      .catch((e: unknown) => {
+      .then((mermaid) => mermaid.render(`wbd${++renderSeq}`, diagram.mermaid))
+      .then(({ svg: drawn }) => {
+        svgCache.set(diagram.mermaid, drawn);
+        if (live) setSvg(drawn);
+      })
+      .catch((error: unknown) => {
         if (!live) return;
         setFailed(true);
         if (!reportedFailures.has(props.id)) {
           reportedFailures.add(props.id);
-          props.onFailed(props.id, String((e as Error)?.message ?? e).slice(0, 500));
+          props.onFailed(props.id, String((error as Error)?.message ?? error).slice(0, 500));
         }
       });
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, [props.data?.mermaid]);
 
   if (!props.data) return <div class="diagram loading">Diagram not found.</div>;
-  if (failed) return <div class="diagram outline" aria-label="Diagram as text">{props.data.outline}</div>;
+  if (failed)
+    return (
+      <div class="diagram outline" aria-label="Diagram as text">
+        {props.data.outline}
+      </div>
+    );
   if (!svg) return <div class="diagram loading">Drawing diagram…</div>;
   // The drawing is clickable for a mouse; the button is the keyboard's way in (and keeps the
   // drawing's own text as its content, not hidden behind a button's name).
   return (
     <div class="diagram" onClick={() => props.onZoom(svg)}>
       <div dangerouslySetInnerHTML={{ __html: svg }} />
-      <button type="button" class="link zoom" onClick={(e) => { e.stopPropagation(); props.onZoom(svg); }}>Open diagram full size</button>
+      <button
+        type="button"
+        class="link zoom"
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onZoom(svg);
+        }}
+      >
+        Open diagram full size
+      </button>
     </div>
   );
 }

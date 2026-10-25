@@ -2,8 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { card, counterIds, question, T0 } from '@test/fixtures.ts';
 import { WorkbenchError } from './errors.ts';
 import {
-  addItems, addMessage, applyAnswers, applyEdit, applyVerdict, ask, close,
-  markDone, newRun, rememberEventThread, runThreadId, updateItem,
+  addItems,
+  addMessage,
+  applyAnswers,
+  applyEdit,
+  applyVerdict,
+  ask,
+  close,
+  markDone,
+  newRun,
+  rememberEventThread,
+  runThreadId,
+  updateItem,
 } from './run.ts';
 import { isFinal, pendingForUser } from '@shared/rules.ts';
 
@@ -13,17 +23,21 @@ const start = () => {
   return { ids, run };
 };
 const code = (fn: () => unknown) => {
-  try { fn(); } catch (e) { return (e as WorkbenchError).code; }
+  try {
+    fn();
+  } catch (error) {
+    return (error as WorkbenchError).code;
+  }
   return 'no error';
 };
 
 describe('items', () => {
   it('adds a valid card with its own thread at rev 1', () => {
     const { ids, run } = start();
-    const { run: r, added } = addItems(run, [{ kind: 'card', fields: card() }], ids);
+    const { run: next, added } = addItems(run, [{ kind: 'card', fields: card() }], ids);
     expect(added).toEqual([{ id: 'i1', rev: 1, threadId: 't2' }]);
-    expect(r.threads.map((t) => t.owner)).toEqual([{ type: 'run' }, { type: 'item', itemId: 'i1' }]);
-    expect(r.version).toBe(run.version + 1);
+    expect(next.threads.map((thread) => thread.owner)).toEqual([{ type: 'run' }, { type: 'item', itemId: 'i1' }]);
+    expect(next.version).toBe(run.version + 1);
   });
 
   it('rejects an unknown kind and a card that fails its schema, naming the reason', () => {
@@ -43,10 +57,10 @@ describe('items', () => {
     const { ids, run } = start();
     const r1 = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
     const { run: r2, rev } = updateItem(r1, 'i1', { proposal: { priority: 'normal' } });
-    const f = r2.items[0]!.fields as ReturnType<typeof card>;
+    const fields = r2.items[0]!.fields as ReturnType<typeof card>;
     expect(rev).toBe(2);
-    expect(f.proposal).toEqual({ ...card().proposal, priority: 'normal' });
-    expect(f.title).toBe(card().title);
+    expect(fields.proposal).toEqual({ ...card().proposal, priority: 'normal' });
+    expect(fields.title).toBe(card().title);
   });
 });
 
@@ -60,7 +74,11 @@ describe('the approval gate', () => {
     const { run } = ready();
     const changed = updateItem(run, 'i1', { proposal: { priority: 'low' } }).run;
     expect(code(() => applyVerdict(changed, 'i1', 1, 'approved', T0))).toBe('stale-revision');
-    expect(applyVerdict(changed, 'i1', 2, 'approved', T0).items[0]!.verdict).toEqual({ value: 'approved', rev: 2, at: T0 });
+    expect(applyVerdict(changed, 'i1', 2, 'approved', T0).items[0]!.verdict).toEqual({
+      value: 'approved',
+      rev: 2,
+      at: T0,
+    });
   });
 
   it('refuses Approve while questions are open, and allows it once answered', () => {
@@ -112,26 +130,47 @@ describe('the approval gate', () => {
 describe('message addressing', () => {
   const twoThreads = () => {
     const { ids, run } = start();
-    const r = addItems(run, [{ kind: 'card', fields: card('Card one - a') }, { kind: 'card', fields: card('Card two - b') }], ids).run;
-    return rememberEventThread(r, 42, r.items[0]!.threadId);
+    const withCards = addItems(
+      run,
+      [
+        { kind: 'card', fields: card('Card one - a') },
+        { kind: 'card', fields: card('Card two - b') },
+      ],
+      ids,
+    ).run;
+    return rememberEventThread(withCards, 42, withCards.items[0]!.threadId);
   };
 
   it('a reply lands in the thread of the event it answers', () => {
     const run = twoThreads();
-    const r = addMessage(run, { text: 'done', from: 'claude', now: T0, id: 'm1', replyTo: 42 });
-    expect(r.messages[0]!.threadId).toBe(run.items[0]!.threadId);
+    const withMessage = addMessage(run, { text: 'done', from: 'claude', now: T0, id: 'm1', replyTo: 42 });
+    expect(withMessage.messages[0]!.threadId).toBe(run.items[0]!.threadId);
   });
 
   it('a reply whose explicit thread disagrees with its event posts nothing', () => {
     const run = twoThreads();
-    expect(code(() => addMessage(run, { text: 'x', from: 'claude', now: T0, id: 'm1', replyTo: 42, threadId: run.items[1]!.threadId })))
-      .toBe('thread-mismatch');
+    expect(
+      code(() =>
+        addMessage(run, {
+          text: 'x',
+          from: 'claude',
+          now: T0,
+          id: 'm1',
+          replyTo: 42,
+          threadId: run.items[1]!.threadId,
+        }),
+      ),
+    ).toBe('thread-mismatch');
   });
 
   it('a new message needs a thread that belongs to the run', () => {
     const run = twoThreads();
-    expect(code(() => addMessage(run, { text: 'x', from: 'claude', now: T0, id: 'm1', threadId: 'elsewhere' }))).toBe('not-found');
-    expect(addMessage(run, { text: 'hi', from: 'claude', now: T0, id: 'm1', threadId: runThreadId(run) }).messages).toHaveLength(1);
+    expect(code(() => addMessage(run, { text: 'x', from: 'claude', now: T0, id: 'm1', threadId: 'elsewhere' }))).toBe(
+      'not-found',
+    );
+    expect(
+      addMessage(run, { text: 'hi', from: 'claude', now: T0, id: 'm1', threadId: runThreadId(run) }).messages,
+    ).toHaveLength(1);
   });
 
   it('an event naming a thread outside the run is not remembered', () => {
@@ -143,13 +182,20 @@ describe('message addressing', () => {
 describe('ending a run', () => {
   const two = () => {
     const { ids, run } = start();
-    return addItems(run, [{ kind: 'card', fields: card('A - a') }, { kind: 'card', fields: card('B - b') }], ids).run;
+    return addItems(
+      run,
+      [
+        { kind: 'card', fields: card('A - a') },
+        { kind: 'card', fields: card('B - b') },
+      ],
+      ids,
+    ).run;
   };
 
   it('one approval never closes a run', () => {
     const run = applyVerdict(two(), 'i1', 1, 'approved', T0);
     const done = markDone(run, 'i1', 'created 86e3', T0);
-    expect(done.items.filter((i) => !isFinal(i)).map((i) => i.id)).toEqual(['i2']);
+    expect(done.items.filter((item) => !isFinal(item)).map((item) => item.id)).toEqual(['i2']);
     expect(code(() => close(done, 'closed', 'created', T0))).toBe('open-items');
   });
 
@@ -191,7 +237,7 @@ describe('ending a run', () => {
 describe('marking done', () => {
   it('only an item approved at its current revision can be marked done', () => {
     const { ids, run } = start();
-    const r = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
-    expect(code(() => markDone(r, 'i1', 'x', T0))).toBe('invalid');
+    const withCard = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
+    expect(code(() => markDone(withCard, 'i1', 'x', T0))).toBe('invalid');
   });
 });

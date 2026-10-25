@@ -13,23 +13,30 @@ import { recordPageEvent } from './record-page-event/record-page-event.ts';
 import { sendMessage } from './send-message/send-message.ts';
 import { takeEvents, waitForEvents } from './wait-for-events/wait-for-events.ts';
 
-const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class SlowStore extends MemoryStore {
-  override async save(run: RunState) { await pause(15); return super.save(run); }
+  override async save(run: RunState) {
+    await pause(15);
+    return super.save(run);
+  }
 }
 class SlowLog extends MemoryLog {
-  override async undelivered(runId: string) { const e = await super.undelivered(runId); await pause(15); return e; }
+  override async undelivered(runId: string) {
+    const events = await super.undelivered(runId);
+    await pause(15);
+    return events;
+  }
 }
 
 async function seeded() {
-  const w = { ...world(), store: new SlowStore(), log: new SlowLog() };
+  const fakes = { ...world(), store: new SlowStore(), log: new SlowLog() };
   const ids = counterIds();
   let run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'v', now: T0, threadId: ids('t') });
   run = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
   run = ask(run, 'i1', [question()], ids).run;
-  await w.store.save(run);
-  return { w, thread: run.items[0]!.threadId, runThread: run.threads[0]!.id };
+  await fakes.store.save(run);
+  return { w: fakes, thread: run.items[0]!.threadId, runThread: run.threads[0]!.id };
 }
 
 describe('concurrency on one run', () => {
@@ -39,15 +46,15 @@ describe('concurrency on one run', () => {
       sendMessage(w, { runId: 'r1', text: 'from Claude', threadId: runThread }),
       recordPageEvent(w, 'r1', { type: 'message', threadId: thread, text: 'from the user' }),
     ]);
-    const texts = (await w.store.load('r1'))!.messages.map((m) => m.text).sort();
+    const texts = (await w.store.load('r1'))!.messages.map((message) => message.text).sort();
     expect(texts).toEqual(['from Claude', 'from the user']);
   });
 
   it('two takers racing deliver each event exactly once between them', async () => {
     const { w, thread } = await seeded();
     await recordPageEvent(w, 'r1', { type: 'message', threadId: thread, text: 'once' });
-    const [a, b] = await Promise.all([takeEvents(w, 'r1'), takeEvents(w, 'r1')]);
-    expect([...a, ...b].map((e) => e.text)).toEqual(['once']);
+    const [first, second] = await Promise.all([takeEvents(w, 'r1'), takeEvents(w, 'r1')]);
+    expect([...first, ...second].map((event) => event.text)).toEqual(['once']);
   });
 
   it('an event recorded while the wait is handing over the turn still wakes it', async () => {
@@ -59,8 +66,8 @@ describe('concurrency on one run', () => {
     // so it rings before any wait exists. Only a wait registered first, then re-checked, sees it.
     await pause(5);
     await recordPageEvent(w, 'r1', { type: 'message', threadId: thread, text: 'in the gap' });
-    const r = await waiting;
-    expect(r.events.map((e) => e.text)).toEqual(['in the gap']);
+    const result = await waiting;
+    expect(result.events.map((event) => event.text)).toEqual(['in the gap']);
     expect(Date.now() - started).toBeLessThan(2_000);
   });
 });

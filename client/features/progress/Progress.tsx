@@ -5,13 +5,23 @@ import type { RunState } from '@shared/contract.ts';
 import { itemStatus, itemTitle, type ItemStatus, type TurnView } from '@client/core/selectors.ts';
 
 const FILL: Record<ItemStatus, [string, string]> = {
-  questions: ['35%', 'var(--warn)'], ready: ['75%', 'var(--accent)'], approved: ['90%', 'var(--ok)'],
-  done: ['100%', 'var(--ok)'], rejected: ['100%', 'var(--bad)'], pending: ['100%', 'var(--faint)'],
+  questions: ['35%', 'var(--warn)'],
+  ready: ['75%', 'var(--accent)'],
+  approved: ['90%', 'var(--ok)'],
+  done: ['100%', 'var(--ok)'],
+  rejected: ['100%', 'var(--bad)'],
+  pending: ['100%', 'var(--faint)'],
 };
 
-export function Progress(props: { run: RunState; turn: TurnView; current: number; onGo: (i: number) => void; actions: ComponentChildren }) {
+export function Progress(props: {
+  run: RunState;
+  turn: TurnView;
+  current: number;
+  onGo: (i: number) => void;
+  actions: ComponentChildren;
+}) {
   const { run, turn } = props;
-  const approved = run.items.filter((i) => ['approved', 'done'].includes(itemStatus(i))).length;
+  const approved = run.items.filter((item) => ['approved', 'done'].includes(itemStatus(item))).length;
   const header = useRef<HTMLElement>(null);
   // The header wraps on narrow screens and long subjects: publish its height so sticky panels sit below it.
   useEffect(() => {
@@ -28,25 +38,31 @@ export function Progress(props: { run: RunState; turn: TurnView; current: number
       <div class="in">
         <div class="row">
           <h1>{run.subject}</h1>
-          <span class="meta">{run.project} · {run.skill}</span>
+          <span class="meta">
+            {run.project} · {run.skill}
+          </span>
           <span class="spacer" />
           <TurnLine turn={turn} line={run.statusLine} status={run.status} />
-          {run.items.length > 0 && <span class="meta">Item {props.current + 1} of {run.items.length} · {approved} approved</span>}
+          {run.items.length > 0 && (
+            <span class="meta">
+              Item {props.current + 1} of {run.items.length} · {approved} approved
+            </span>
+          )}
           {props.actions}
         </div>
         {run.items.length > 1 && (
           <nav class="progress" aria-label="Items in this run">
-            {run.items.map((item, i) => {
+            {run.items.map((item, index) => {
               const [fill, color] = FILL[itemStatus(item)];
               return (
                 <button
                   key={item.id}
-                  class={`seg ${i === props.current ? 'cur' : ''}`}
+                  class={`seg ${index === props.current ? 'cur' : ''}`}
                   style={{ '--fill': fill, '--c': color } as Record<string, string>}
                   title={itemTitle(item)}
                   aria-label={`${itemTitle(item)}: ${itemStatus(item)}`}
-                  aria-current={i === props.current}
-                  onClick={() => props.onGo(i)}
+                  aria-current={index === props.current}
+                  onClick={() => props.onGo(index)}
                 />
               );
             })}
@@ -66,5 +82,10 @@ function TurnLine(props: { turn: TurnView; line?: string | undefined; status: Ru
     done: ['', false, props.status === 'paused' ? 'Paused · resumable' : 'Run ended'],
     offline: ['', false, 'Not connected'],
   }[props.turn] as [string, boolean, string];
-  return <span class={`status ${cls}`} role="status" aria-label="Turn" data-turn={props.turn}>{pulse && <span class="dotpulse" />}{text}</span>;
+  return (
+    <span class={`status ${cls}`} role="status" aria-label="Turn" data-turn={props.turn}>
+      {pulse && <span class="dotpulse" />}
+      {text}
+    </span>
+  );
 }

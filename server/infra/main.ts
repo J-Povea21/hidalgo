@@ -20,15 +20,17 @@ const wb = new Workbench({
   retentionDays: 7,
   heartbeatMs: 30_000,
   // WORKBENCH_OPEN=0 serves the page without opening a browser (smoke tests, headless checks).
-  ...(process.env['WORKBENCH_OPEN'] === '0' ? { openBrowser: (url: string) => process.stderr.write(`workbench page: ${url}\n`) } : {}),
+  ...(process.env['WORKBENCH_OPEN'] === '0'
+    ? { openBrowser: (url: string) => process.stderr.write(`workbench page: ${url}\n`) }
+    : {}),
 });
 
 const server = new McpServer(
   { name: 'workbench', version: '0.1.0' },
   {
     instructions:
-      'Workbench shows a skill\'s work to the user in a local page and carries their answers, messages and verdicts back. ' +
-      'open_session first; add_items and ask to show work; wait_for_events whenever it\'s the user\'s turn; mark_done after acting on an approval; close_session at the end.',
+      "Workbench shows a skill's work to the user in a local page and carries their answers, messages and verdicts back. " +
+      "open_session first; add_items and ask to show work; wait_for_events whenever it's the user's turn; mark_done after acting on an approval; close_session at the end.",
   },
 );
 registerTools(server, wb);

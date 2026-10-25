@@ -15,20 +15,23 @@ export class FsImageStore implements ImageStore {
   private async dir(runId: string): Promise<string> {
     const cached = this.dirs.get(runId);
     if (cached) return cached;
-    const d = await this.folderOf(runId);
-    if (!d) throw new Error(`no folder for run ${runId}`);
-    const dir = join(d, 'images');
+    const folder = await this.folderOf(runId);
+    if (!folder) throw new Error(`no folder for run ${runId}`);
+    const dir = join(folder, 'images');
     this.dirs.set(runId, dir);
     return dir;
   }
 
   async save(runId: string, dataUrl: string): Promise<string> {
-    const m = /^data:image\/(webp|png|jpeg|gif);base64,(.*)$/s.exec(dataUrl);
-    if (!m) throw new Error('not an image data URL');
-    const bytes = Buffer.from(m[2]!, 'base64');
-    const name = `${createHash('sha256').update(bytes).digest('hex').slice(0, 24)}.${EXT[m[1]!]}`;
+    const match = /^data:image\/(webp|png|jpeg|gif);base64,(.*)$/s.exec(dataUrl);
+    if (!match) throw new Error('not an image data URL');
+    const bytes = Buffer.from(match[2]!, 'base64');
+    const name = `${createHash('sha256').update(bytes).digest('hex').slice(0, 24)}.${EXT[match[1]!]}`;
     const file = join(await this.dir(runId), name);
-    const exists = await stat(file).then(() => true, () => false);
+    const exists = await stat(file).then(
+      () => true,
+      () => false,
+    );
     if (!exists) await writeAtomic(file, bytes);
     return name;
   }
@@ -37,7 +40,7 @@ export class FsImageStore implements ImageStore {
     const dir = await this.dir(runId);
     const names = await readdir(dir).catch(() => [] as string[]);
     let total = 0;
-    for (const n of names) total += (await stat(join(dir, n))).size;
+    for (const name of names) total += (await stat(join(dir, name))).size;
     return total;
   }
 

@@ -14,21 +14,20 @@ import { appendLine, readJson, writeAtomic } from './files.ts';
  * append, not cached, so it stays right even if another server ever appended to the same run.
  */
 export class FsEventLog implements EventLog {
-
   constructor(private readonly folderOf: (runId: string) => Promise<string | undefined>) {}
 
   private async dir(runId: string): Promise<string> {
-    const d = await this.folderOf(runId);
-    if (!d) throw new Error(`no folder for run ${runId}`);
-    return d;
+    const folder = await this.folderOf(runId);
+    if (!folder) throw new Error(`no folder for run ${runId}`);
+    return folder;
   }
 
   private async read(runId: string): Promise<string> {
     try {
       return await readFile(join(await this.dir(runId), 'events.log'), 'utf8');
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return '';
-      throw e;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '';
+      throw error;
     }
   }
 
@@ -36,11 +35,11 @@ export class FsEventLog implements EventLog {
     const lines = (await this.read(runId)).split('\n');
     // The text after the last newline is a line still being written, or torn by a crash.
     lines.pop();
-    return lines.filter(Boolean).flatMap((l, n) => {
+    return lines.filter(Boolean).flatMap((line, index) => {
       try {
-        return [JSON.parse(l) as RecordedEvent];
+        return [JSON.parse(line) as RecordedEvent];
       } catch {
-        console.error(`workbench: events.log of run ${runId}, line ${n + 1} is not valid JSON; skipped`);
+        console.error(`workbench: events.log of run ${runId}, line ${index + 1} is not valid JSON; skipped`);
         return [];
       }
     });
@@ -50,14 +49,15 @@ export class FsEventLog implements EventLog {
     const file = join(await this.dir(runId), 'events.log');
     const text = await this.read(runId);
     // A torn last line from a crash: cut it off, or the new line would be glued to it and lost.
-    if (text && !text.endsWith('\n')) await truncate(file, Buffer.byteLength(text.slice(0, text.lastIndexOf('\n') + 1)));
+    if (text && !text.endsWith('\n'))
+      await truncate(file, Buffer.byteLength(text.slice(0, text.lastIndexOf('\n') + 1)));
     const seq = (await this.all(runId)).at(-1)?.seq ?? 0;
     await appendLine(file, JSON.stringify({ ...event, seq: seq + 1 }));
     return seq + 1;
   }
 
   async after(runId: string, seq: number): Promise<RecordedEvent[]> {
-    return (await this.all(runId)).filter((e) => e.seq > seq);
+    return (await this.all(runId)).filter((event) => event.seq > seq);
   }
 
   async undelivered(runId: string): Promise<RecordedEvent[]> {

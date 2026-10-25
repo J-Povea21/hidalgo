@@ -11,7 +11,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 const hook = resolve(__dirname, '..', 'dist', 'stop-hook.mjs');
 const dirs: string[] = [];
-afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
 
 /** Runs the hook N times from one parent; returns what each run printed. */
 function asOwner(entry: { status: string; claudeListening: boolean; owner: 'self' | 'other' }, runs = 1): string[] {
@@ -56,6 +58,6 @@ describe('stop hook', () => {
 
   it('blocks at most three times in a row, so a session is never trapped', () => {
     const outs = asOwner({ status: 'open', claudeListening: false, owner: 'self' }, 4);
-    expect(outs.map((o) => (o ? JSON.parse(o).decision : 'allow'))).toEqual(['block', 'block', 'block', 'allow']);
+    expect(outs.map((out) => (out ? JSON.parse(out).decision : 'allow'))).toEqual(['block', 'block', 'block', 'allow']);
   });
 });

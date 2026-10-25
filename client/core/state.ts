@@ -34,24 +34,30 @@ export type PageAction =
   | { type: 'presence'; presence: Presence }
   | { type: 'connection'; connection: Connection };
 
-export const initialState: PageState = { claudeListening: false, claudeActiveAt: null, connection: { kind: 'connecting' } };
+export const initialState: PageState = {
+  claudeListening: false,
+  claudeActiveAt: null,
+  connection: { kind: 'connecting' },
+};
 
-const samePresence = (s: PageState, p: Presence) => s.claudeListening === p.claudeListening && s.claudeActiveAt === p.claudeActiveAt;
+const samePresence = (state: PageState, presence: Presence) =>
+  state.claudeListening === presence.claudeListening && state.claudeActiveAt === presence.claudeActiveAt;
 
-export function reduce(s: PageState, a: PageAction): PageState {
-  switch (a.type) {
+export function reduce(state: PageState, action: PageAction): PageState {
+  switch (action.type) {
     case 'state':
       // Never go backwards: a late, older snapshot must not undo a newer one.
-      if (s.run && a.run.id === s.run.id && a.run.version < s.run.version) return samePresence(s, a.presence) ? s : { ...s, ...a.presence };
-      return { ...s, ...a.presence, run: a.run };
+      if (state.run && action.run.id === state.run.id && action.run.version < state.run.version)
+        return samePresence(state, action.presence) ? state : { ...state, ...action.presence };
+      return { ...state, ...action.presence, run: action.run };
     case 'presence':
       // Keep-alives repeat the same values every 15 s: returning the same state skips a re-render.
-      return samePresence(s, a.presence) ? s : { ...s, ...a.presence };
+      return samePresence(state, action.presence) ? state : { ...state, ...action.presence };
     case 'connection':
       // A goodbye sticks through the retries that follow it; only a newly proven, connected
       // stream ('live', sent by the follow loop) lifts it.
-      if (s.connection.kind === 'ended' && a.connection.kind !== 'live') return s;
-      return { ...s, connection: a.connection };
+      if (state.connection.kind === 'ended' && action.connection.kind !== 'live') return state;
+      return { ...state, connection: action.connection };
   }
 }
 

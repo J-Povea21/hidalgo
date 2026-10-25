@@ -29,25 +29,30 @@ export interface ThreadProps {
 
 const mac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
-export function Thread(p: ThreadProps) {
-  const [text, setText] = useState<string>(() => loadDraft(p.runId, `text:${p.threadId}`, ''));
+export function Thread(props: ThreadProps) {
+  const [text, setText] = useState<string>(() => loadDraft(props.runId, `text:${props.threadId}`, ''));
   const [images, setImages] = useState<string[]>([]);
   const [drag, setDrag] = useState(false);
   const feed = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => saveDraft(p.runId, `text:${p.threadId}`, text), [text]);
-  useEffect(() => { feed.current?.scrollTo({ top: feed.current.scrollHeight }); }, [p.messages.length, p.typing]);
+  useEffect(() => saveDraft(props.runId, `text:${props.threadId}`, text), [text]);
   useEffect(() => {
-    if (!p.quote) return;
-    const quoted = p.quote.text.split('\n').map((l) => `> ${l}`).join('\n');
-    setText((t) => `${quoted}\n\n${t}`);
+    feed.current?.scrollTo({ top: feed.current.scrollHeight });
+  }, [props.messages.length, props.typing]);
+  useEffect(() => {
+    if (!props.quote) return;
+    const quoted = props.quote.text
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n');
+    setText((current) => `${quoted}\n\n${current}`);
     box.current?.focus();
     box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [p.quote?.nonce]);
+  }, [props.quote?.nonce]);
 
   const add = async (files: FileList | File[]) => {
-    const list = [...files].filter((f) => f.type.startsWith('image/'));
+    const list = [...files].filter((file) => file.type.startsWith('image/'));
     if (!list.length) return;
     if (images.length >= MAX_PER_MESSAGE) return toast(`Up to ${MAX_PER_MESSAGE} images per message`);
     const urls = await Promise.all(list.slice(0, MAX_PER_MESSAGE - images.length).map(compress));
@@ -57,71 +62,131 @@ export function Thread(p: ThreadProps) {
       kept = next.length - cur.length;
       return next;
     });
-    toast(kept < list.length ? `Attached ${kept}; up to ${MAX_PER_MESSAGE} per message` : `${kept} image${kept > 1 ? 's' : ''} attached`);
+    toast(
+      kept < list.length
+        ? `Attached ${kept}; up to ${MAX_PER_MESSAGE} per message`
+        : `${kept} image${kept > 1 ? 's' : ''} attached`,
+    );
   };
 
   const send = async () => {
     if (!text.trim() && !images.length) return;
-    const [t, imgs] = [text, images];
+    const [sentText, imgs] = [text, images];
     setText('');
     setImages([]);
-    if (!(await p.onSend(t, imgs))) { setText(t); setImages(imgs); }
+    if (!(await props.onSend(sentText, imgs))) {
+      setText(sentText);
+      setImages(imgs);
+    }
   };
 
   return (
-    <section class="panel" aria-label={p.title}>
-      <div class="phead"><h2>{p.title}</h2><span class="meta">{p.messages.length} message{p.messages.length === 1 ? '' : 's'}</span></div>
+    <section class="panel" aria-label={props.title}>
+      <div class="phead">
+        <h2>{props.title}</h2>
+        <span class="meta">
+          {props.messages.length} message{props.messages.length === 1 ? '' : 's'}
+        </span>
+      </div>
       <div class="feed" ref={feed} aria-live="polite">
-        {p.messages.length === 0 && !p.typing && <div class="meta">No messages yet.</div>}
-        {p.messages.map((m) => (
-          <div class={`msg ${m.from}`} key={m.id}>
-            <div class="who">{m.from === 'claude' ? 'Claude' : 'You'} · {time(m.at)}</div>
-            <Markdown text={m.text} diagrams={p.diagrams} onDiagramFailed={p.onDiagramFailed} onZoom={(html) => p.onZoom(html)} />
-            {m.images?.map((name) => <StoredImage key={name} name={name} load={p.imageSrc} onZoom={(src) => p.onZoom(undefined, src)} />)}
+        {props.messages.length === 0 && !props.typing && <div class="meta">No messages yet.</div>}
+        {props.messages.map((message) => (
+          <div class={`msg ${message.from}`} key={message.id}>
+            <div class="who">
+              {message.from === 'claude' ? 'Claude' : 'You'} · {time(message.at)}
+            </div>
+            <Markdown
+              text={message.text}
+              diagrams={props.diagrams}
+              onDiagramFailed={props.onDiagramFailed}
+              onZoom={(html) => props.onZoom(html)}
+            />
+            {message.images?.map((name) => (
+              <StoredImage
+                key={name}
+                name={name}
+                load={props.imageSrc}
+                onZoom={(src) => props.onZoom(undefined, src)}
+              />
+            ))}
           </div>
         ))}
-        {p.typing && <Typing label={p.typing} />}
+        {props.typing && <Typing label={props.typing} />}
       </div>
       <div
         class={`composewrap ${drag ? 'drag' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDrag(true);
+        }}
         onDragLeave={() => setDrag(false)}
-        onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer?.files) void add(e.dataTransfer.files); }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDrag(false);
+          if (event.dataTransfer?.files) void add(event.dataTransfer.files);
+        }}
       >
         {images.length > 0 && (
           <div class="thumbs">
-            {images.map((src, k) => (
-              <div class="thumb" key={k}>
-                <img src={src} alt={`Attachment ${k + 1}`} />
-                <button aria-label="Remove image" onClick={() => setImages(images.filter((_, j) => j !== k))}>×</button>
+            {images.map((src, position) => (
+              <div class="thumb" key={position}>
+                <img src={src} alt={`Attachment ${position + 1}`} />
+                <button
+                  aria-label="Remove image"
+                  onClick={() => setImages(images.filter((_, otherPosition) => otherPosition !== position))}
+                >
+                  ×
+                </button>
               </div>
             ))}
           </div>
         )}
         <div class="compose">
-          <button class="ghost" aria-label="Attach images" disabled={p.disabled} onClick={() => {
-            const input = document.createElement('input');
-            input.type = 'file'; input.accept = 'image/*'; input.multiple = true;
-            input.onchange = () => input.files && void add(input.files);
-            input.click();
-          }}>📎</button>
+          <button
+            class="ghost"
+            aria-label="Attach images"
+            disabled={props.disabled}
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*';
+              input.multiple = true;
+              input.onchange = () => input.files && void add(input.files);
+              input.click();
+            }}
+          >
+            📎
+          </button>
           <textarea
             ref={box}
             rows={1}
-            aria-label={p.hint}
-            placeholder={`${p.hint} Paste or drop images. ${mac ? '⌘' : 'Ctrl'}+Enter to send.`}
+            aria-label={props.hint}
+            placeholder={`${props.hint} Paste or drop images. ${mac ? '⌘' : 'Ctrl'}+Enter to send.`}
             value={text}
-            disabled={p.disabled}
-            onInput={(e) => {
-              const t = e.target as HTMLTextAreaElement;
-              setText(t.value);
-              t.style.height = 'auto';
-              t.style.height = `${Math.min(t.scrollHeight, 140)}px`;
+            disabled={props.disabled}
+            onInput={(event) => {
+              const textarea = event.target as HTMLTextAreaElement;
+              setText(textarea.value);
+              textarea.style.height = 'auto';
+              textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`;
             }}
-            onPaste={(e) => { const f = e.clipboardData?.files; if (f?.length) { e.preventDefault(); void add(f); } }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void send(); } }}
+            onPaste={(event) => {
+              const files = event.clipboardData?.files;
+              if (files?.length) {
+                event.preventDefault();
+                void add(files);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                void send();
+              }
+            }}
           />
-          <button class="primary" disabled={p.disabled} onClick={send}>Send</button>
+          <button class="primary" disabled={props.disabled} onClick={send}>
+            Send
+          </button>
         </div>
       </div>
     </section>
@@ -129,8 +194,21 @@ export function Thread(p: ThreadProps) {
 }
 
 /** Stored images need the token, which an <img> can't send: fetch them, show a blob URL. */
-function StoredImage(p: { name: string; load: (name: string) => Promise<string>; onZoom: (src: string) => void }) {
+function StoredImage(props: { name: string; load: (name: string) => Promise<string>; onZoom: (src: string) => void }) {
   const [src, setSrc] = useState<string>();
-  useEffect(() => { let live = true; p.load(p.name).then((s) => live && setSrc(s), () => undefined); return () => { live = false; }; }, [p.name]);
-  return src ? <button type="button" class="stored" aria-label="Attached image. Open full size" onClick={() => p.onZoom(src)}><img src={src} alt="" /></button> : null;
+  useEffect(() => {
+    let live = true;
+    props.load(props.name).then(
+      (url) => live && setSrc(url),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [props.name]);
+  return src ? (
+    <button type="button" class="stored" aria-label="Attached image. Open full size" onClick={() => props.onZoom(src)}>
+      <img src={src} alt="" />
+    </button>
+  ) : null;
 }

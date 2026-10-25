@@ -23,7 +23,11 @@ export function ItemPanel(props: {
           <StatusBadge status={status} />
         </div>
       </div>
-      <View item={item} editable={!props.busy && (status === 'ready' || status === 'questions')} onEdit={props.onEdit} />
+      <View
+        item={item}
+        editable={!props.busy && (status === 'ready' || status === 'questions')}
+        onEdit={props.onEdit}
+      />
       <Verdict item={item} disabled={props.busy} onVerdict={props.onVerdict} />
     </article>
   );
@@ -35,9 +39,13 @@ export function ItemNav(props: { items: Item[]; index: number; onGo: (i: number)
   return (
     <nav class="bar" aria-label="Previous and next item">
       <div class="in">
-        <button disabled={index === 0} onClick={() => props.onGo(index - 1)}>← Previous</button>
+        <button disabled={index === 0} onClick={() => props.onGo(index - 1)}>
+          ← Previous
+        </button>
         <span class="meta">{itemTitle(items[index]!)}</span>
-        <button class="primary" disabled={index === items.length - 1} onClick={() => props.onGo(index + 1)}>Next →</button>
+        <button class="primary" disabled={index === items.length - 1} onClick={() => props.onGo(index + 1)}>
+          Next →
+        </button>
       </div>
     </nav>
   );

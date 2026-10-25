@@ -9,14 +9,24 @@ import { connectionOf, expect, FAVICON, faviconColor, openRun, root, test, turnO
 
 /** Asks a server's hello directly, the way a page does, to learn its build. */
 function buildOf(url: string): Promise<string> {
-  const u = new URL(url);
-  const run = new URLSearchParams(u.hash.slice(1)).get('run')!;
+  const address = new URL(url);
+  const run = new URLSearchParams(address.hash.slice(1)).get('run')!;
   return new Promise((resolve, reject) => {
-    request({ host: '127.0.0.1', port: u.port, path: `/api/hello?run=${run}&nonce=${'0'.repeat(32)}`, headers: { host: u.host } }, (res) => {
-      let body = '';
-      res.on('data', (c) => (body += c));
-      res.on('end', () => resolve((JSON.parse(body) as { build: string }).build));
-    }).on('error', reject).end();
+    request(
+      {
+        host: '127.0.0.1',
+        port: address.port,
+        path: `/api/hello?run=${run}&nonce=${'0'.repeat(32)}`,
+        headers: { host: address.host },
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => resolve((JSON.parse(body) as { build: string }).build));
+      },
+    )
+      .on('error', reject)
+      .end();
   });
 }
 
@@ -60,10 +70,12 @@ test('B-2b after a goodbye and a restart the same tab is usable again', async ({
   await expect(page.getByRole('status').filter({ hasText: 'The Claude session ended' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Approve' })).toBeEnabled();
 
-  expect(await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId })).toMatchObject({ resumed: true, opened: false, alreadyOpen: 1 });
-  const w = wb.start('wait_for_events', { runId });
+  expect(
+    await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId }),
+  ).toMatchObject({ resumed: true, opened: false, alreadyOpen: 1 });
+  const waiting = wb.start('wait_for_events', { runId });
   await page.getByRole('button', { name: 'Reject' }).click();
-  expect((await w).events[0]).toMatchObject({ verdict: 'rejected', item: added[0]!.id });
+  expect((await waiting).events[0]).toMatchObject({ verdict: 'rejected', item: added[0]!.id });
 });
 
 test('B-3 a crash: reconnecting, then lost, then live again on the same port', async ({ page, wb }) => {
@@ -79,12 +91,31 @@ test('B-3 a crash: reconnecting, then lost, then live again on the same port', a
   await expect(page.getByLabel('About this item only.')).toBeDisabled();
 
   // Each retry waits on a real fetch between fake timers: keep moving the clock until it gives up.
-  await expect.poll(async () => { await page.clock.fastForward(16_000); return connectionOf(page); }, { timeout: 15_000 }).toBe('lost');
+  await expect
+    .poll(
+      async () => {
+        await page.clock.fastForward(16_000);
+        return connectionOf(page);
+      },
+      { timeout: 15_000 },
+    )
+    .toBe('lost');
   await expect(page.getByRole('alert').filter({ hasText: "Can't reach Claude's session" })).toBeVisible();
 
   await wb.restart();
-  expect(new URL(wb.url(runId)).port, 'the new server reclaims the old port (a parallel worker may have taken it)').toBe(port);
-  await expect.poll(async () => { await page.clock.fastForward(16_000); return connectionOf(page); }, { timeout: 15_000 }).toBe('live');
+  expect(
+    new URL(wb.url(runId)).port,
+    'the new server reclaims the old port (a parallel worker may have taken it)',
+  ).toBe(port);
+  await expect
+    .poll(
+      async () => {
+        await page.clock.fastForward(16_000);
+        return connectionOf(page);
+      },
+      { timeout: 15_000 },
+    )
+    .toBe('live');
   await expect(page.getByRole('alert')).toHaveCount(0);
 
   // State flows again without a reload.
@@ -94,7 +125,11 @@ test('B-3 a crash: reconnecting, then lost, then live again on the same port', a
   await expect(page.locator('[data-turn="yours"]')).toBeVisible();
 });
 
-test('B-4 pausing, and resuming with the tab open reuses it; with it closed opens a new one', async ({ page, wb, context }) => {
+test('B-4 pausing, and resuming with the tab open reuses it; with it closed opens a new one', async ({
+  page,
+  wb,
+  context,
+}) => {
   const { runId, url } = await openRun(wb);
   await page.goto(url);
   await expect(page.locator('[data-turn]')).toBeVisible();
@@ -105,7 +140,9 @@ test('B-4 pausing, and resuming with the tab open reuses it; with it closed open
   await expect(page.locator('[data-turn]')).toHaveText('Paused · resumable');
 
   const before = wb.pages.length;
-  expect(await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId })).toMatchObject({ resumed: true, opened: false, alreadyOpen: 1 });
+  expect(
+    await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId }),
+  ).toMatchObject({ resumed: true, opened: false, alreadyOpen: 1 });
   await expect(page.getByTestId('toast')).toHaveText('Claude resumed this run.');
   await expect(page.getByRole('status').filter({ hasText: 'This run is paused' })).toHaveCount(0);
   await expect(page.getByLabel('About this item only.')).toBeEnabled();
@@ -116,7 +153,9 @@ test('B-4 pausing, and resuming with the tab open reuses it; with it closed open
   await wb.call('close_session', { runId, status: 'paused', outcome: 'later' });
   await page.close();
   const next = wb.nextPage();
-  expect(await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId })).toMatchObject({ resumed: true, opened: true });
+  expect(
+    await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId }),
+  ).toMatchObject({ resumed: true, opened: true });
   const reopened = await context.newPage();
   await reopened.goto(await next);
   await expect(reopened.locator('[data-turn]')).toBeVisible();
@@ -127,7 +166,9 @@ test('B-5 a page from an older build says to reload, and never sends the token',
   const build = await buildOf(url);
   const bundle = readFileSync(join(root, 'dist', 'client', 'app.js'), 'utf8');
   expect(bundle.split(`"${build}"`).length - 1, 'the build id appears once in app.js').toBe(1);
-  await page.route('**/app.js', (r) => r.fulfill({ contentType: 'text/javascript', body: bundle.replace(`"${build}"`, '"000000000000"') }));
+  await page.route('**/app.js', (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: bundle.replace(`"${build}"`, '"000000000000"') }),
+  );
 
   await page.goto(url);
   await expect(page.getByRole('alert').filter({ hasText: 'older version of workbench' })).toBeVisible();
@@ -143,7 +184,9 @@ test('B-5 a page from an older build says to reload, and never sends the token',
 
 test('B-6a connecting: the page says so until the server proves itself', async ({ page, wb }) => {
   const { url } = await openRun(wb);
-  await page.route('**/api/hello**', () => { /* never answered */ });
+  await page.route('**/api/hello**', () => {
+    /* never answered */
+  });
   await page.goto(url);
   await expect(page.getByText("Connecting to Claude's session…")).toBeVisible();
   await expect(page).toHaveTitle('Workbench');
@@ -152,21 +195,28 @@ test('B-6a connecting: the page says so until the server proves itself', async (
 
 test.describe('B-6b moved', () => {
   let stub: Server;
-  test.afterEach(() => new Promise<void>((r) => stub.close(() => r())));
+  test.afterEach(() => new Promise<void>((resolve) => stub.close(() => resolve())));
 
   test('a server that is not the run’s gets no token, and the page says the run moved', async ({ page, wb, net }) => {
     const { url } = await openRun(wb);
     // Something else on a port: it serves the page's files but knows nothing about the run.
     stub = createServer((req, res) => {
       const path = (req.url ?? '/').split('?')[0]!;
-      if (path.startsWith('/api/')) { res.writeHead(404).end(); return; }
+      if (path.startsWith('/api/')) {
+        res.writeHead(404).end();
+        return;
+      }
       const file = path === '/' ? 'index.html' : path.slice(1);
       try {
-        res.writeHead(200, { 'content-type': file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html' });
+        res.writeHead(200, {
+          'content-type': file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html',
+        });
         res.end(req.method === 'HEAD' ? undefined : readFileSync(join(root, 'dist', 'client', file)));
-      } catch { res.writeHead(404).end(); }
+      } catch {
+        res.writeHead(404).end();
+      }
     });
-    await new Promise<void>((r) => stub.listen(0, '127.0.0.1', () => r()));
+    await new Promise<void>((resolve) => stub.listen(0, '127.0.0.1', () => resolve()));
     const moved = new URL(url);
     moved.port = String((stub.address() as { port: number }).port);
 

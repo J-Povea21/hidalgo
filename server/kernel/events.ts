@@ -8,9 +8,12 @@ import { addMessage, applyAnswers, applyEdit, applyVerdict, rememberEventThread,
 /** The thread an event belongs to, or undefined for events that have none (a diagram failure). */
 export function threadOfEvent(run: RunState, ev: RecordedEvent): string | undefined {
   switch (ev.type) {
-    case 'message': return ev.threadId;
-    case 'diagram-failed': return undefined;
-    default: return threadOfItem(run, ev.itemId);
+    case 'message':
+      return ev.threadId;
+    case 'diagram-failed':
+      return undefined;
+    default:
+      return threadOfItem(run, ev.itemId);
   }
 }
 
@@ -28,7 +31,14 @@ export function applyEvent(run: RunState, ev: RecordedEvent): RunState {
       next = applyEdit(run, ev.itemId, ev.path, ev.text);
       break;
     case 'message':
-      next = addMessage(run, { text: ev.text, from: 'user', now: ev.at, id: `u${ev.seq}`, threadId: ev.threadId, images: ev.images });
+      next = addMessage(run, {
+        text: ev.text,
+        from: 'user',
+        now: ev.at,
+        id: `u${ev.seq}`,
+        threadId: ev.threadId,
+        images: ev.images,
+      });
       break;
     case 'diagram-failed':
       next = run;

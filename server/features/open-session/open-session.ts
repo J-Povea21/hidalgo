@@ -17,14 +17,24 @@ export interface OpenSessionDeps {
   page: PagePublisher;
 }
 
-export interface OpenSessionInput { skill: string; project: string; subject: string; resume?: string | undefined }
+export interface OpenSessionInput {
+  skill: string;
+  project: string;
+  subject: string;
+  resume?: string | undefined;
+}
 
 /** Where the page lives is the server's business: the caller serves the run and builds its address. */
-export async function openSession(deps: OpenSessionDeps, input: OpenSessionInput): Promise<{ run: RunState; resumed: boolean }> {
+export async function openSession(
+  deps: OpenSessionDeps,
+  input: OpenSessionInput,
+): Promise<{ run: RunState; resumed: boolean }> {
   if (input.resume) {
     const saved = await deps.store.load(input.resume);
-    if (!saved) throw new WorkbenchError('not-found', `no run ${input.resume} to resume; list_runs shows the project's runs`);
-    if (saved.status === 'closed') throw new WorkbenchError('closed', `run ${input.resume} is closed and can't be resumed`);
+    if (!saved)
+      throw new WorkbenchError('not-found', `no run ${input.resume} to resume; list_runs shows the project's runs`);
+    if (saved.status === 'closed')
+      throw new WorkbenchError('closed', `run ${input.resume} is closed and can't be resumed`);
     const run = reopen(replay(saved, await deps.log.after(saved.id, saved.appliedSeq)));
     await deps.store.save(run);
     deps.page.publish(run);

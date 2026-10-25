@@ -17,13 +17,16 @@ const STALE_MS = 2 * 60 * 1000;
 function processStart(pid: number): number | undefined {
   try {
     process.kill(pid, 0);
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== 'EPERM') return undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EPERM') return undefined;
   }
   try {
-    const out = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    const t = Date.parse(out);
-    return Number.isNaN(t) ? Date.now() : t;
+    const out = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    const startedAt = Date.parse(out);
+    return Number.isNaN(startedAt) ? Date.now() : startedAt;
   } catch {
     return Date.now(); // alive but unreadable: never call it dead on that alone
   }
@@ -39,7 +42,11 @@ export function processAlive(pid: number, startedAt: string): boolean {
 export const ownStart = () => new Date(Math.floor((Date.now() - process.uptime() * 1000) / 1000) * 1000).toISOString();
 
 export class FsLiveIndex implements LiveIndex {
-  constructor(private readonly dir: string, private readonly clock: Clock, private readonly alive_ = processAlive) {}
+  constructor(
+    private readonly dir: string,
+    private readonly clock: Clock,
+    private readonly alive_ = processAlive,
+  ) {}
 
   async write(entry: LiveEntry): Promise<void> {
     await writeAtomic(join(this.dir, `${entry.runId}.json`), JSON.stringify(entry));

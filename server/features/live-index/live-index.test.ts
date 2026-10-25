@@ -5,8 +5,19 @@ import { newRun } from '@server/kernel/run.ts';
 import { expired, isDead, liveEntry } from './live-index.ts';
 
 const entry = (heartbeat: string): LiveEntry => ({
-  runId: 'r1', project: 'MiPlan', skill: 'card', subject: 's', port: 1, pid: 42, processStartedAt: T0, heartbeat, pendingForUser: 0, url: '',
-  status: 'open', ownerPid: 7, claudeListening: false,
+  runId: 'r1',
+  project: 'MiPlan',
+  skill: 'card',
+  subject: 's',
+  port: 1,
+  pid: 42,
+  processStartedAt: T0,
+  heartbeat,
+  pendingForUser: 0,
+  url: '',
+  status: 'open',
+  ownerPid: 7,
+  claudeListening: false,
 });
 const later = (ms: number) => new Date(Date.parse(T0) + ms).toISOString();
 
@@ -22,8 +33,17 @@ describe('live-index', () => {
 
   it('the entry carries what the switcher shows', () => {
     const run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'validator', now: T0, threadId: 't1' });
-    expect(liveEntry(run, { port: 51234, pid: 9, processStartedAt: T0, url: 'u', ownerPid: 7, claudeListening: true }, T0))
-      .toMatchObject({ runId: 'r1', subject: 'validator', heartbeat: T0, pendingForUser: 0, status: 'open', ownerPid: 7, claudeListening: true });
+    expect(
+      liveEntry(run, { port: 51234, pid: 9, processStartedAt: T0, url: 'u', ownerPid: 7, claudeListening: true }, T0),
+    ).toMatchObject({
+      runId: 'r1',
+      subject: 'validator',
+      heartbeat: T0,
+      pendingForUser: 0,
+      status: 'open',
+      ownerPid: 7,
+      claudeListening: true,
+    });
   });
 
   it('only closed runs past retention expire; unfinished runs are kept', () => {

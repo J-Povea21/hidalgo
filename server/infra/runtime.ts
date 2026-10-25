@@ -11,7 +11,9 @@ export class MemoryRunLock implements RunLock {
     const next = prev.then(fn, fn);
     const tail = next.catch(() => undefined);
     this.tails.set(runId, tail);
-    void tail.then(() => { if (this.tails.get(runId) === tail) this.tails.delete(runId); });
+    void tail.then(() => {
+      if (this.tails.get(runId) === tail) this.tails.delete(runId);
+    });
     return next;
   }
 }
@@ -19,7 +21,9 @@ export class MemoryRunLock implements RunLock {
 export const systemClock: Clock = { now: () => new Date().toISOString() };
 
 /** Short random ids: unique enough within a machine's runs, short for Claude to read. */
-export const randomIds: Ids = { next: (prefix) => `${prefix}${randomBytes(5).toString('base64url').replace(/[-_]/g, 'x')}` };
+export const randomIds: Ids = {
+  next: (prefix) => `${prefix}${randomBytes(5).toString('base64url').replace(/[-_]/g, 'x')}`,
+};
 
 export class MemorySignal implements EventSignal {
   private pending = new Map<string, Set<(why: 'event' | 'timeout') => void>>();

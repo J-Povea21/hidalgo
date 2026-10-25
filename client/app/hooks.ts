@@ -5,7 +5,10 @@ import { loadTabValue, saveTabValue } from '@client/infra/drafts.ts';
 /** The time, refreshed every `ms`: enough for "Claude went quiet" to show without a state push. */
 export function useNow(ms: number): number {
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), ms); return () => clearInterval(t); }, [ms]);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(timer);
+  }, [ms]);
   return now;
 }
 
@@ -19,6 +22,8 @@ export function useItemPosition(runId: string): [number, (i: number) => void] {
 /** True while `count` has grown since the last time `open` was true. */
 export function useUnread(count: number, open: boolean): boolean {
   const seen = useRef(0);
-  useEffect(() => { if (open) seen.current = count; }, [open, count]);
+  useEffect(() => {
+    if (open) seen.current = count;
+  }, [open, count]);
   return !open && count > seen.current;
 }

@@ -11,7 +11,12 @@ import type { RunStore } from '@server/kernel/ports.ts';
 import { readJson, removeTree, slug, writeAtomic } from './files.ts';
 
 /** `ownerPid`: the Claude Code process last serving the run, so a /mcp reconnect can serve it again. */
-interface RunFile { token: string; port?: number; ownerPid?: number; state: RunState }
+interface RunFile {
+  token: string;
+  port?: number;
+  ownerPid?: number;
+  state: RunState;
+}
 
 export class FsRunStore implements RunStore {
   /** run id → its folder, learned on save or found by scanning. */
@@ -25,7 +30,12 @@ export class FsRunStore implements RunStore {
     if (known) return known;
     for (const project of await readdir(join(this.root, 'runs')).catch(() => [] as string[])) {
       const dir = join(this.root, 'runs', project, runId);
-      if (await access(join(dir, 'run.json')).then(() => true, () => false)) {
+      if (
+        await access(join(dir, 'run.json')).then(
+          () => true,
+          () => false,
+        )
+      ) {
         this.dirs.set(runId, dir);
         return dir;
       }
@@ -41,14 +51,14 @@ export class FsRunStore implements RunStore {
     const cached = this.files.get(runId);
     if (cached) return cached;
     const dir = await this.dirOf(runId);
-    const f = dir ? await readJson<RunFile>(join(dir, 'run.json')) : undefined;
-    if (f) this.files.set(runId, f);
-    return f;
+    const runFile = dir ? await readJson<RunFile>(join(dir, 'run.json')) : undefined;
+    if (runFile) this.files.set(runId, runFile);
+    return runFile;
   }
 
   async load(runId: string): Promise<RunState | undefined> {
-    const f = await this.file(runId);
-    return f && structuredClone(f.state);
+    const runFile = await this.file(runId);
+    return runFile && structuredClone(runFile.state);
   }
 
   async save(run: RunState): Promise<void> {
@@ -68,13 +78,13 @@ export class FsRunStore implements RunStore {
   async list(project?: string): Promise<RunState[]> {
     const projects = project ? [slug(project)] : await readdir(join(this.root, 'runs')).catch(() => [] as string[]);
     const runs: RunState[] = [];
-    for (const p of projects) {
-      for (const id of await readdir(join(this.root, 'runs', p)).catch(() => [] as string[])) {
-        const f = await readJson<RunFile>(join(this.root, 'runs', p, id, 'run.json'));
-        if (f) runs.push(f.state);
+    for (const folder of projects) {
+      for (const id of await readdir(join(this.root, 'runs', folder)).catch(() => [] as string[])) {
+        const runFile = await readJson<RunFile>(join(this.root, 'runs', folder, id, 'run.json'));
+        if (runFile) runs.push(runFile.state);
       }
     }
-    return runs.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    return runs.sort((left, right) => right.startedAt.localeCompare(left.startedAt));
   }
 
   async remove(runId: string): Promise<void> {
@@ -96,10 +106,10 @@ export class FsRunStore implements RunStore {
 
   /** Where and for whom the run is served now: its port for a restored tab, its owner for a reconnect. */
   async rememberServing(runId: string, port: number, ownerPid: number): Promise<void> {
-    const f = await this.file(runId);
+    const runFile = await this.file(runId);
     const dir = await this.dirOf(runId);
-    if (!f || !dir || (f.port === port && f.ownerPid === ownerPid)) return;
-    const next = { ...f, port, ownerPid };
+    if (!runFile || !dir || (runFile.port === port && runFile.ownerPid === ownerPid)) return;
+    const next = { ...runFile, port, ownerPid };
     await writeAtomic(join(dir, 'run.json'), JSON.stringify(next));
     this.files.set(runId, next);
   }
@@ -123,8 +133,8 @@ export class FsRunStore implements RunStore {
     const ids: string[] = [];
     for (const project of await readdir(join(this.root, 'runs')).catch(() => [] as string[])) {
       for (const id of await readdir(join(this.root, 'runs', project)).catch(() => [] as string[])) {
-        const f = await readJson<RunFile>(join(this.root, 'runs', project, id, 'run.json'));
-        if (f && f.ownerPid === ownerPid && f.state.status !== 'closed') ids.push(id);
+        const runFile = await readJson<RunFile>(join(this.root, 'runs', project, id, 'run.json'));
+        if (runFile && runFile.ownerPid === ownerPid && runFile.state.status !== 'closed') ids.push(id);
       }
     }
     return ids;

@@ -6,8 +6,25 @@ import { card } from '@test/fixtures.ts';
 import { Verdict } from './Verdict.tsx';
 
 afterEach(cleanup);
-const item = (over: Partial<Item> = {}): Item => ({ id: 'i1', kind: 'card', rev: 3, fields: card(), questions: [], threadId: 't', ...over });
-const openQ = { id: 'q1', text: 'x', evidence: [], options: [{ label: 'a', detail: '' }, { label: 'b', detail: '' }], recommended: 0 };
+const item = (over: Partial<Item> = {}): Item => ({
+  id: 'i1',
+  kind: 'card',
+  rev: 3,
+  fields: card(),
+  questions: [],
+  threadId: 't',
+  ...over,
+});
+const openQ = {
+  id: 'q1',
+  text: 'x',
+  evidence: [],
+  options: [
+    { label: 'a', detail: '' },
+    { label: 'b', detail: '' },
+  ],
+  recommended: 0,
+};
 
 describe('Verdict', () => {
   it('blocks Approve while a question is open, and says why', () => {
@@ -25,13 +42,17 @@ describe('Verdict', () => {
   });
 
   it('a verdict on an older revision does not count: the buttons come back', () => {
-    render(<Verdict item={item({ verdict: { value: 'approved', rev: 2, at: '' } })} disabled={false} onVerdict={() => {}} />);
+    render(
+      <Verdict item={item({ verdict: { value: 'approved', rev: 2, at: '' } })} disabled={false} onVerdict={() => {}} />,
+    );
     expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
   });
 
   it('an item left pending can still be approved or rejected', () => {
     const onVerdict = vi.fn();
-    render(<Verdict item={item({ verdict: { value: 'pending', rev: 3, at: '' } })} disabled={false} onVerdict={onVerdict} />);
+    render(
+      <Verdict item={item({ verdict: { value: 'pending', rev: 3, at: '' } })} disabled={false} onVerdict={onVerdict} />,
+    );
     expect(screen.getByText('Left pending')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     expect(onVerdict).toHaveBeenCalledWith('approved', 3);
@@ -44,7 +65,13 @@ describe('Verdict', () => {
   });
 
   it('shows a done item with its note, and no buttons', () => {
-    render(<Verdict item={item({ verdict: { value: 'approved', rev: 3, at: '' }, done: { at: '', note: 'created 86e3' } })} disabled={false} onVerdict={() => {}} />);
+    render(
+      <Verdict
+        item={item({ verdict: { value: 'approved', rev: 3, at: '' }, done: { at: '', note: 'created 86e3' } })}
+        disabled={false}
+        onVerdict={() => {}}
+      />,
+    );
     expect(screen.getByText('created 86e3')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
   });

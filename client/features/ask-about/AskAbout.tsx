@@ -12,26 +12,39 @@ export function AskAbout(props: { within: string; onQuote: (text: string) => voi
   const [ask, setAsk] = useState<{ x: number; y: number; text: string }>();
 
   useEffect(() => {
-    const check = (e: Event) => {
-      if ((e.target as HTMLElement | null)?.closest?.('.askbtn')) return;
+    const check = (event: Event) => {
+      if ((event.target as HTMLElement | null)?.closest?.('.askbtn')) return;
       const sel = getSelection();
       const text = sel?.toString().trim();
       const inside = sel?.anchorNode?.parentElement?.closest(props.within);
       if (!text || !inside || !sel?.rangeCount) return setAsk(undefined);
-      const r = sel.getRangeAt(0).getBoundingClientRect();
-      setAsk({ x: r.left + scrollX + r.width / 2 - BUTTON_HALF_WIDTH, y: r.top + scrollY - BUTTON_LIFT, text });
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      setAsk({
+        x: rect.left + scrollX + rect.width / 2 - BUTTON_HALF_WIDTH,
+        y: rect.top + scrollY - BUTTON_LIFT,
+        text,
+      });
     };
     addEventListener('mouseup', check);
     addEventListener('keyup', check);
-    return () => { removeEventListener('mouseup', check); removeEventListener('keyup', check); };
+    return () => {
+      removeEventListener('mouseup', check);
+      removeEventListener('keyup', check);
+    };
   }, [props.within]);
 
   if (!ask) return null;
   return (
-    <button class="askbtn" style={{ left: `${ask.x}px`, top: `${ask.y}px` }} onClick={() => {
-      props.onQuote(ask.text);
-      setAsk(undefined);
-      getSelection()?.removeAllRanges();
-    }}>Ask about this</button>
+    <button
+      class="askbtn"
+      style={{ left: `${ask.x}px`, top: `${ask.y}px` }}
+      onClick={() => {
+        props.onQuote(ask.text);
+        setAsk(undefined);
+        getSelection()?.removeAllRanges();
+      }}
+    >
+      Ask about this
+    </button>
   );
 }

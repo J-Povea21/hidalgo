@@ -7,5 +7,8 @@ import { markDone as done } from '@server/kernel/run.ts';
 import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
 
 export function markDone(deps: RunDeps & { clock: Clock }, input: { runId: string; itemId: string; note: string }) {
-  return changeRun(deps, input.runId, (run) => ({ run: done(run, input.itemId, input.note, deps.clock.now()), result: {} }));
+  return changeRun(deps, input.runId, (run) => ({
+    run: done(run, input.itemId, input.note, deps.clock.now()),
+    result: {},
+  }));
 }

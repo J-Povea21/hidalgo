@@ -31,7 +31,8 @@ const pushedRefs = readFileSync(0, 'utf8')
   .filter(({ localSha }) => !NO_COMMIT.test(localSha));
 
 const touchesWorkbench = pushedRefs.some(
-  ({ localSha, remoteSha }) => git('diff', '--name-only', baseOf(localSha, remoteSha), localSha, '--', WORKBENCH) !== '',
+  ({ localSha, remoteSha }) =>
+    git('diff', '--name-only', baseOf(localSha, remoteSha), localSha, '--', WORKBENCH) !== '',
 );
 if (!touchesWorkbench) process.exit(0);
 

@@ -19,22 +19,30 @@ export interface RunSummary {
   items: { id: string; kind: string; title: string; verdict?: string }[];
 }
 
-export async function listRuns(deps: { store: RunStore; live: LiveIndex }, input: { project: string; includeClosed?: boolean | undefined }): Promise<RunSummary[]> {
+export async function listRuns(
+  deps: { store: RunStore; live: LiveIndex },
+  input: { project: string; includeClosed?: boolean | undefined },
+): Promise<RunSummary[]> {
   const [runs, live] = await Promise.all([deps.store.list(input.project), deps.live.alive()]);
-  const liveIds = new Set(live.map((e) => e.runId));
+  const liveIds = new Set(live.map((entry) => entry.runId));
   return runs
-    .filter((r) => input.includeClosed || r.status !== 'closed')
-    .map((r) => ({
-      id: r.id,
-      skill: r.skill,
-      subject: r.subject,
-      status: r.status,
-      startedAt: r.startedAt,
-      live: liveIds.has(r.id),
-      pendingForUser: pendingForUser(r),
-      items: r.items.map((i) => {
-        const verdict = currentVerdict(i);
-        return { id: i.id, kind: i.kind, title: itemTitle(i), ...(verdict ? { verdict: i.done ? 'done' : verdict } : {}) };
+    .filter((run) => input.includeClosed || run.status !== 'closed')
+    .map((run) => ({
+      id: run.id,
+      skill: run.skill,
+      subject: run.subject,
+      status: run.status,
+      startedAt: run.startedAt,
+      live: liveIds.has(run.id),
+      pendingForUser: pendingForUser(run),
+      items: run.items.map((item) => {
+        const verdict = currentVerdict(item);
+        return {
+          id: item.id,
+          kind: item.kind,
+          title: itemTitle(item),
+          ...(verdict ? { verdict: item.done ? 'done' : verdict } : {}),
+        };
       }),
     }));
 }

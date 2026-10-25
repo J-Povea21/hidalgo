@@ -27,8 +27,8 @@ export const question = (recommended = 0) => ({
 });
 
 export function counterIds() {
-  const n: Record<string, number> = {};
-  return (prefix: string) => `${prefix}${(n[prefix] = (n[prefix] ?? 0) + 1)}`;
+  const counters: Record<string, number> = {};
+  return (prefix: string) => `${prefix}${(counters[prefix] = (counters[prefix] ?? 0) + 1)}`;
 }
 
 export const T0 = '2026-10-24T22:00:00.000Z';
@@ -38,6 +38,6 @@ export async function until(ok: () => boolean | Promise<boolean>, ms = 3000): Pr
   const end = Date.now() + ms;
   while (!(await ok())) {
     if (Date.now() > end) throw new Error(`condition not met within ${ms} ms`);
-    await new Promise((r) => setTimeout(r, 5));
+    await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }

@@ -13,28 +13,35 @@ const run = (label, cmd, args, options = {}) => {
   try {
     execFileSync(cmd, args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], ...options });
     console.log('ok');
-  } catch (e) {
+  } catch (error) {
     console.log('FAILED');
-    process.stdout.write(String(e.stdout ?? ''));
-    process.stderr.write(String(e.stderr ?? ''));
+    process.stdout.write(String(error.stdout ?? ''));
+    process.stderr.write(String(error.stderr ?? ''));
     process.exit(1);
   }
 };
-const fail = (msg) => { console.log('FAILED'); console.error(msg); process.exit(1); };
+const fail = (msg) => {
+  console.log('FAILED');
+  console.error(msg);
+  process.exit(1);
+};
 
 // 1. Dependencies pinned to exact versions.
 process.stdout.write('• dependencies pinned… ');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const loose = Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })
-  .filter(([, v]) => !/^\d+\.\d+\.\d+$/.test(v));
-if (loose.length) fail(`not exact: ${loose.map(([n, v]) => `${n}@${v}`).join(', ')}`);
+const loose = Object.entries({ ...pkg.dependencies, ...pkg.devDependencies }).filter(
+  ([, version]) => !/^\d+\.\d+\.\d+$/.test(version),
+);
+if (loose.length) fail(`not exact: ${loose.map(([name, version]) => `${name}@${version}`).join(', ')}`);
 console.log('ok');
 
 // 2. Install scripts stay off, and installs come from the committed lockfile.
 process.stdout.write('• install scripts disabled… ');
-if (!/^ignore-scripts=true$/m.test(readFileSync(join(root, '.npmrc'), 'utf8'))) fail('.npmrc must set ignore-scripts=true');
+if (!/^ignore-scripts=true$/m.test(readFileSync(join(root, '.npmrc'), 'utf8')))
+  fail('.npmrc must set ignore-scripts=true');
 if (!existsSync(join(root, 'pnpm-lock.yaml'))) fail('pnpm-lock.yaml is missing: install with pnpm, never npm');
-if (existsSync(join(root, 'package-lock.json'))) fail('package-lock.json found: this package is installed with pnpm only');
+if (existsSync(join(root, 'package-lock.json')))
+  fail('package-lock.json found: this package is installed with pnpm only');
 console.log('ok');
 
 // 3. Architecture rules. A cruise that reads nothing passes vacuously (it did once,
@@ -43,21 +50,34 @@ process.stdout.write('• dependency rules… ');
 {
   let report;
   try {
-    report = JSON.parse(execFileSync(bin('depcruise'), ['--config', 'config/dependency-cruiser.cjs', '--output-type', 'json', 'server', 'client', 'shared'],
-      { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }));
-  } catch (e) {
-    report = JSON.parse(String(e.stdout || '{}'));
+    report = JSON.parse(
+      execFileSync(
+        bin('depcruise'),
+        ['--config', 'config/dependency-cruiser.cjs', '--output-type', 'json', 'server', 'client', 'shared'],
+        { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] },
+      ),
+    );
+  } catch (error) {
+    report = JSON.parse(String(error.stdout || '{}'));
   }
-  const s = report.summary ?? {};
-  if (!s.totalCruised || s.totalCruised < 10) fail(`dependency-cruiser read only ${s.totalCruised ?? 0} modules: the rules checked nothing`);
-  if (s.violations?.length) {
-    fail(s.violations.map((v) => `  ${v.rule.name}: ${v.from} → ${v.to}`).join('\n'));
+  const summary = report.summary ?? {};
+  if (!summary.totalCruised || summary.totalCruised < 10)
+    fail(`dependency-cruiser read only ${summary.totalCruised ?? 0} modules: the rules checked nothing`);
+  if (summary.violations?.length) {
+    fail(
+      summary.violations.map((violation) => `  ${violation.rule.name}: ${violation.from} → ${violation.to}`).join('\n'),
+    );
   }
-  console.log(`ok (${s.totalCruised} modules)`);
+  console.log(`ok (${summary.totalCruised} modules)`);
 }
 
 // 4. Types.
 run('types', bin('tsc'), ['--noEmit', '-p', 'tsconfig.json']);
+
+// 4b. Style: formatted as Prettier writes it, and the naming rules ESLint enforces
+//     (docs/conventions.md). `pnpm run format` fixes the first.
+run('format', bin('prettier'), ['--check', '.']);
+run('lint', bin('eslint'), ['--config', 'config/eslint.config.mjs', '--max-warnings', '0', '.']);
 
 // 5. Tests.
 run('tests', bin('vitest'), ['run', '--config', 'config/vitest.config.ts']);
@@ -71,13 +91,21 @@ process.stdout.write('• bundle reproducible… ');
 const out = mkdtempSync(join(tmpdir(), 'workbench-build-'));
 try {
   execFileSync('node', [join(root, 'scripts', 'build.mjs'), '--out', out], { cwd: root, stdio: 'pipe' });
-  const list = (dir) => readdirSync(dir, { recursive: true })
-    .map(String).filter((p) => statSync(join(dir, p)).isFile()).sort();
+  const list = (dir) =>
+    readdirSync(dir, { recursive: true })
+      .map(String)
+      .filter((path) => statSync(join(dir, path)).isFile())
+      .sort();
   const dist = join(root, 'dist');
-  const a = list(dist), b = list(out);
-  if (a.join('\n') !== b.join('\n')) fail(`dist/ files differ from a fresh build.\n committed: ${a.join(', ')}\n fresh:     ${b.join(', ')}\nRun pnpm run build and commit dist/.`);
-  const changed = a.filter((p) => !readFileSync(join(dist, p)).equals(readFileSync(join(out, p))));
-  if (changed.length) fail(`dist/ is stale or edited by hand: ${changed.join(', ')}\nRun pnpm run build and commit dist/.`);
+  const committed = list(dist),
+    fresh = list(out);
+  if (committed.join('\n') !== fresh.join('\n'))
+    fail(
+      `dist/ files differ from a fresh build.\n committed: ${committed.join(', ')}\n fresh:     ${fresh.join(', ')}\nRun pnpm run build and commit dist/.`,
+    );
+  const changed = committed.filter((path) => !readFileSync(join(dist, path)).equals(readFileSync(join(out, path))));
+  if (changed.length)
+    fail(`dist/ is stale or edited by hand: ${changed.join(', ')}\nRun pnpm run build and commit dist/.`);
   console.log('ok');
 
   // 8. Size budget: what the page loads before any diagram appears. app.js plus
@@ -90,18 +118,21 @@ try {
     if (seen.has(rel)) return;
     seen.add(rel);
     const src = readFileSync(join(client, rel), 'utf8');
-    const dynamic = new Set([...src.matchAll(/import\(\s*"([^"]+)"\s*\)/g)].map((m) => m[1]));
-    for (const m of src.matchAll(/from\s*"(\.{1,2}\/[^"]+)"/g)) {
-      if (dynamic.has(m[1])) continue;
-      walk(join(rel, '..', m[1]).replace(/^\.\//, ''));
+    const dynamic = new Set([...src.matchAll(/import\(\s*"([^"]+)"\s*\)/g)].map((match) => match[1]));
+    for (const match of src.matchAll(/from\s*"(\.{1,2}\/[^"]+)"/g)) {
+      if (dynamic.has(match[1])) continue;
+      walk(join(rel, '..', match[1]).replace(/^\.\//, ''));
     }
   };
   walk('app.js');
-  const scriptKb = [...seen].reduce((n, f) => n + statSync(join(client, f)).size, 0) / 1024;
+  const scriptKb = [...seen].reduce((total, file) => total + statSync(join(client, file)).size, 0) / 1024;
   const stylesKb = statSync(join(client, 'styles.css')).size / 1024;
-  if (scriptKb > BUDGET_KB.script) fail(`first-load script is ${scriptKb.toFixed(0)} KB over ${seen.size} file(s); budget ${BUDGET_KB.script} KB`);
+  if (scriptKb > BUDGET_KB.script)
+    fail(`first-load script is ${scriptKb.toFixed(0)} KB over ${seen.size} file(s); budget ${BUDGET_KB.script} KB`);
   if (stylesKb > BUDGET_KB.styles) fail(`styles.css is ${stylesKb.toFixed(0)} KB; budget ${BUDGET_KB.styles} KB`);
-  console.log(`ok (first load: ${scriptKb.toFixed(0)} KB script in ${seen.size} file(s), ${stylesKb.toFixed(0)} KB styles)`);
+  console.log(
+    `ok (first load: ${scriptKb.toFixed(0)} KB script in ${seen.size} file(s), ${stylesKb.toFixed(0)} KB styles)`,
+  );
 } finally {
   rmSync(out, { recursive: true, force: true });
 }

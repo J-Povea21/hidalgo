@@ -21,19 +21,26 @@ import { WorkbenchError } from './errors.ts';
 
 type IdGen = (prefix: string) => string;
 
-const clone = <T>(v: T): T => structuredClone(v);
+const clone = <T>(value: T): T => structuredClone(value);
 const touch = (run: RunState): RunState => ({ ...run, version: run.version + 1 });
 
-export function newRun(a: { id: string; skill: string; project: string; subject: string; now: string; threadId: string }): RunState {
+export function newRun(init: {
+  id: string;
+  skill: string;
+  project: string;
+  subject: string;
+  now: string;
+  threadId: string;
+}): RunState {
   return {
-    id: a.id,
-    skill: a.skill,
-    project: a.project,
-    subject: a.subject,
+    id: init.id,
+    skill: init.skill,
+    project: init.project,
+    subject: init.subject,
     status: 'open',
-    startedAt: a.now,
+    startedAt: init.now,
     items: [],
-    threads: [{ id: a.threadId, owner: { type: 'run' } }],
+    threads: [{ id: init.threadId, owner: { type: 'run' } }],
     messages: [],
     diagrams: [],
     turn: 'claude',
@@ -44,9 +51,9 @@ export function newRun(a: { id: string; skill: string; project: string; subject:
 }
 
 export function runThreadId(run: RunState): string {
-  const t = run.threads.find((t) => t.owner.type === 'run');
-  if (!t) throw new WorkbenchError('invalid', 'run has no run thread');
-  return t.id;
+  const thread = run.threads.find((candidate) => candidate.owner.type === 'run');
+  if (!thread) throw new WorkbenchError('invalid', 'run has no run thread');
+  return thread.id;
 }
 
 /** A closed run is final: every change to it is refused. A paused run still takes changes and stays resumable. */
@@ -55,7 +62,7 @@ function assertOpen(run: RunState): void {
 }
 
 export function findItem(run: RunState, itemId: string): Item {
-  const item = run.items.find((i) => i.id === itemId);
+  const item = run.items.find((candidate) => candidate.id === itemId);
   if (!item) throw new WorkbenchError('not-found', `no item ${itemId} in run ${run.id}`);
   return item;
 }
@@ -76,7 +83,10 @@ function buildQuestions(specs: unknown[], ids: IdGen): Question[] {
   return specs.map((raw) => {
     const spec = QuestionSpec.parse(raw);
     if (spec.recommended >= spec.options.length) {
-      throw new WorkbenchError('invalid', `question "${spec.text}" recommends option ${spec.recommended}, which does not exist`);
+      throw new WorkbenchError(
+        'invalid',
+        `question "${spec.text}" recommends option ${spec.recommended}, which does not exist`,
+      );
     }
     return { ...spec, id: ids('q') };
   });
@@ -92,7 +102,10 @@ export function addItems(
   const added: { id: string; rev: number; threadId: string }[] = [];
   for (const input of inputs) {
     if (!(input.kind in ItemKinds)) {
-      throw new WorkbenchError('invalid', `unknown item kind "${input.kind}"; known kinds: ${Object.keys(ItemKinds).join(', ')}`);
+      throw new WorkbenchError(
+        'invalid',
+        `unknown item kind "${input.kind}"; known kinds: ${Object.keys(ItemKinds).join(', ')}`,
+      );
     }
     const kind = input.kind as ItemKind;
     const threadId = ids('t');
@@ -119,8 +132,10 @@ function revise(item: Item): void {
 
 function merge(base: unknown, patch: unknown): unknown {
   if (Array.isArray(patch) || patch === null || typeof patch !== 'object') return patch;
-  const out: Record<string, unknown> = { ...(typeof base === 'object' && base !== null && !Array.isArray(base) ? base : {}) };
-  for (const [k, v] of Object.entries(patch)) out[k] = merge(out[k], v);
+  const out: Record<string, unknown> = {
+    ...(typeof base === 'object' && base !== null && !Array.isArray(base) ? base : {}),
+  };
+  for (const [key, value] of Object.entries(patch)) out[key] = merge(out[key], value);
   return out;
 }
 
@@ -134,7 +149,12 @@ export function updateItem(run: RunState, itemId: string, patch: unknown): { run
   return { run: touch(next), rev: item.rev };
 }
 
-export function ask(run: RunState, itemId: string, specs: unknown[], ids: IdGen): { run: RunState; questionIds: string[]; rev: number } {
+export function ask(
+  run: RunState,
+  itemId: string,
+  specs: unknown[],
+  ids: IdGen,
+): { run: RunState; questionIds: string[]; rev: number } {
   assertOpen(run);
   if (specs.length === 0) throw new WorkbenchError('invalid', 'ask needs at least one question');
   const next = clone(run);
@@ -142,7 +162,7 @@ export function ask(run: RunState, itemId: string, specs: unknown[], ids: IdGen)
   const qs = buildQuestions(specs, ids);
   item.questions.push(...qs);
   revise(item);
-  return { run: touch(next), questionIds: qs.map((q) => q.id), rev: item.rev };
+  return { run: touch(next), questionIds: qs.map((question) => question.id), rev: item.rev };
 }
 
 export function applyAnswers(
@@ -154,11 +174,12 @@ export function applyAnswers(
   assertOpen(run);
   const next = clone(run);
   const item = findItem(next, itemId);
-  for (const [qid, a] of Object.entries(answers)) {
-    const q = item.questions.find((q) => q.id === qid);
-    if (!q) throw new WorkbenchError('not-found', `no question ${qid} on item ${itemId}`);
-    if (a.choice < 0 || a.choice >= q.options.length) throw new WorkbenchError('invalid', `question ${qid} has no option ${a.choice}`);
-    q.answer = { choice: a.choice, at: now, ...(a.note ? { note: a.note } : {}) };
+  for (const [qid, answer] of Object.entries(answers)) {
+    const question = item.questions.find((candidate) => candidate.id === qid);
+    if (!question) throw new WorkbenchError('not-found', `no question ${qid} on item ${itemId}`);
+    if (answer.choice < 0 || answer.choice >= question.options.length)
+      throw new WorkbenchError('invalid', `question ${qid} has no option ${answer.choice}`);
+    question.answer = { choice: answer.choice, at: now, ...(answer.note ? { note: answer.note } : {}) };
   }
   return touch(next);
 }
@@ -175,7 +196,10 @@ export function applyVerdict(run: RunState, itemId: string, rev: number, value: 
     throw new WorkbenchError('stale-revision', `verdict names rev ${rev}, but item ${itemId} is at rev ${item.rev}`);
   }
   if (value === 'approved' && openQuestions(item).length > 0) {
-    throw new WorkbenchError('open-questions', `item ${itemId} still has ${openQuestions(item).length} open question(s)`);
+    throw new WorkbenchError(
+      'open-questions',
+      `item ${itemId} still has ${openQuestions(item).length} open question(s)`,
+    );
   }
   item.verdict = { value, rev, at: now };
   return touch(next);
@@ -188,8 +212,8 @@ export function applyEdit(run: RunState, itemId: string, path: string, text: str
   const item = findItem(next, itemId);
   const parts = path.split('.');
   let target: unknown = item.fields;
-  for (const p of parts.slice(0, -1)) {
-    target = (target as Record<string, unknown> | undefined)?.[p];
+  for (const part of parts.slice(0, -1)) {
+    target = (target as Record<string, unknown> | undefined)?.[part];
   }
   const last = parts.at(-1)!;
   if (target === null || typeof target !== 'object' || typeof (target as Record<string, unknown>)[last] !== 'string') {
@@ -207,7 +231,10 @@ export function markDone(run: RunState, itemId: string, note: string, now: strin
   const next = clone(run);
   const item = findItem(next, itemId);
   if (currentVerdict(item) !== 'approved') {
-    throw new WorkbenchError('invalid', `item ${itemId} is not approved at its current revision, so it can't be marked done`);
+    throw new WorkbenchError(
+      'invalid',
+      `item ${itemId} is not approved at its current revision, so it can't be marked done`,
+    );
   }
   item.done = { at: now, note };
   return touch(next);
@@ -219,29 +246,41 @@ export function markDone(run: RunState, itemId: string, note: string, now: strin
  */
 export function addMessage(
   run: RunState,
-  m: { text: string; from: Message['from']; now: string; id: string; replyTo?: number | undefined; threadId?: string | undefined; images?: string[] | undefined },
+  message: {
+    text: string;
+    from: Message['from'];
+    now: string;
+    id: string;
+    replyTo?: number | undefined;
+    threadId?: string | undefined;
+    images?: string[] | undefined;
+  },
 ): RunState {
-  let threadId = m.threadId;
-  if (m.replyTo !== undefined) {
-    const fromEvent = run.eventThreads[m.replyTo];
-    if (!fromEvent) throw new WorkbenchError('not-found', `no recorded event #${m.replyTo} in run ${run.id}`);
+  let threadId = message.threadId;
+  if (message.replyTo !== undefined) {
+    const fromEvent = run.eventThreads[message.replyTo];
+    if (!fromEvent) throw new WorkbenchError('not-found', `no recorded event #${message.replyTo} in run ${run.id}`);
     if (threadId !== undefined && threadId !== fromEvent) {
-      throw new WorkbenchError('thread-mismatch', `event #${m.replyTo} came from thread ${fromEvent}, not ${threadId}; nothing was posted`);
+      throw new WorkbenchError(
+        'thread-mismatch',
+        `event #${message.replyTo} came from thread ${fromEvent}, not ${threadId}; nothing was posted`,
+      );
     }
     threadId = fromEvent;
   }
   assertOpen(run);
   if (threadId === undefined) throw new WorkbenchError('invalid', 'a message needs replyTo or threadId');
-  if (!run.threads.some((t) => t.id === threadId)) throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
+  if (!run.threads.some((thread) => thread.id === threadId))
+    throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
   const next = clone(run);
   next.messages.push({
-    id: m.id,
+    id: message.id,
     threadId,
-    from: m.from,
-    at: m.now,
-    text: m.text,
-    ...(m.images?.length ? { images: m.images } : {}),
-    ...(m.replyTo !== undefined ? { replyTo: m.replyTo } : {}),
+    from: message.from,
+    at: message.now,
+    text: message.text,
+    ...(message.images?.length ? { images: message.images } : {}),
+    ...(message.replyTo !== undefined ? { replyTo: message.replyTo } : {}),
   });
   return touch(next);
 }
@@ -252,7 +291,8 @@ export function threadOfItem(run: RunState, itemId: string): string {
 }
 
 export function rememberEventThread(run: RunState, seq: number, threadId: string): RunState {
-  if (!run.threads.some((t) => t.id === threadId)) throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
+  if (!run.threads.some((thread) => thread.id === threadId))
+    throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
   return { ...run, eventThreads: { ...run.eventThreads, [seq]: threadId } };
 }
 
@@ -264,10 +304,13 @@ export function rememberEventThread(run: RunState, seq: number, threadId: string
  */
 export function close(run: RunState, status: Exclude<RunStatus, 'open'>, outcome: string, now: string): RunState {
   assertOpen(run);
-  const open = run.items.filter((i) => !isFinal(i));
+  const open = run.items.filter((item) => !isFinal(item));
   if (status === 'closed' && open.length) {
-    throw new WorkbenchError('open-items', `${open.length} item(s) aren't rejected, or approved and done: pause the run instead`,
-      open.map((i) => ({ id: i.id, rev: i.rev })));
+    throw new WorkbenchError(
+      'open-items',
+      `${open.length} item(s) aren't rejected, or approved and done: pause the run instead`,
+      open.map((item) => ({ id: item.id, rev: item.rev })),
+    );
   }
   return touch({ ...clone(run), status, closedOutcome: outcome, closedAt: now, turn: 'claude' });
 }

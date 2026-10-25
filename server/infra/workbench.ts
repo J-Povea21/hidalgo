@@ -49,9 +49,12 @@ export const DEFAULT_LIMITS: Limits = {
 };
 
 export function openInBrowser(url: string): void {
-  const [cmd, args]: [string, string[]] = process.platform === 'darwin' ? ['open', [url]]
-    : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
-    : ['xdg-open', [url]];
+  const [cmd, args]: [string, string[]] =
+    process.platform === 'darwin'
+      ? ['open', [url]]
+      : process.platform === 'win32'
+        ? ['cmd', ['/c', 'start', '', url]]
+        : ['xdg-open', [url]];
   spawn(cmd, args, { stdio: 'ignore', detached: true }).unref();
 }
 
@@ -108,10 +111,19 @@ export class Workbench {
       wait: async (id, ms) => {
         const woken = bell.wait(id, ms);
         announce(id);
-        try { return await woken; } finally { announce(id); }
+        try {
+          return await woken;
+        } finally {
+          announce(id);
+        }
       },
     };
-    this.page = { publish: (run) => { this.hub.publish(run); void this.beatRun(run); } };
+    this.page = {
+      publish: (run) => {
+        this.hub.publish(run);
+        void this.beatRun(run);
+      },
+    };
     this.hub.onViewer = (id) => void this.noteViewer(id);
     this.address = { url: (runId) => this.urlOf(runId) };
     this.recordEvent = (runId, body) => recordPageEvent(this, runId, body);
@@ -128,12 +140,16 @@ export class Workbench {
     const token = await this.store.token(runId);
     if (!token) throw new Error(`run ${runId} has no token and can't be served`);
     this.tokens.set(runId, token);
-    this.listening ??= this.store.port(runId).then((preferred) => this.listen(preferred ?? 0).catch(() => this.listen(0)));
+    this.listening ??= this.store
+      .port(runId)
+      .then((preferred) => this.listen(preferred ?? 0).catch(() => this.listen(0)));
     this.port = await this.listening;
     await this.store.rememberServing(runId, this.port, this.ownerPid);
     this.served.add(runId);
     await this.beat(runId);
-    this.heartbeat ??= setInterval(() => { for (const id of this.served) void this.beat(id); }, this.config.heartbeatMs);
+    this.heartbeat ??= setInterval(() => {
+      for (const id of this.served) void this.beat(id);
+    }, this.config.heartbeatMs);
   }
 
   private listen(port: number): Promise<number> {
@@ -167,10 +183,20 @@ export class Workbench {
   private async beatRun(run: RunState): Promise<void> {
     if (!this.served.has(run.id) || !this.port) return;
     try {
-      await this.live.write(liveEntry(run, {
-        port: this.port, pid: process.pid, processStartedAt: this.startedAt, url: this.urlOf(run.id),
-        ownerPid: this.ownerPid, claudeListening: this.signal.waiting(run.id),
-      }, this.clock.now()));
+      await this.live.write(
+        liveEntry(
+          run,
+          {
+            port: this.port,
+            pid: process.pid,
+            processStartedAt: this.startedAt,
+            url: this.urlOf(run.id),
+            ownerPid: this.ownerPid,
+            claudeListening: this.signal.waiting(run.id),
+          },
+          this.clock.now(),
+        ),
+      );
     } catch {
       // the next heartbeat tries again
     }
@@ -243,7 +269,7 @@ export class Workbench {
     if (this.heartbeat) clearInterval(this.heartbeat);
     for (const id of this.served) await this.live.remove(id).catch(() => undefined);
     const grace = this.config.goodbyeGraceMs ?? 150;
-    if (grace) await new Promise((r) => setTimeout(r, grace));
+    if (grace) await new Promise((resolve) => setTimeout(resolve, grace));
     this.http?.close();
   }
 

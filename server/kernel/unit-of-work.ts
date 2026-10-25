@@ -7,7 +7,11 @@ import type { RunState } from '@shared/contract.ts';
 import { WorkbenchError } from './errors.ts';
 import type { PagePublisher, RunLock, RunStore } from './ports.ts';
 
-export interface RunDeps { store: RunStore; page: PagePublisher; lock: RunLock }
+export interface RunDeps {
+  store: RunStore;
+  page: PagePublisher;
+  lock: RunLock;
+}
 
 export async function loadRun(store: RunStore, runId: string): Promise<RunState> {
   const run = await store.load(runId);
@@ -15,7 +19,11 @@ export async function loadRun(store: RunStore, runId: string): Promise<RunState>
   return run;
 }
 
-export function changeRun<T>(deps: RunDeps, runId: string, change: (run: RunState) => { run: RunState; result: T }): Promise<T> {
+export function changeRun<T>(
+  deps: RunDeps,
+  runId: string,
+  change: (run: RunState) => { run: RunState; result: T },
+): Promise<T> {
   return deps.lock.exclusive(runId, async () => {
     const { run, result } = change(await loadRun(deps.store, runId));
     await deps.store.save(run);

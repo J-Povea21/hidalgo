@@ -26,7 +26,12 @@ for (const dir of ['shared', 'server', 'client']) {
 const BUILD = hash.digest('hex').slice(0, 12);
 
 const common = {
-  bundle: true, minify: true, legalComments: 'none', logLevel: 'warning', absWorkingDir: root, charset: 'utf8',
+  bundle: true,
+  minify: true,
+  legalComments: 'none',
+  logLevel: 'warning',
+  absWorkingDir: root,
+  charset: 'utf8',
   define: { __WORKBENCH_BUILD__: JSON.stringify(BUILD) },
 };
 
@@ -37,7 +42,9 @@ const nodeTarget = {
   target: 'node20',
   format: 'esm',
   // Some dependencies are CommonJS and call require(); give ESM a require.
-  banner: { js: "import { createRequire as __wbRequire } from 'node:module'; const require = __wbRequire(import.meta.url);" },
+  banner: {
+    js: "import { createRequire as __wbRequire } from 'node:module'; const require = __wbRequire(import.meta.url);",
+  },
 };
 await build({ ...nodeTarget, entryPoints: ['server/infra/main.ts'], outfile: join(out, 'server.mjs') });
 await build({ ...nodeTarget, entryPoints: ['server/infra/hooks/stop-hook.ts'], outfile: join(out, 'stop-hook.mjs') });

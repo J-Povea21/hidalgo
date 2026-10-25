@@ -4,8 +4,12 @@
  */
 import type { LiveEntry, RecordedEvent, RunState, UnsequencedEvent } from '@shared/contract.ts';
 
-export interface Clock { now(): string }
-export interface Ids { next(prefix: string): string }
+export interface Clock {
+  now(): string;
+}
+export interface Ids {
+  next(prefix: string): string;
+}
 
 export interface RunStore {
   load(runId: string): Promise<RunState | undefined>;
@@ -40,10 +44,14 @@ export interface ImageStore {
  * and the page's events arrive at the same time by design, so without this one
  * change would overwrite another, or an event be delivered twice. Not reentrant.
  */
-export interface RunLock { exclusive<T>(runId: string, fn: () => Promise<T>): Promise<T> }
+export interface RunLock {
+  exclusive<T>(runId: string, fn: () => Promise<T>): Promise<T>;
+}
 
 /** Pushes the run's state to the open page. */
-export interface PagePublisher { publish(run: RunState): void }
+export interface PagePublisher {
+  publish(run: RunState): void;
+}
 
 /** Lets wait-for-events sleep until record-page-event rings. */
 export interface EventSignal {
@@ -61,7 +69,9 @@ export interface LiveIndex {
 }
 
 /** Where this server's page lives. */
-export interface PageAddress { url(runId: string): string }
+export interface PageAddress {
+  url(runId: string): string;
+}
 
 export interface Limits {
   imageBytesPerRun: number;

@@ -10,7 +10,14 @@ import { pendingForUser } from '@shared/rules.ts';
 
 export function liveEntry(
   run: RunState,
-  server: { port: number; pid: number; processStartedAt: string; url: string; ownerPid: number; claudeListening: boolean },
+  server: {
+    port: number;
+    pid: number;
+    processStartedAt: string;
+    url: string;
+    ownerPid: number;
+    claudeListening: boolean;
+  },
   now: string,
 ): LiveEntry {
   return {
@@ -35,14 +42,21 @@ const DAY = 24 * 60 * 60 * 1000;
 /** Closed runs older than the retention window. Paused or open runs are kept: the user decides those. */
 export function expired(runs: RunState[], now: string, retentionDays: number): string[] {
   const cutoff = Date.parse(now) - retentionDays * DAY;
-  return runs.filter((r) => r.status === 'closed' && r.closedAt && Date.parse(r.closedAt) < cutoff).map((r) => r.id);
+  return runs
+    .filter((run) => run.status === 'closed' && run.closedAt && Date.parse(run.closedAt) < cutoff)
+    .map((run) => run.id);
 }
 
 /**
  * Whether an entry's owner is dead. Takes two proofs: a stale heartbeat and a
  * process the OS says is gone (or reused by a different process).
  */
-export function isDead(entry: LiveEntry, now: string, staleMs: number, processAlive: (pid: number, startedAt: string) => boolean): boolean {
+export function isDead(
+  entry: LiveEntry,
+  now: string,
+  staleMs: number,
+  processAlive: (pid: number, startedAt: string) => boolean,
+): boolean {
   const stale = Date.parse(now) - Date.parse(entry.heartbeat) > staleMs;
   return stale && !processAlive(entry.pid, entry.processStartedAt);
 }

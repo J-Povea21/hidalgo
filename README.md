@@ -43,16 +43,16 @@ There is no CI yet, so this hook is the gate, and `git push --no-verify` skips i
 
 ## Layout
 
-| Folder | Holds | May import |
-|---|---|---|
-| `shared/` | the contract: schemas and types both halves use | nothing of ours |
-| `server/kernel/` | the rules every item kind obeys, as pure functions | `shared/` |
-| `server/features/<slice>/` | one use case per folder, with its tests | `kernel/`, `shared/` |
-| `server/infra/` | disk, HTTP, MCP, processes; wires the slices | anything on the server |
-| `client/core/` | the page's state, pure | `shared/` types |
-| `client/features/<slice>/` | one part of the page each | `core/`, `ui/`, `infra/` |
-| `client/kinds/<kind>/` | the view for one item kind | `core/`, `ui/` |
-| `client/app/` | wires the page together | anything on the client |
+| Folder                     | Holds                                              | May import               |
+| -------------------------- | -------------------------------------------------- | ------------------------ |
+| `shared/`                  | the contract: schemas and types both halves use    | nothing of ours          |
+| `server/kernel/`           | the rules every item kind obeys, as pure functions | `shared/`                |
+| `server/features/<slice>/` | one use case per folder, with its tests            | `kernel/`, `shared/`     |
+| `server/infra/`            | disk, HTTP, MCP, processes; wires the slices       | anything on the server   |
+| `client/core/`             | the page's state, pure                             | `shared/` types          |
+| `client/features/<slice>/` | one part of the page each                          | `core/`, `ui/`, `infra/` |
+| `client/kinds/<kind>/`     | the view for one item kind                         | `core/`, `ui/`           |
+| `client/app/`              | wires the page together                            | anything on the client   |
 
 These are enforced by `.dependency-cruiser.cjs`, not by convention.
 

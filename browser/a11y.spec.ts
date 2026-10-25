@@ -10,7 +10,12 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-prac
 
 async function noViolations(page: Page, what: string) {
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`), what).toEqual([]);
+  expect(
+    violations.map(
+      (violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(' ')).join(', ')}`,
+    ),
+    what,
+  ).toEqual([]);
 }
 
 for (const colorScheme of ['light', 'dark'] as const) {
@@ -58,7 +63,17 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
     test('lightbox open, and a narrow screen', async ({ page, wb }) => {
       const { runId, threadId, url } = await openRun(wb);
-      const { diagramId: id } = await wb.call('create_diagram', { runId, spec: { type: 'flow', nodes: [{ id: 'a', label: 'Page' }, { id: 'b', label: 'Server' }], edges: [{ from: 'a', to: 'b', label: 'event' }] } });
+      const { diagramId: id } = await wb.call('create_diagram', {
+        runId,
+        spec: {
+          type: 'flow',
+          nodes: [
+            { id: 'a', label: 'Page' },
+            { id: 'b', label: 'Server' },
+          ],
+          edges: [{ from: 'a', to: 'b', label: 'event' }],
+        },
+      });
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(url);
       await page.getByRole('button', { name: /^Run/ }).click();
@@ -73,7 +88,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
 }
 
 test.describe('keyboard only', () => {
-  test('B-A1 the carousel: arrows move without committing, Space commits, focus follows, Enter sends', async ({ page, wb }) => {
+  test('B-A1 the carousel: arrows move without committing, Space commits, focus follows, Enter sends', async ({
+    page,
+    wb,
+  }) => {
     const { runId, url } = await openRun(wb, [{ questions: [question, { ...question, text: 'Second?' }] }]);
     await page.goto(url);
     await page.getByLabel(/^Separately/).focus();
@@ -85,20 +103,23 @@ test.describe('keyboard only', () => {
     await expect(page.getByRole('heading', { name: 'Question 2 of 2' })).toBeVisible();
     await expect(page.locator('input[type=radio]:focus')).toHaveCount(1);
     await page.keyboard.press('Space');
-    const w = wb.start('wait_for_events', { runId });
+    const waiting = wb.start('wait_for_events', { runId });
     const send = page.getByRole('button', { name: 'Send 2 answers' });
     await send.focus();
     await page.keyboard.press('Enter');
-    expect((await w).events[0].answers.map((a: { chose: string }) => a.chose)).toEqual(['Neither', 'Separately']);
+    expect((await waiting).events[0].answers.map((answer: { chose: string }) => answer.chose)).toEqual([
+      'Neither',
+      'Separately',
+    ]);
   });
 
   test('B-A2 Approve: Enter works, and focus lands on the outcome, not the page', async ({ page, wb }) => {
     const { runId, url } = await openRun(wb);
     await page.goto(url);
-    const w = wb.start('wait_for_events', { runId });
+    const waiting = wb.start('wait_for_events', { runId });
     await page.getByRole('button', { name: 'Approve' }).focus();
     await page.keyboard.press('Enter');
-    expect((await w).events[0]).toMatchObject({ verdict: 'approved' });
+    expect((await waiting).events[0]).toMatchObject({ verdict: 'approved' });
     await expect(page.locator('.verdict')).toBeFocused();
   });
 
@@ -108,14 +129,27 @@ test.describe('keyboard only', () => {
     const box = page.getByRole('textbox', { name: 'About this item only.' });
     await box.focus();
     await page.keyboard.type('from the keyboard');
-    const w = wb.start('wait_for_events', { runId });
+    const waiting = wb.start('wait_for_events', { runId });
     await page.keyboard.press('ControlOrMeta+Enter');
-    expect((await w).events[0]).toMatchObject({ text: 'from the keyboard' });
+    expect((await waiting).events[0]).toMatchObject({ text: 'from the keyboard' });
   });
 
-  test('B-A4 the lightbox opens from the keyboard, takes focus, Escape closes and gives it back', async ({ page, wb }) => {
+  test('B-A4 the lightbox opens from the keyboard, takes focus, Escape closes and gives it back', async ({
+    page,
+    wb,
+  }) => {
     const { runId, threadId, url } = await openRun(wb);
-    const { diagramId: id } = await wb.call('create_diagram', { runId, spec: { type: 'flow', nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], edges: [{ from: 'a', to: 'b' }] } });
+    const { diagramId: id } = await wb.call('create_diagram', {
+      runId,
+      spec: {
+        type: 'flow',
+        nodes: [
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B' },
+        ],
+        edges: [{ from: 'a', to: 'b' }],
+      },
+    });
     await page.goto(url);
     await page.getByRole('button', { name: /^Run/ }).click();
     await wb.call('send_message', { runId, threadId, text: `{{diagram:${id}}}` });

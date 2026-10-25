@@ -9,7 +9,11 @@ import type { Item, VerdictValue } from '@shared/contract.ts';
 import { itemStatus, openQuestions } from '@client/core/selectors.ts';
 import { StatusBadge, time } from '@client/ui/parts.tsx';
 
-export function Verdict(props: { item: Item; disabled: boolean; onVerdict: (value: VerdictValue, rev: number) => void }) {
+export function Verdict(props: {
+  item: Item;
+  disabled: boolean;
+  onVerdict: (value: VerdictValue, rev: number) => void;
+}) {
   const { item } = props;
   const status = itemStatus(item);
   const outcome = useRef<HTMLDivElement>(null);
@@ -20,24 +24,55 @@ export function Verdict(props: { item: Item; disabled: boolean; onVerdict: (valu
     prev.current = status;
   }, [status]);
 
-  if (status === 'done') return <div class="section verdict" tabIndex={-1} ref={outcome}><StatusBadge status="done">Done</StatusBadge><span class="meta">{item.done!.note}</span></div>;
-  if (status === 'approved') return <div class="section verdict" tabIndex={-1} ref={outcome}><StatusBadge status="approved">Approved · rev {item.rev}</StatusBadge><span class="meta">Claude acts on it next.</span></div>;
-  if (status === 'rejected') return <div class="section verdict" tabIndex={-1} ref={outcome}><StatusBadge status="rejected" /><span class="meta">at {time(item.verdict!.at)}</span></div>;
+  if (status === 'done')
+    return (
+      <div class="section verdict" tabIndex={-1} ref={outcome}>
+        <StatusBadge status="done">Done</StatusBadge>
+        <span class="meta">{item.done!.note}</span>
+      </div>
+    );
+  if (status === 'approved')
+    return (
+      <div class="section verdict" tabIndex={-1} ref={outcome}>
+        <StatusBadge status="approved">Approved · rev {item.rev}</StatusBadge>
+        <span class="meta">Claude acts on it next.</span>
+      </div>
+    );
+  if (status === 'rejected')
+    return (
+      <div class="section verdict" tabIndex={-1} ref={outcome}>
+        <StatusBadge status="rejected" />
+        <span class="meta">at {time(item.verdict!.at)}</span>
+      </div>
+    );
   const open = openQuestions(item).length;
   const blockedId = `blocked-${item.id}`;
   const approve = (
-    <button class="good" disabled={open > 0 || props.disabled} aria-describedby={open > 0 ? blockedId : undefined}
-      onClick={() => props.onVerdict('approved', item.rev)}>Approve</button>
+    <button
+      class="good"
+      disabled={open > 0 || props.disabled}
+      aria-describedby={open > 0 ? blockedId : undefined}
+      onClick={() => props.onVerdict('approved', item.rev)}
+    >
+      Approve
+    </button>
   );
-  const reason = open > 0
-    ? <span class="blocked" id={blockedId}>Answer the {open} open question{open > 1 ? 's' : ''} first</span>
-    : <span class="meta">Approves exactly rev {item.rev}.</span>;
+  const reason =
+    open > 0 ? (
+      <span class="blocked" id={blockedId}>
+        Answer the {open} open question{open > 1 ? 's' : ''} first
+      </span>
+    ) : (
+      <span class="meta">Approves exactly rev {item.rev}.</span>
+    );
   if (status === 'pending') {
     return (
       <div class="section verdict" tabIndex={-1} ref={outcome}>
         <StatusBadge status="pending" />
         {approve}
-        <button disabled={props.disabled} onClick={() => props.onVerdict('rejected', item.rev)}>Reject</button>
+        <button disabled={props.disabled} onClick={() => props.onVerdict('rejected', item.rev)}>
+          Reject
+        </button>
         {reason}
       </div>
     );
@@ -45,8 +80,12 @@ export function Verdict(props: { item: Item; disabled: boolean; onVerdict: (valu
   return (
     <div class="section verdict" tabIndex={-1} ref={outcome}>
       {approve}
-      <button disabled={props.disabled} onClick={() => props.onVerdict('rejected', item.rev)}>Reject</button>
-      <button class="ghost" disabled={props.disabled} onClick={() => props.onVerdict('pending', item.rev)}>Leave pending</button>
+      <button disabled={props.disabled} onClick={() => props.onVerdict('rejected', item.rev)}>
+        Reject
+      </button>
+      <button class="ghost" disabled={props.disabled} onClick={() => props.onVerdict('pending', item.rev)}>
+        Leave pending
+      </button>
       {reason}
     </div>
   );

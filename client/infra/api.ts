@@ -9,19 +9,30 @@ import { BUILD, TOKEN_HEADER } from '@shared/constants.ts';
 import type { LiveEntry, PageEvent, RunState } from '@shared/contract.ts';
 import { LOST_AFTER_MS, type Connection, type Presence } from '@client/core/state.ts';
 
-export interface Session { runId: string; token: string }
+export interface Session {
+  runId: string;
+  token: string;
+}
 
 export function sessionFromLocation(hash = location.hash): Session | undefined {
-  const p = new URLSearchParams(hash.replace(/^#/, ''));
-  const runId = p.get('run'), token = p.get('t');
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  const runId = params.get('run'),
+    token = params.get('t');
   return runId && token ? { runId, token } : undefined;
 }
 
 export class ApiError extends Error {
-  constructor(readonly status: number, message: string, readonly code?: string) { super(message); }
+  constructor(
+    readonly status: number,
+    message: string,
+    readonly code?: string,
+  ) {
+    super(message);
+  }
 }
 
-const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+const hex = (buffer: ArrayBuffer) =>
+  [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 
 /**
  * HMAC-SHA256(token, "workbench-hello|nonce|port|build"): what only the server holding the
@@ -30,24 +41,40 @@ const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16)
  * verify new servers. Mirrors helloProof in server/infra/http/app.ts.
  */
 export async function proofFor(token: string, nonce: string, port: string, build: string): Promise<string> {
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`workbench-hello|${nonce}|${port}|${build}`)));
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(token),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  return hex(
+    await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`workbench-hello|${nonce}|${port}|${build}`)),
+  );
 }
 
 /** The port this page is talking to (the address bar's, defaulting like the browser does). */
 const pagePort = () => location.port || (location.protocol === 'https:' ? '443' : '80');
 
-export function createApi(s: Session) {
-  const q = `run=${encodeURIComponent(s.runId)}`;
-  const headers = { [TOKEN_HEADER]: s.token };
+export function createApi(session: Session) {
+  const runQuery = `run=${encodeURIComponent(session.runId)}`;
+  const headers = { [TOKEN_HEADER]: session.token };
   /** The token is sent only to a server that proved, on this connection, that it holds it. */
   let proven = false;
 
   async function call<T>(path: string, init?: RequestInit): Promise<T> {
     if (!proven) throw new ApiError(0, "Not connected to Claude's session yet. Your text is kept.");
-    const res = await fetch(`/api/${path}${path.includes('?') ? '&' : '?'}${q}`, { ...init, headers: { ...headers, ...(init?.headers ?? {}) } });
+    const res = await fetch(`/api/${path}${path.includes('?') ? '&' : '?'}${runQuery}`, {
+      ...init,
+      headers: { ...headers, ...(init?.headers ?? {}) },
+    });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new ApiError(res.status, (body as { error?: string }).error ?? res.statusText, (body as { code?: string }).code);
+    if (!res.ok)
+      throw new ApiError(
+        res.status,
+        (body as { error?: string }).error ?? res.statusText,
+        (body as { code?: string }).code,
+      );
     return body as T;
   }
 
@@ -60,14 +87,14 @@ export function createApi(s: Session) {
     proven = false;
     try {
       const nonce = hex(crypto.getRandomValues(new Uint8Array(16)).buffer);
-      const res = await fetch(`/api/hello?${q}&nonce=${nonce}`);
+      const res = await fetch(`/api/hello?${runQuery}&nonce=${nonce}`);
       if (!res.ok) return 'no';
-      const r = (await res.json()) as { server?: string; build?: string; run?: string; proof?: string };
-      if (r.server !== 'workbench' || r.run !== s.runId || !r.build || !r.proof) return 'no';
+      const answer = (await res.json()) as { server?: string; build?: string; run?: string; proof?: string };
+      if (answer.server !== 'workbench' || answer.run !== session.runId || !answer.build || !answer.proof) return 'no';
       // Nothing in the answer is trusted until the proof, which covers the build, checks out.
-      if (r.proof !== (await proofFor(s.token, nonce, pagePort(), r.build))) return 'no';
+      if (answer.proof !== (await proofFor(session.token, nonce, pagePort(), answer.build))) return 'no';
       // The real server, on a newer build: this page predates an update and must be reloaded.
-      if (r.build !== BUILD) return 'stale';
+      if (answer.build !== BUILD) return 'stale';
       proven = true;
       return 'proven';
     } catch {
@@ -79,7 +106,7 @@ export function createApi(s: Session) {
   const blobs = new Map<string, Promise<string>>();
   async function fetchImage(name: string): Promise<string> {
     if (!proven) throw new ApiError(0, 'not connected');
-    const res = await fetch(`/api/image?${q}&name=${encodeURIComponent(name)}`, { headers });
+    const res = await fetch(`/api/image?${runQuery}&name=${encodeURIComponent(name)}`, { headers });
     if (!res.ok) throw new ApiError(res.status, 'image unavailable');
     return URL.createObjectURL(await res.blob());
   }
@@ -87,8 +114,12 @@ export function createApi(s: Session) {
   return {
     hello,
     sendEvent: (event: PageEvent) =>
-      call<{ seq: number; imageWarning?: string }>('event', { method: 'POST', body: JSON.stringify(event), headers: { 'content-type': 'application/json' } }),
-    liveRuns: () => call<{ runs: LiveEntry[] }>('runs').then((r) => r.runs),
+      call<{ seq: number; imageWarning?: string }>('event', {
+        method: 'POST',
+        body: JSON.stringify(event),
+        headers: { 'content-type': 'application/json' },
+      }),
+    liveRuns: () => call<{ runs: LiveEntry[] }>('runs').then((body) => body.runs),
     /** An image as a blob URL (an <img> can't send the token header); cached, retried if it failed. */
     imageBlob(name: string): Promise<string> {
       const cached = blobs.get(name);
@@ -106,12 +137,15 @@ export function createApi(s: Session) {
      * on every attempt, so a stranger on the port is knocked on but never handed the
      * token. Reports how the connection stands so the page can say so; returns a stop function.
      */
-    follow(on: {
-      state: (run: RunState, presence: Presence) => void;
-      presence: (presence: Presence) => void;
-      connection: (c: Connection) => void;
-      nudge?: (text: string) => void;
-    }, retry: { baseMs: number; maxMs: number } = { baseMs: 1500, maxMs: 15_000 }): () => void {
+    follow(
+      on: {
+        state: (run: RunState, presence: Presence) => void;
+        presence: (presence: Presence) => void;
+        connection: (c: Connection) => void;
+        nudge?: (text: string) => void;
+      },
+      retry: { baseMs: number; maxMs: number } = { baseMs: 1500, maxMs: 15_000 },
+    ): () => void {
       let stopped = false;
       let controller: AbortController | undefined;
       let downSince = 0;
@@ -121,24 +155,32 @@ export function createApi(s: Session) {
       const pause = () => {
         const gap = Math.min(retry.baseMs * 2 ** Math.min(failures, 4), retry.maxMs);
         failures += 1;
-        return new Promise((r) => setTimeout(r, gap));
+        return new Promise((resolve) => setTimeout(resolve, gap));
       };
 
       /** The server didn't prove itself: either nothing is there, or something that isn't this run. */
       const reportUnproven = async () => {
-        const reachable = await fetch('/', { method: 'HEAD' }).then(() => true, () => false);
+        const reachable = await fetch('/', { method: 'HEAD' }).then(
+          () => true,
+          () => false,
+        );
         if (reachable && downSince === 0) return on.connection({ kind: 'moved' });
         downSince ||= Date.now();
-        on.connection(Date.now() - downSince > LOST_AFTER_MS ? { kind: 'lost' } : { kind: 'reconnecting', since: downSince });
+        on.connection(
+          Date.now() - downSince > LOST_AFTER_MS ? { kind: 'lost' } : { kind: 'reconnecting', since: downSince },
+        );
       };
 
       /** Reads one stream until it ends; true if it ended with a goodbye. */
       const stream = async (): Promise<boolean> => {
         controller = new AbortController();
         let goodbye = false;
-        const presence = (m: Presence): Presence => ({ claudeListening: m.claudeListening, claudeActiveAt: m.claudeActiveAt });
+        const presence = (message: Presence): Presence => ({
+          claudeListening: message.claudeListening,
+          claudeActiveAt: message.claudeActiveAt,
+        });
         try {
-          const res = await fetch(`/api/stream?${q}`, { headers, signal: controller.signal });
+          const res = await fetch(`/api/stream?${runQuery}`, { headers, signal: controller.signal });
           if (!res.ok || !res.body) return false;
           // A proven server and an open stream: the page is live again, even after a goodbye.
           on.connection({ kind: 'live' });
@@ -180,7 +222,10 @@ export function createApi(s: Session) {
         }
       };
       void loop();
-      return () => { stopped = true; controller?.abort(); };
+      return () => {
+        stopped = true;
+        controller?.abort();
+      };
     },
   };
 }
@@ -196,11 +241,12 @@ async function readSse(body: ReadableStream<Uint8Array>, on: (event: string, dat
     const { value, done } = await reader.read();
     if (done) return;
     buf += decoder.decode(value, { stream: true });
-    let i: number;
-    while ((i = buf.indexOf('\n\n')) >= 0) {
-      const block = buf.slice(0, i);
-      buf = buf.slice(i + 2);
-      let event = 'message', data = '';
+    let end: number;
+    while ((end = buf.indexOf('\n\n')) >= 0) {
+      const block = buf.slice(0, end);
+      buf = buf.slice(end + 2);
+      let event = 'message',
+        data = '';
       for (const line of block.split('\n')) {
         if (line.startsWith('event:')) event = line.slice(6).trim();
         else if (line.startsWith('data:')) data += line.slice(5).trim();

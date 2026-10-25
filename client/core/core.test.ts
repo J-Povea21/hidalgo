@@ -5,19 +5,53 @@ import { card } from '@test/fixtures.ts';
 import { itemStatus, tabTitle, turnView } from './selectors.ts';
 import { ACTIVE_FOR_MS, initialState, reduce, type Presence } from './state.ts';
 
-const item = (over: Partial<Item> = {}): Item => ({ id: 'i1', kind: 'card', rev: 1, fields: card('A card'), questions: [], threadId: 't2', ...over });
-const run = (over: Partial<RunState> = {}): RunState => ({
-  id: 'r1', skill: 'card', project: 'MiPlan', subject: 'OfficesExist validator', status: 'open', startedAt: '', items: [item()],
-  threads: [], messages: [], diagrams: [], turn: 'claude', version: 3, eventThreads: {}, appliedSeq: 0, ...over,
+const item = (over: Partial<Item> = {}): Item => ({
+  id: 'i1',
+  kind: 'card',
+  rev: 1,
+  fields: card('A card'),
+  questions: [],
+  threadId: 't2',
+  ...over,
 });
-const q = (answered: boolean) => ({ id: 'q', text: 't', evidence: [], options: [{ label: 'a', detail: '' }, { label: 'b', detail: '' }], recommended: 0, ...(answered ? { answer: { choice: 0, at: '' } } : {}) });
+const run = (over: Partial<RunState> = {}): RunState => ({
+  id: 'r1',
+  skill: 'card',
+  project: 'MiPlan',
+  subject: 'OfficesExist validator',
+  status: 'open',
+  startedAt: '',
+  items: [item()],
+  threads: [],
+  messages: [],
+  diagrams: [],
+  turn: 'claude',
+  version: 3,
+  eventThreads: {},
+  appliedSeq: 0,
+  ...over,
+});
+const question = (answered: boolean) => ({
+  id: 'q',
+  text: 't',
+  evidence: [],
+  options: [
+    { label: 'a', detail: '' },
+    { label: 'b', detail: '' },
+  ],
+  recommended: 0,
+  ...(answered ? { answer: { choice: 0, at: '' } } : {}),
+});
 
 const NOW = 1_000_000;
 const listening: Presence = { claudeListening: true, claudeActiveAt: NOW };
 const working: Presence = { claudeListening: false, claudeActiveAt: NOW - 1000 };
 const quiet: Presence = { claudeListening: false, claudeActiveAt: NOW - ACTIVE_FOR_MS - 1 };
-const live = (presence: Presence, r = run()) =>
-  reduce(reduce(initialState, { type: 'state', run: r, presence }), { type: 'connection', connection: { kind: 'live' } });
+const live = (presence: Presence, runState = run()) =>
+  reduce(reduce(initialState, { type: 'state', run: runState, presence }), {
+    type: 'connection',
+    connection: { kind: 'live' },
+  });
 
 describe('reducer', () => {
   it('takes newer state and never goes back to an older one, but keeps the newer presence', () => {
@@ -28,14 +62,16 @@ describe('reducer', () => {
   });
 
   it('a keep-alive with the same presence returns the same state (no re-render)', () => {
-    const s = live(listening);
-    expect(reduce(s, { type: 'presence', presence: { ...listening } })).toBe(s);
-    expect(reduce(s, { type: 'presence', presence: working }).claudeListening).toBe(false);
+    const state = live(listening);
+    expect(reduce(state, { type: 'presence', presence: { ...listening } })).toBe(state);
+    expect(reduce(state, { type: 'presence', presence: working }).claudeListening).toBe(false);
   });
 
   it('a goodbye sticks until the connection is live again', () => {
     const ended = reduce(initialState, { type: 'connection', connection: { kind: 'ended', reason: 'bye' } });
-    expect(reduce(ended, { type: 'connection', connection: { kind: 'reconnecting', since: 0 } }).connection.kind).toBe('ended');
+    expect(reduce(ended, { type: 'connection', connection: { kind: 'reconnecting', since: 0 } }).connection.kind).toBe(
+      'ended',
+    );
     expect(reduce(ended, { type: 'connection', connection: { kind: 'live' } }).connection.kind).toBe('live');
   });
 });
@@ -45,12 +81,16 @@ describe('selectors', () => {
     expect(itemStatus(item())).toBe('ready');
     expect(itemStatus(item({ verdict: { value: 'approved', rev: 1, at: '' } }))).toBe('approved');
     expect(itemStatus(item({ rev: 2, verdict: { value: 'approved', rev: 1, at: '' } }))).toBe('ready');
-    expect(itemStatus(item({ questions: [q(false)] }))).toBe('questions');
-    expect(itemStatus(item({ verdict: { value: 'approved', rev: 1, at: '' }, done: { at: '', note: 'x' } }))).toBe('done');
+    expect(itemStatus(item({ questions: [question(false)] }))).toBe('questions');
+    expect(itemStatus(item({ verdict: { value: 'approved', rev: 1, at: '' }, done: { at: '', note: 'x' } }))).toBe(
+      'done',
+    );
   });
 
   it('counts open questions plus items ready for a verdict', () => {
-    expect(pendingForUser(run({ items: [item({ questions: [q(false), q(true)] }), item({ id: 'i2' })] }))).toBe(2);
+    expect(
+      pendingForUser(run({ items: [item({ questions: [question(false), question(true)] }), item({ id: 'i2' })] })),
+    ).toBe(2);
   });
 
   it('the turn: yours while Claude listens, working while it acts, idle once it went quiet', () => {
@@ -75,9 +115,9 @@ describe('selectors', () => {
   });
 
   it('turn is offline once the session ended, and while reconnecting', () => {
-    const s = reduce(live(listening), { type: 'connection', connection: { kind: 'ended', reason: 'x' } });
-    expect(turnView(s, NOW)).toBe('offline');
-    const r = reduce(live(working), { type: 'connection', connection: { kind: 'reconnecting', since: 0 } });
-    expect(turnView(r, NOW)).toBe('offline');
+    const state = reduce(live(listening), { type: 'connection', connection: { kind: 'ended', reason: 'x' } });
+    expect(turnView(state, NOW)).toBe('offline');
+    const reconnecting = reduce(live(working), { type: 'connection', connection: { kind: 'reconnecting', since: 0 } });
+    expect(turnView(reconnecting, NOW)).toBe('offline');
   });
 });

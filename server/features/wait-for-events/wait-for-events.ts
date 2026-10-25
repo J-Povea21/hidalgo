@@ -30,7 +30,12 @@ export interface DeliveredEvent {
   error?: string;
 }
 
-export interface WaitDeps extends RunDeps { log: EventLog; signal: EventSignal; images: ImageStore; limits: Limits }
+export interface WaitDeps extends RunDeps {
+  log: EventLog;
+  signal: EventSignal;
+  images: ImageStore;
+  limits: Limits;
+}
 
 /** Hands over everything undelivered, exactly once: reading and marking delivered happen under the run's lock. */
 export function takeEvents(deps: WaitDeps, runId: string): Promise<DeliveredEvent[]> {
@@ -39,8 +44,10 @@ export function takeEvents(deps: WaitDeps, runId: string): Promise<DeliveredEven
     if (!events.length) return [];
     const run = await loadRun(deps.store, runId);
     // Resolved before marking delivered, so a failure here hands the events over next time.
-    const names = events.flatMap((ev) => (ev.type === 'message' ? ev.images ?? [] : []));
-    const paths = new Map(await Promise.all(names.map(async (n) => [n, await deps.images.path(runId, n)] as const)));
+    const names = events.flatMap((ev) => (ev.type === 'message' ? (ev.images ?? []) : []));
+    const paths = new Map(
+      await Promise.all(names.map(async (name) => [name, await deps.images.path(runId, name)] as const)),
+    );
     await deps.log.markDelivered(runId, events.at(-1)!.seq);
     return events.map((ev) => describe(ev, run, (name) => paths.get(name)!));
   });
@@ -50,13 +57,17 @@ function describe(ev: RecordedEvent, run: RunState, imagePath: (name: string) =>
   const base = { seq: ev.seq, type: ev.type, at: ev.at };
   switch (ev.type) {
     case 'answers': {
-      const item = run.items.find((i) => i.id === ev.itemId);
+      const item = run.items.find((candidate) => candidate.id === ev.itemId);
       return {
         ...base,
         item: ev.itemId,
-        answers: Object.entries(ev.answers).map(([qid, a]) => {
-          const q = item?.questions.find((q) => q.id === qid);
-          return { question: q?.text ?? qid, chose: q?.options[a.choice]?.label ?? String(a.choice), ...(a.note ? { note: a.note } : {}) };
+        answers: Object.entries(ev.answers).map(([qid, answer]) => {
+          const question = item?.questions.find((candidate) => candidate.id === qid);
+          return {
+            question: question?.text ?? qid,
+            chose: question?.options[answer.choice]?.label ?? String(answer.choice),
+            ...(answer.note ? { note: answer.note } : {}),
+          };
         }),
       };
     }
@@ -65,7 +76,7 @@ function describe(ev: RecordedEvent, run: RunState, imagePath: (name: string) =>
     case 'edit':
       return { ...base, item: ev.itemId, path: ev.path, text: ev.text };
     case 'message': {
-      const owner = run.threads.find((t) => t.id === ev.threadId)?.owner;
+      const owner = run.threads.find((thread) => thread.id === ev.threadId)?.owner;
       return {
         ...base,
         thread: ev.threadId,
@@ -84,7 +95,10 @@ function describe(ev: RecordedEvent, run: RunState, imagePath: (name: string) =>
 const setTurnTo = (deps: WaitDeps, runId: string, turn: RunState['turn']) =>
   changeRun(deps, runId, (run) => ({ run: setTurn(run, turn), result: undefined }));
 
-export async function waitForEvents(deps: WaitDeps, runId: string): Promise<{ events: DeliveredEvent[]; timedOut: boolean }> {
+export async function waitForEvents(
+  deps: WaitDeps,
+  runId: string,
+): Promise<{ events: DeliveredEvent[]; timedOut: boolean }> {
   const ready = await takeEvents(deps, runId);
   if (ready.length) return { events: ready, timedOut: false };
 

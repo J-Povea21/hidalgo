@@ -6,90 +6,190 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { CardFields, Item } from '@shared/contract.ts';
 import { toInlineHtml, toSafeHtml } from '@client/ui/markdown.tsx';
 
-const inline = (s: string) => ({ __html: toInlineHtml(s) });
+const inline = (markdown: string) => ({ __html: toInlineHtml(markdown) });
 
 /** How long a changed criterion stays highlighted: the length of its flash animation. */
 const FLASH_MS = 1700;
 
 export function CardView(props: { item: Item; editable: boolean; onEdit: (path: string, text: string) => void }) {
-  const f = props.item.fields as unknown as CardFields;
+  const fields = props.item.fields as unknown as CardFields;
   const fresh = useFresh(props.item);
   return (
     <>
-      {f.tags.length > 0 && <div class="section chips">{f.tags.map((tag) => <span class="chip" key={tag}>{tag}</span>)}</div>}
+      {fields.tags.length > 0 && (
+        <div class="section chips">
+          {fields.tags.map((tag) => (
+            <span class="chip" key={tag}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
       <div class="section">
         <dl class="proposal">
-          <dt>Priority</dt><dd dangerouslySetInnerHTML={inline(f.proposal.priority)} />
-          <dt>Shape</dt><dd dangerouslySetInnerHTML={inline(f.proposal.shape)} />
-          <dt>Status</dt><dd dangerouslySetInnerHTML={inline(f.proposal.status)} />
-          <dt>Related</dt><dd dangerouslySetInnerHTML={inline(f.proposal.related)} />
+          <dt>Priority</dt>
+          <dd dangerouslySetInnerHTML={inline(fields.proposal.priority)} />
+          <dt>Shape</dt>
+          <dd dangerouslySetInnerHTML={inline(fields.proposal.shape)} />
+          <dt>Status</dt>
+          <dd dangerouslySetInnerHTML={inline(fields.proposal.status)} />
+          <dt>Related</dt>
+          <dd dangerouslySetInnerHTML={inline(fields.proposal.related)} />
         </dl>
       </div>
       <div class="section body">
-        <h3>What</h3><div dangerouslySetInnerHTML={{ __html: toSafeHtml(f.body.what) }} />
-        <h3>Where</h3><ul>{f.body.where.map((w, k) => <li key={k} dangerouslySetInnerHTML={inline(w)} />)}</ul>
-        {f.body.why && <><h3>Why</h3><div dangerouslySetInnerHTML={{ __html: toSafeHtml(f.body.why) }} /></>}
-        {f.body.outOfScope && <><h3>Out of scope</h3><div dangerouslySetInnerHTML={{ __html: toSafeHtml(f.body.outOfScope) }} /></>}
-        {f.body.notes && <><h3>Notes</h3><div dangerouslySetInnerHTML={{ __html: toSafeHtml(f.body.notes) }} /></>}
+        <h3>What</h3>
+        <div dangerouslySetInnerHTML={{ __html: toSafeHtml(fields.body.what) }} />
+        <h3>Where</h3>
+        <ul>
+          {fields.body.where.map((location, index) => (
+            <li key={index} dangerouslySetInnerHTML={inline(location)} />
+          ))}
+        </ul>
+        {fields.body.why && (
+          <>
+            <h3>Why</h3>
+            <div dangerouslySetInnerHTML={{ __html: toSafeHtml(fields.body.why) }} />
+          </>
+        )}
+        {fields.body.outOfScope && (
+          <>
+            <h3>Out of scope</h3>
+            <div dangerouslySetInnerHTML={{ __html: toSafeHtml(fields.body.outOfScope) }} />
+          </>
+        )}
+        {fields.body.notes && (
+          <>
+            <h3>Notes</h3>
+            <div dangerouslySetInnerHTML={{ __html: toSafeHtml(fields.body.notes) }} />
+          </>
+        )}
       </div>
       <div class="section">
         <p class="label">Acceptance criteria</p>
         <ul class="ac">
-          {f.criteria.map((c, k) => (
-            <Criterion key={k} prefix={`[${c.mode}]`} text={c.text} path={`criteria.${k}.text`} fresh={fresh.has(`criteria.${k}.text`)}
-              edited={!!props.item.edits?.[`criteria.${k}.text`]} editable={props.editable} onEdit={props.onEdit} />
+          {fields.criteria.map((criterion, index) => (
+            <Criterion
+              key={index}
+              prefix={`[${criterion.mode}]`}
+              text={criterion.text}
+              path={`criteria.${index}.text`}
+              fresh={fresh.has(`criteria.${index}.text`)}
+              edited={!!props.item.edits?.[`criteria.${index}.text`]}
+              editable={props.editable}
+              onEdit={props.onEdit}
+            />
           ))}
         </ul>
       </div>
-      {f.manualQa.length > 0 && (
+      {fields.manualQa.length > 0 && (
         <div class="section">
           <p class="label">Manual QA</p>
           <ul class="ac">
-            {f.manualQa.map((t, k) => (
-              <Criterion key={k} text={t} path={`manualQa.${k}`} fresh={fresh.has(`manualQa.${k}`)}
-                edited={!!props.item.edits?.[`manualQa.${k}`]} editable={props.editable} onEdit={props.onEdit} />
+            {fields.manualQa.map((check, index) => (
+              <Criterion
+                key={index}
+                text={check}
+                path={`manualQa.${index}`}
+                fresh={fresh.has(`manualQa.${index}`)}
+                edited={!!props.item.edits?.[`manualQa.${index}`]}
+                editable={props.editable}
+                onEdit={props.onEdit}
+              />
             ))}
           </ul>
         </div>
       )}
       <div class="section">
-        {f.assuming.length > 0 && <div class="assume"><b>Assuming</b><ul>{f.assuming.map((a, k) => <li key={k} dangerouslySetInnerHTML={inline(a)} />)}</ul></div>}
-        <p class={`meta provenance ${f.assuming.length ? 'after' : ''}`}>{f.provenance}</p>
+        {fields.assuming.length > 0 && (
+          <div class="assume">
+            <b>Assuming</b>
+            <ul>
+              {fields.assuming.map((assumption, index) => (
+                <li key={index} dangerouslySetInnerHTML={inline(assumption)} />
+              ))}
+            </ul>
+          </div>
+        )}
+        <p class={`meta provenance ${fields.assuming.length ? 'after' : ''}`}>{fields.provenance}</p>
       </div>
     </>
   );
 }
 
-function Criterion(p: { prefix?: string; text: string; path: string; fresh: boolean; edited: boolean; editable: boolean; onEdit: (path: string, text: string) => void }) {
+function Criterion(props: {
+  prefix?: string;
+  text: string;
+  path: string;
+  fresh: boolean;
+  edited: boolean;
+  editable: boolean;
+  onEdit: (path: string, text: string) => void;
+}) {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(p.text);
+  const [value, setValue] = useState(props.text);
   const box = useRef<HTMLTextAreaElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
   // While editing, the user's text is theirs: a new revision from Claude only replaces it once they're done.
-  useEffect(() => { if (!editing) setValue(p.text); }, [p.text, editing]);
-  useEffect(() => { if (editing) box.current?.focus(); }, [editing]);
-  const stop = () => { setEditing(false); setTimeout(() => opener.current?.focus()); };
-  const cancel = () => { setValue(p.text); stop(); };
+  useEffect(() => {
+    if (!editing) setValue(props.text);
+  }, [props.text, editing]);
+  useEffect(() => {
+    if (editing) box.current?.focus();
+  }, [editing]);
+  const stop = () => {
+    setEditing(false);
+    setTimeout(() => opener.current?.focus());
+  };
+  const cancel = () => {
+    setValue(props.text);
+    stop();
+  };
   return (
-    <li class={p.fresh ? 'fresh' : ''}>
-      {p.prefix && <span class="mode">{p.prefix}</span>}
+    <li class={props.fresh ? 'fresh' : ''}>
+      {props.prefix && <span class="mode">{props.prefix}</span>}
       {editing ? (
         <span class="txt">
-          <textarea rows={2} aria-label="Edit criterion" ref={box} value={value}
-            onInput={(e) => setValue((e.target as HTMLTextAreaElement).value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); cancel(); } }} />
+          <textarea
+            rows={2}
+            aria-label="Edit criterion"
+            ref={box}
+            value={value}
+            onInput={(event) => setValue((event.target as HTMLTextAreaElement).value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                cancel();
+              }
+            }}
+          />
           <span class="edit-actions">
-            <button class="primary" disabled={!value.trim() || value === p.text} onClick={() => { p.onEdit(p.path, value); stop(); }}>Save edit</button>
-            <button class="ghost" onClick={cancel}>Cancel</button>
+            <button
+              class="primary"
+              disabled={!value.trim() || value === props.text}
+              onClick={() => {
+                props.onEdit(props.path, value);
+                stop();
+              }}
+            >
+              Save edit
+            </button>
+            <button class="ghost" onClick={cancel}>
+              Cancel
+            </button>
           </span>
         </span>
       ) : (
         <span class="txt">
-          <span dangerouslySetInnerHTML={inline(p.text)} />
-          {p.edited && <span class="edited">edited by you · will be re-probed</span>}
+          <span dangerouslySetInnerHTML={inline(props.text)} />
+          {props.edited && <span class="edited">edited by you · will be re-probed</span>}
         </span>
       )}
-      {p.editable && !editing && <button class="link" ref={opener} onClick={() => setEditing(true)}>Edit</button>}
+      {props.editable && !editing && (
+        <button class="link" ref={opener} onClick={() => setEditing(true)}>
+          Edit
+        </button>
+      )}
     </li>
   );
 }
@@ -99,18 +199,22 @@ function useFresh(item: Item): Set<string> {
   const prev = useRef<{ id: string; rev: number; fields: CardFields } | undefined>(undefined);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   useEffect(() => {
-    const f = item.fields as unknown as CardFields;
+    const fields = item.fields as unknown as CardFields;
     const before = prev.current;
     if (before && before.id === item.id && before.rev !== item.rev) {
       const changed = new Set<string>();
-      f.criteria.forEach((c, k) => { if (before.fields.criteria[k]?.text !== c.text) changed.add(`criteria.${k}.text`); });
-      f.manualQa.forEach((t, k) => { if (before.fields.manualQa[k] !== t) changed.add(`manualQa.${k}`); });
+      fields.criteria.forEach((criterion, index) => {
+        if (before.fields.criteria[index]?.text !== criterion.text) changed.add(`criteria.${index}.text`);
+      });
+      fields.manualQa.forEach((check, index) => {
+        if (before.fields.manualQa[index] !== check) changed.add(`manualQa.${index}`);
+      });
       setFresh(changed);
-      const t = setTimeout(() => setFresh(new Set()), FLASH_MS);
-      prev.current = { id: item.id, rev: item.rev, fields: f };
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setFresh(new Set()), FLASH_MS);
+      prev.current = { id: item.id, rev: item.rev, fields: fields };
+      return () => clearTimeout(timer);
     }
-    prev.current = { id: item.id, rev: item.rev, fields: f };
+    prev.current = { id: item.id, rev: item.rev, fields: fields };
     return undefined;
   }, [item.id, item.rev]);
   return fresh;

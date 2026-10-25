@@ -29,11 +29,11 @@ function server(signedPort: string | 'garbage') {
   return seen;
 }
 const leaked = (seen: { url: string; headers: Record<string, string> }[]) =>
-  seen.some((r) => r.url.includes(session.token) || Object.values(r.headers).includes(session.token));
+  seen.some((request) => request.url.includes(session.token) || Object.values(request.headers).includes(session.token));
 
 describe('following the session', () => {
   const until = async (ok: () => boolean) => {
-    for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 5));
+    for (let attempt = 0; attempt < 200 && !ok(); attempt++) await new Promise((resolve) => setTimeout(resolve, 5));
   };
 
   it('after a goodbye and a server that is gone for a while, reconnects by itself when it comes back', async () => {
@@ -42,21 +42,31 @@ describe('following the session', () => {
       if (phase === 'down') throw new TypeError('connection refused');
       if (url.startsWith('/api/hello')) {
         const nonce = new URL(url, 'http://x').searchParams.get('nonce')!;
-        return new Response(JSON.stringify({ server: 'workbench', build: 'dev', run: 'r1', proof: serverProof(nonce, PAGE_PORT) }));
+        return new Response(
+          JSON.stringify({ server: 'workbench', build: 'dev', run: 'r1', proof: serverProof(nonce, PAGE_PORT) }),
+        );
       }
       if (url.startsWith('/api/stream')) {
-        if (phase === 'first') { phase = 'down'; return new Response('event: goodbye\ndata: {"reason":"session ended"}\n\n'); }
-        return new Response(`event: state\ndata: ${JSON.stringify({ state: { id: 'r1', version: 9 }, claudeListening: true, claudeActiveAt: 1 })}\n\n`);
+        if (phase === 'first') {
+          phase = 'down';
+          return new Response('event: goodbye\ndata: {"reason":"session ended"}\n\n');
+        }
+        return new Response(
+          `event: state\ndata: ${JSON.stringify({ state: { id: 'r1', version: 9 }, claudeListening: true, claudeActiveAt: 1 })}\n\n`,
+        );
       }
       return new Response('{}');
     });
     const seen: string[] = [];
     const states: number[] = [];
-    const stop = createApi(session).follow({
-      state: (run) => states.push(run.version),
-      presence: () => {},
-      connection: (c) => seen.push(c.kind),
-    }, { baseMs: 2, maxMs: 10 });
+    const stop = createApi(session).follow(
+      {
+        state: (run) => states.push(run.version),
+        presence: () => {},
+        connection: (connection) => seen.push(connection.kind),
+      },
+      { baseMs: 2, maxMs: 10 },
+    );
     await until(() => seen.includes('ended') && seen.length > 3);
     expect(seen.slice(0, 2)).toEqual(['live', 'ended']);
     expect(states).toEqual([]);

@@ -31,7 +31,10 @@ export class Session {
    * that owns its runs) differs from the default session's. Without it, every server in a
    * worker shares a parent and a second one would take over the first one's runs.
    */
-  constructor(readonly data: string, private readonly separate = false) {}
+  constructor(
+    readonly data: string,
+    private readonly separate = false,
+  ) {}
 
   async boot(): Promise<this> {
     const server = join(root, 'dist', 'server.mjs');
@@ -43,9 +46,9 @@ export class Session {
       stderr: 'pipe',
     });
     this.transport.stderr?.on('data', (chunk: Buffer) => {
-      for (const m of String(chunk).matchAll(/workbench page: (\S+)/g)) {
-        this.pages.push(m[1]!);
-        this.waiters.shift()?.(m[1]!);
+      for (const match of String(chunk).matchAll(/workbench page: (\S+)/g)) {
+        this.pages.push(match[1]!);
+        this.waiters.shift()?.(match[1]!);
       }
     });
     this.client = new Client({ name: 'browser-suite', version: '1' });
@@ -55,9 +58,12 @@ export class Session {
 
   /** Calls a tool as Claude would; throws on a tool error, returns the parsed result. */
   async call(name: string, args: Record<string, unknown>): Promise<any> {
-    const r = (await this.client.callTool({ name, arguments: args }, undefined, { timeout: 60_000 })) as { content: { text: string }[]; isError?: boolean };
-    const body = JSON.parse(r.content[0]!.text);
-    if (r.isError) throw new Error(`${name}: ${body.message ?? JSON.stringify(body)}`);
+    const result = (await this.client.callTool({ name, arguments: args }, undefined, { timeout: 60_000 })) as {
+      content: { text: string }[];
+      isError?: boolean;
+    };
+    const body = JSON.parse(result.content[0]!.text);
+    if (result.isError) throw new Error(`${name}: ${body.message ?? JSON.stringify(body)}`);
     return body;
   }
 
@@ -66,14 +72,14 @@ export class Session {
    * session stops rejects; that is expected and swallowed, the test awaits what it needs.
    */
   start(name: string, args: Record<string, unknown>): Promise<any> {
-    const p = this.call(name, args);
-    p.catch(() => undefined);
-    return p;
+    const pending = this.call(name, args);
+    pending.catch(() => undefined);
+    return pending;
   }
 
   /** Resolves with the next page address the server asks to open. */
   nextPage(): Promise<string> {
-    return new Promise((r) => this.waiters.push(r));
+    return new Promise((resolveNext) => this.waiters.push(resolveNext));
   }
 
   /**
@@ -81,7 +87,8 @@ export class Session {
    * returns. (Its stderr line and the tool result travel on two pipes with no order.)
    */
   url(runId: string): string {
-    return (JSON.parse(readFileSync(join(this.data, 'workbench', 'live', `${runId}.json`), 'utf8')) as { url: string }).url;
+    return (JSON.parse(readFileSync(join(this.data, 'workbench', 'live', `${runId}.json`), 'utf8')) as { url: string })
+      .url;
   }
 
   /** Ends the session the normal way: stdin closes, the server says goodbye to its pages. */
@@ -122,29 +129,35 @@ export const test = base.extend<{ wb: Session; net: Net; data: string; newSessio
   newSession: async ({ data }, use) => {
     const made: Session[] = [];
     await use(async () => {
-      const s = await new Session(data, true).boot();
-      made.push(s);
-      return s;
+      const session = await new Session(data, true).boot();
+      made.push(session);
+      return session;
     });
-    for (const s of made) await s.stop();
+    for (const session of made) await session.stop();
   },
   net: async ({ page }, use) => {
     const net: Net = { tokenRequests: [] };
-    page.on('request', (r) => { if (r.headers()[TOKEN_HEADER]) net.tokenRequests.push(r.url()); });
+    page.on('request', (request) => {
+      if (request.headers()[TOKEN_HEADER]) net.tokenRequests.push(request.url());
+    });
     await use(net);
   },
   page: async ({ page }, use) => {
     const errors: string[] = [];
-    page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+    page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
     await page.addInitScript(() => {
-      document.addEventListener('securitypolicyviolation', (e) => {
-        ((window as unknown as { __csp: string[] }).__csp ??= []).push(`${e.violatedDirective} ${e.blockedURI} at ${e.sourceFile}:${e.lineNumber}:${e.columnNumber} sample=${e.sample}`);
+      document.addEventListener('securitypolicyviolation', (event) => {
+        ((window as unknown as { __csp: string[] }).__csp ??= []).push(
+          `${event.violatedDirective} ${event.blockedURI} at ${event.sourceFile}:${event.lineNumber}:${event.columnNumber} sample=${event.sample}`,
+        );
       });
     });
     await use(page);
-    for (const p of page.context().pages()) {
-      const csp = await p.evaluate(() => (window as unknown as { __csp?: string[] }).__csp ?? []).catch(() => [] as string[]);
-      errors.push(...csp.map((c) => `CSP violation: ${c}`));
+    for (const openPage of page.context().pages()) {
+      const csp = await openPage
+        .evaluate(() => (window as unknown as { __csp?: string[] }).__csp ?? [])
+        .catch(() => [] as string[]);
+      errors.push(...csp.map((violation) => `CSP violation: ${violation}`));
     }
     expect(errors, 'the page threw or broke its Content-Security-Policy').toEqual([]);
   },
@@ -160,12 +173,12 @@ export async function faviconColor(page: Page): Promise<string> {
     const img = new Image();
     img.src = href;
     await img.decode();
-    const c = document.createElement('canvas');
-    c.width = c.height = 32;
-    const g = c.getContext('2d')!;
-    g.drawImage(img, 0, 0);
-    const [r, gr, b] = g.getImageData(16, 16, 1, 1).data;
-    return `#${[r, gr, b].map((x) => x!.toString(16).padStart(2, '0')).join('')}`;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 32;
+    const drawing = canvas.getContext('2d')!;
+    drawing.drawImage(img, 0, 0);
+    const [red, gr, blue] = drawing.getImageData(16, 16, 1, 1).data;
+    return `#${[red, gr, blue].map((channel) => channel!.toString(16).padStart(2, '0')).join('')}`;
   });
 }
 
@@ -181,8 +194,14 @@ export const card = (title = 'Formulación - OfficesExist validator returns 500 
   title,
   tags: ['backend', 'bug'],
   proposal: { priority: 'high', shape: 'one card, one PR', status: 'ready for work', related: 'none' },
-  body: { what: '`officeIds` sent as anything other than an array returns a 500.', where: ['`src/offices-exist.decorator.ts:12`'] },
-  criteria: [{ mode: 'code', text: 'The validator guards its own input' }, { mode: 'test', text: 'A unit test covers each non-array input' }],
+  body: {
+    what: '`officeIds` sent as anything other than an array returns a 500.',
+    where: ['`src/offices-exist.decorator.ts:12`'],
+  },
+  criteria: [
+    { mode: 'code', text: 'The validator guards its own input' },
+    { mode: 'test', text: 'A unit test covers each non-array input' },
+  ],
   manualQa: ['Submitting the activity form with valid offices still saves'],
   assuming: [],
   provenance: 'browser suite',
@@ -191,7 +210,11 @@ export const card = (title = 'Formulación - OfficesExist validator returns 500 
 export const question = {
   text: 'Fix the other validators here or separately?',
   evidence: [{ kind: 'verified', text: '4 matches' }],
-  options: [{ label: 'Separately', detail: 'One file.' }, { label: 'Here', detail: 'All at once.' }, { label: 'Neither', detail: 'Leave them.' }],
+  options: [
+    { label: 'Separately', detail: 'One file.' },
+    { label: 'Here', detail: 'All at once.' },
+    { label: 'Neither', detail: 'Leave them.' },
+  ],
   recommended: 0,
 };
 
@@ -199,7 +222,14 @@ export const question = {
 export async function openRun(wb: Session, items: { fields?: unknown; questions?: unknown[] }[] = [{}], subject = 's') {
   const { runId, threadId } = await wb.call('open_session', { skill: 'card', project: 'MiPlan', subject });
   const { added } = items.length
-    ? await wb.call('add_items', { runId, items: items.map((i, k) => ({ kind: 'card', fields: i.fields ?? card(`Card ${k + 1}`), ...(i.questions ? { questions: i.questions } : {}) })) })
+    ? await wb.call('add_items', {
+        runId,
+        items: items.map((item, index) => ({
+          kind: 'card',
+          fields: item.fields ?? card(`Card ${index + 1}`),
+          ...(item.questions ? { questions: item.questions } : {}),
+        })),
+      })
     : { added: [] };
   return { runId, threadId, added: added as { id: string; rev: number; threadId: string }[], url: wb.url(runId) };
 }

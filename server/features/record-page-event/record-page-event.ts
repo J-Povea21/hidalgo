@@ -9,7 +9,16 @@
 import { PageEvent, type RecordedEvent, type UnsequencedEvent } from '@shared/contract.ts';
 import { WorkbenchError } from '@server/kernel/errors.ts';
 import { applyEvent } from '@server/kernel/events.ts';
-import type { Clock, EventLog, EventSignal, ImageStore, Limits, PagePublisher, RunLock, RunStore } from '@server/kernel/ports.ts';
+import type {
+  Clock,
+  EventLog,
+  EventSignal,
+  ImageStore,
+  Limits,
+  PagePublisher,
+  RunLock,
+  RunStore,
+} from '@server/kernel/ports.ts';
 import { loadRun } from '@server/kernel/unit-of-work.ts';
 
 export interface RecordDeps {
@@ -26,7 +35,8 @@ export interface RecordDeps {
 /** Decoded size of a data: URL, without decoding it. */
 const dataUrlBytes = (url: string) => Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4);
 
-const formatBytes = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`);
+const formatBytes = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
 
 /** The event as the log keeps it: a message's images by stored file name. */
 const toRecorded = (event: PageEvent, images: string[], at: string): UnsequencedEvent =>
@@ -36,21 +46,32 @@ const toRecorded = (event: PageEvent, images: string[], at: string): Unsequenced
  * Stores the message's images, checking the run's limit first; returns their
  * file names and whether the run is now close to the limit.
  */
-async function storeImages(deps: RecordDeps, runId: string, urls: string[]): Promise<{ names: string[]; nearLimit: boolean }> {
+async function storeImages(
+  deps: RecordDeps,
+  runId: string,
+  urls: string[],
+): Promise<{ names: string[]; nearLimit: boolean }> {
   if (!urls.length) return { names: [], nearLimit: false };
-  if (urls.some((u) => !/^data:image\/(webp|png|jpeg|gif);base64,/.test(u))) {
+  if (urls.some((url) => !/^data:image\/(webp|png|jpeg|gif);base64,/.test(url))) {
     throw new WorkbenchError('invalid', 'images must be WebP, PNG, JPEG or GIF data URLs');
   }
-  const total = (await deps.images.usedBytes(runId)) + urls.reduce((n, u) => n + dataUrlBytes(u), 0);
+  const total = (await deps.images.usedBytes(runId)) + urls.reduce((sum, url) => sum + dataUrlBytes(url), 0);
   if (total > deps.limits.imageBytesPerRun) {
-    throw new WorkbenchError('limit', `these images would take this run to ${formatBytes(total)}; the limit is ${formatBytes(deps.limits.imageBytesPerRun)}`);
+    throw new WorkbenchError(
+      'limit',
+      `these images would take this run to ${formatBytes(total)}; the limit is ${formatBytes(deps.limits.imageBytesPerRun)}`,
+    );
   }
   const names: string[] = [];
   for (const url of urls) names.push(await deps.images.save(runId, url));
   return { names, nearLimit: total > deps.limits.imageWarnBytes };
 }
 
-export async function recordPageEvent(deps: RecordDeps, runId: string, raw: unknown): Promise<{ seq: number; imageWarning?: string }> {
+export async function recordPageEvent(
+  deps: RecordDeps,
+  runId: string,
+  raw: unknown,
+): Promise<{ seq: number; imageWarning?: string }> {
   const parsed = PageEvent.safeParse(raw);
   if (!parsed.success) throw new WorkbenchError('invalid', 'event is not valid', parsed.error.issues);
   const event = parsed.data;

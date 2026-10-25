@@ -5,7 +5,11 @@ import { changeRun, type RunDeps } from '@server/kernel/unit-of-work.ts';
 
 export function ask(deps: RunDeps & { ids: Ids }, input: { runId: string; itemId: string; questions: unknown[] }) {
   return changeRun(deps, input.runId, (run) => {
-    const { run: next, questionIds, rev } = addQuestions(run, input.itemId, input.questions, (p) => deps.ids.next(p));
+    const {
+      run: next,
+      questionIds,
+      rev,
+    } = addQuestions(run, input.itemId, input.questions, (prefix) => deps.ids.next(prefix));
     return { run: next, result: { questionIds, rev } };
   });
 }

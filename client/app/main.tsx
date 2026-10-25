@@ -6,7 +6,8 @@ import { App } from './App.tsx';
 const root = document.getElementById('app')!;
 const session = sessionFromLocation();
 if (!session) {
-  root.innerHTML = '<div class="empty">This address is missing its run. Open the page from Claude, or ask Claude to reopen it.</div>';
+  root.innerHTML =
+    '<div class="empty">This address is missing its run. Open the page from Claude, or ask Claude to reopen it.</div>';
 } else {
   render(<App api={createApi(session)} session={session} />, root);
 }

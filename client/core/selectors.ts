@@ -15,12 +15,12 @@ export type TurnView = 'yours' | 'working' | 'idle' | 'done' | 'offline';
 /** Not talking to Claude's session right now, for whatever reason: nobody's turn can be shown. */
 const OFFLINE = new Set<PageState['connection']['kind']>(['reconnecting', 'ended', 'lost', 'moved', 'stale']);
 
-export function turnView(s: PageState, now: number): TurnView {
-  if (!s.run) return 'working';
-  if (s.run.status !== 'open') return 'done';
-  if (OFFLINE.has(s.connection.kind)) return 'offline';
-  if (s.claudeListening) return 'yours';
-  return s.claudeActiveAt !== null && now - s.claudeActiveAt < ACTIVE_FOR_MS ? 'working' : 'idle';
+export function turnView(state: PageState, now: number): TurnView {
+  if (!state.run) return 'working';
+  if (state.run.status !== 'open') return 'done';
+  if (OFFLINE.has(state.connection.kind)) return 'offline';
+  if (state.claudeListening) return 'yours';
+  return state.claudeActiveAt !== null && now - state.claudeActiveAt < ACTIVE_FOR_MS ? 'working' : 'idle';
 }
 
 const PREFIX: Record<TurnView, (run: RunState) => string> = {
@@ -34,10 +34,11 @@ const PREFIX: Record<TurnView, (run: RunState) => string> = {
 const TITLE_MAX = 60;
 
 /** `<turn> <project> · <skill> · <subject>`, at most 60 characters. */
-export function tabTitle(s: PageState, now: number): string {
-  if (!s.run) return 'Workbench';
-  const title = `${PREFIX[turnView(s, now)](s.run)}${s.run.project} · ${s.run.skill} · ${s.run.subject}`;
+export function tabTitle(state: PageState, now: number): string {
+  if (!state.run) return 'Workbench';
+  const title = `${PREFIX[turnView(state, now)](state.run)}${state.run.project} · ${state.run.skill} · ${state.run.subject}`;
   return title.length > TITLE_MAX ? `${title.slice(0, TITLE_MAX - 1)}…` : title;
 }
 
-export const threadMessages = (run: RunState, threadId: string): Message[] => run.messages.filter((m) => m.threadId === threadId);
+export const threadMessages = (run: RunState, threadId: string): Message[] =>
+  run.messages.filter((message) => message.threadId === threadId);
