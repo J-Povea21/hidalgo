@@ -13,6 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
+import { BUILD } from '../../../shared/constants.ts';
 import { TOKEN_HEADER, type LiveEntry } from '../../../shared/contract.ts';
 import { WorkbenchError } from '../../kernel/errors.ts';
 import type { PageHub } from './hub.ts';
@@ -66,8 +67,9 @@ export function createApp(deps: HttpDeps): Hono {
     const runId = c.req.query('run') ?? '';
     const nonce = c.req.query('nonce') ?? '';
     const token = runId ? await deps.token(runId) : undefined;
-    if (!token || !/^[0-9a-f]{32,128}$/.test(nonce)) return c.json({ error: 'unknown run or bad nonce' }, 404);
-    return c.json({ server: 'workbench', run: runId, proof: helloProof(token, nonce, deps.port()) });
+    // The build goes out even when the run is unknown: a page from an older build must learn to reload.
+    if (!token || !/^[0-9a-f]{32,128}$/.test(nonce)) return c.json({ error: 'unknown run or bad nonce', server: 'workbench', build: BUILD }, 404);
+    return c.json({ server: 'workbench', build: BUILD, run: runId, proof: helloProof(token, nonce, deps.port()) });
   });
 
   app.use('/api/*', async (c, next) => {

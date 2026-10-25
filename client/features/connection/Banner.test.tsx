@@ -24,6 +24,12 @@ describe('ConnectionBanner', () => {
     expect(text).toContain('/mcp');
   });
 
+  it('a stale page says it must be reloaded, and offers to', () => {
+    render(<ConnectionBanner connection={{ kind: 'stale' }} listening={false} idle={false} runStatus="open" />);
+    expect(screen.getByRole('alert').textContent).toContain('older version of workbench');
+    expect(screen.getByRole('button', { name: 'Reload the page' })).toBeTruthy();
+  });
+
   it('is silent when the session is live and listening', () => {
     const { container } = render(<ConnectionBanner connection={live} listening={true} idle={false} runStatus="open" />);
     expect(container.textContent).toBe('');

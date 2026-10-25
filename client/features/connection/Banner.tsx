@@ -6,6 +6,14 @@ export function ConnectionBanner(props: { connection: Connection; listening: boo
   const c = props.connection;
   if (c.kind === 'reconnecting') return <div class="banner warn" role="status">Reconnecting to Claude's session… Anything you write is kept and sent when it's back.</div>;
   if (c.kind === 'ended') return <div class="banner info" role="status">{c.reason}</div>;
+  if (c.kind === 'stale') {
+    return (
+      <div class="banner warn" role="alert">
+        This page is from an older version of workbench, so it can't talk to Claude's session. Your work is saved.{' '}
+        <button class="link" onClick={() => location.reload()}>Reload the page</button>
+      </div>
+    );
+  }
   if (c.kind === 'moved') return <div class="banner bad" role="alert">This run moved to another address, so this tab stopped sending. Ask Claude to resume the run and it opens the new page.</div>;
   if (c.kind === 'lost') {
     return (

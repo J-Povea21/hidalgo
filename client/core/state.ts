@@ -10,6 +10,8 @@ export type Connection =
   | { kind: 'reconnecting'; since: number }
   /** The server that answered isn't this run's (another program took the port). */
   | { kind: 'moved' }
+  /** A workbench of a newer build answered: this page predates an update and must be reloaded. */
+  | { kind: 'stale' }
   /** The session said goodbye: it ended normally. */
   | { kind: 'ended'; reason: string }
   /** No goodbye and reconnecting keeps failing. */

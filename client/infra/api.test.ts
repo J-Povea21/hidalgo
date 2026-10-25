@@ -73,14 +73,14 @@ describe('the identity check', () => {
 
   it('never sends the token in hello itself', async () => {
     const seen = server(PAGE_PORT);
-    expect(await createApi(session).hello()).toBe(true);
+    expect(await createApi(session).hello()).toBe('proven');
     expect(leaked(seen)).toBe(false);
   });
 
   it('a server that cannot prove the token never receives it', async () => {
     const seen = server('garbage');
     const api = createApi(session);
-    expect(await api.hello()).toBe(false);
+    expect(await api.hello()).toBe('no');
     await expect(api.liveRuns()).rejects.toThrow(/Not connected/);
     expect(leaked(seen)).toBe(false);
   });
@@ -88,8 +88,18 @@ describe('the identity check', () => {
   it('an impostor relaying a real proof from another port is rejected and never gets the token', async () => {
     const seen = server('52000');
     const api = createApi(session);
-    expect(await api.hello()).toBe(false);
+    expect(await api.hello()).toBe('no');
     await expect(api.liveRuns()).rejects.toThrow(/Not connected/);
+    expect(leaked(seen)).toBe(false);
+  });
+
+  it('a workbench of another build is reported as stale, and never gets the token', async () => {
+    const seen: { url: string; headers: Record<string, string> }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      seen.push({ url, headers: (init?.headers ?? {}) as Record<string, string> });
+      return new Response(JSON.stringify({ server: 'workbench', build: 'newer', error: 'unknown run' }), { status: 404 });
+    });
+    expect(await createApi(session).hello()).toBe('stale');
     expect(leaked(seen)).toBe(false);
   });
 

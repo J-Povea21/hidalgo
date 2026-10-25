@@ -25,7 +25,7 @@ export type Turn = 'yours' | 'working' | 'done' | 'offline';
 export function turn(s: PageState): Turn {
   if (!s.run) return 'working';
   if (s.run.status !== 'open') return 'done';
-  if (s.connection.kind === 'ended' || s.connection.kind === 'lost' || s.connection.kind === 'moved') return 'offline';
+  if (['ended', 'lost', 'moved', 'stale'].includes(s.connection.kind)) return 'offline';
   return s.waiting ? 'yours' : 'working';
 }
 

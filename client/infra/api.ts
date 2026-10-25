@@ -5,7 +5,7 @@
  * server to prove it owns this run: if another program took the port, nothing
  * is ever sent to it.
  */
-import { TOKEN_HEADER } from '../../shared/constants.ts';
+import { BUILD, TOKEN_HEADER } from '../../shared/constants.ts';
 import type { LiveEntry, PageEvent, RunState } from '../../shared/contract.ts';
 import type { Connection } from '../core/state.ts';
 
@@ -55,17 +55,19 @@ export function createApi(s: Session) {
    * it: a random nonce goes out, HMAC(token, nonce) must come back. Until this
    * succeeds, nothing carrying the token is sent.
    */
-  async function hello(): Promise<boolean> {
+  async function hello(): Promise<'proven' | 'stale' | 'no'> {
     proven = false;
     try {
       const nonce = hex(crypto.getRandomValues(new Uint8Array(16)).buffer);
       const res = await fetch(`/api/hello?${q}&nonce=${nonce}`);
-      if (!res.ok) return false;
-      const r = (await res.json()) as { server?: string; run?: string; proof?: string };
+      const r = (await res.json().catch(() => ({}))) as { server?: string; build?: string; run?: string; proof?: string };
+      // A workbench of another build answered: this page predates an update and can't talk to it.
+      if (r.server === 'workbench' && r.build && r.build !== BUILD) return 'stale';
+      if (!res.ok) return 'no';
       proven = r.server === 'workbench' && r.run === s.runId && r.proof === (await proofFor(s.token, nonce, pagePort()));
-      return proven;
+      return proven ? 'proven' : 'no';
     } catch {
-      return false;
+      return 'no';
     }
   }
 
@@ -102,7 +104,13 @@ export function createApi(s: Session) {
 
       const loop = async () => {
         while (!stopped) {
-          if (!(await hello())) {
+          const identity = await hello();
+          if (identity === 'stale') {
+            on.connection({ kind: 'stale' });
+            await pause();
+            continue;
+          }
+          if (identity === 'no') {
             const reachable = await fetch('/', { method: 'HEAD' }).then(() => true, () => false);
             if (reachable && downSince === 0) on.connection({ kind: 'moved' });
             else {

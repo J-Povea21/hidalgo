@@ -1,7 +1,8 @@
 // Builds dist/: the MCP server, the Stop hook, and the page. Deterministic, so
 // `npm run check` can rebuild into a temp folder and compare byte for byte.
 //   node scripts/build.mjs [--out <dir>]
-import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -13,7 +14,21 @@ const out = outArg > 0 ? resolve(process.argv[outArg + 1]) : join(root, 'dist');
 rmSync(out, { recursive: true, force: true });
 mkdirSync(join(out, 'client'), { recursive: true });
 
-const common = { bundle: true, minify: true, legalComments: 'none', logLevel: 'warning', absWorkingDir: root, charset: 'utf8' };
+// The build id both bundles carry: a hash of every source file, so it changes exactly when
+// the code does, and stays the same on every rebuild of the same sources (check compares bytes).
+const hash = createHash('sha256');
+for (const dir of ['shared', 'server', 'client']) {
+  for (const rel of readdirSync(join(root, dir), { recursive: true }).map(String).sort()) {
+    const file = join(root, dir, rel);
+    if (statSync(file).isFile() && !/\.test\.tsx?$/.test(rel)) hash.update(rel).update(readFileSync(file));
+  }
+}
+const BUILD = hash.digest('hex').slice(0, 12);
+
+const common = {
+  bundle: true, minify: true, legalComments: 'none', logLevel: 'warning', absWorkingDir: root, charset: 'utf8',
+  define: { __WORKBENCH_BUILD__: JSON.stringify(BUILD) },
+};
 
 // Node targets: one self-contained file each, no node_modules needed at runtime.
 const nodeTarget = {
