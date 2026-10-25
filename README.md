@@ -23,8 +23,8 @@ that matter are enforced by the server itself:
 
 ## Using it
 
-Nothing to install. The plugin declares the server in `.mcp.json`, and Claude Code starts
-it with the session. `dist/` is committed, so it runs straight from the plugin with only
+Nothing to install. The plugin declares the server in `.claude-plugin/plugin.json`
+(`mcpServers`), and Claude Code starts it with the session. `dist/` is committed, so it runs straight from the plugin with only
 Node.
 
 Data lives in `${CLAUDE_PLUGIN_DATA}/workbench/`:

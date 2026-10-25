@@ -272,7 +272,7 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
   `prepare` script still runs, which is what wires the hook below.
 - **`dist/` is committed.** It's unusual for a library, but it's what a plugin needs:
   - Claude Code installs the plugin as a plain copy of the repository and starts the
-    server from `.mcp.json` when the session opens, before any skill runs. A skill's
+    server from `.claude-plugin/plugin.json` when the session opens, before any skill runs. A skill's
     preflight step would come too late: the server would already have failed to start.
   - Building on each machine would mean every developer installs the development
     toolchain (TypeScript, esbuild, Mermaid, Playwright).
