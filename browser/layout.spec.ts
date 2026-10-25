@@ -2,6 +2,9 @@
 import type { Page } from '@playwright/test';
 import { expect, plainCard, SCREENS, test } from './support/index.ts';
 
+/** The space between the header and the stuck item panel (client/ui/styles.css, `.sticky`). */
+const PANEL_GAP_PX = 12;
+
 /** Narrow enough that a long subject wraps the header onto two lines. */
 const NARROW_LAPTOP = { width: 1000, height: 700 };
 
@@ -19,15 +22,13 @@ for (const [name, screen] of Object.entries(SCREENS)) {
   });
 }
 
-test('with a header long enough to wrap, the item panel never slides under it', async ({ claude, user }) => {
+test('the item panel sticks just below the header, however tall the header is', async ({ claude, user }) => {
   await user.page.setViewportSize(NARROW_LAPTOP);
   const run = await claude.opensRun({ subject: 'A subject long enough to wrap the header onto two lines here' });
   await user.opens(run);
   await expect(user.items.heading('Card 1')).toBeVisible();
 
-  await user.page.mouse.wheel(0, 600);
-
-  await expect.poll(() => user.page.evaluate(panelIsBelowTheHeader)).toBe(true);
+  await expect.poll(() => user.page.evaluate(stickyGapBelowHeader)).toBeCloseTo(PANEL_GAP_PX, 0);
 });
 
 test('while the next item slides in, nothing covers its buttons', async ({ claude, user }) => {
@@ -54,11 +55,14 @@ function isHitAtItsCentre(button: Element): boolean {
   return hit !== null && (hit === button || button.contains(hit));
 }
 
-/** Runs in the page. */
-function panelIsBelowTheHeader(): boolean {
-  const header = document.querySelector('header.top')!.getBoundingClientRect();
-  const panel = document.querySelector('.sticky')!.getBoundingClientRect();
-  return panel.top >= header.bottom - 1;
+/**
+ * Runs in the page: how far below the header's bottom the panel sticks. Its offset is checked,
+ * not where it is now: once its column ends, the panel rightly scrolls away with it.
+ */
+function stickyGapBelowHeader(): number {
+  const headerHeight = document.querySelector('header.top')!.getBoundingClientRect().height;
+  const stickyTop = parseFloat(getComputedStyle(document.querySelector('.sticky')!).top);
+  return stickyTop - headerHeight;
 }
 
 /** Runs in the page: the labels of visible buttons that something covers while the slide plays. */
