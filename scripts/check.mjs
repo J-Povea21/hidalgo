@@ -147,6 +147,19 @@ try {
   }
   console.log('ok');
 
+  // 7b. Every bundled package ships its license in dist/THIRD_PARTY_LICENSES.txt (written by
+  //     the build). A package with no license file of its own fails, so a new one gets looked at.
+  process.stdout.write('• third-party licenses… ');
+  const licenses = readFileSync(join(dist, 'THIRD_PARTY_LICENSES.txt'), 'utf8');
+  const withoutText = [...licenses.matchAll(/^(\S+@\S+) \(.*\)\n(?:.*\n){3}The package ships no license file/gm)].map(
+    (match) => match[1],
+  );
+  if (withoutText.length) {
+    fail(`bundled packages ship no license file: ${withoutText.join(', ')}\nCheck their terms before shipping them.`);
+  }
+  const packages = licenses.match(/^(\d+) packages\./m)?.[1] ?? '0';
+  console.log(`ok (${packages} packages)`);
+
   // 8. Size budget: what the page loads before any diagram appears. app.js plus
   //    every chunk it imports statically; chunks behind import() (Mermaid) don't count.
   process.stdout.write('• size budget… ');

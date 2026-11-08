@@ -280,13 +280,18 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
   - The bundle has no runtime dependencies; only Node is needed.
   - `pnpm run check` rebuilds `dist/` from the lockfile and fails if it differs from what
     is committed, so a reviewer can trust that `dist/` is exactly the source.
+- **`dist/THIRD_PARTY_LICENSES.txt`** carries the license of every package bundled into
+  `dist/`, with its version and where its source lives. The build writes it from
+  `node_modules`, since esbuild drops license comments and many packages only ship a
+  `LICENSE` file. `check` fails if a bundled package ships no license file, so a new
+  dependency's terms get looked at before it ships.
 - **A size budget**: the page's first load stays under 150 KB of script, and Mermaid loads
   only when a diagram is shown.
 
 ## Checks, hooks and platforms
 
 - `pnpm run check` is the single definition of every check: dependency rules, types,
-  format, lint, tests, audit, a reproducible bundle, and the size budget.
+  format, lint, tests, audit, a reproducible bundle, third-party licenses, and the size budget.
 - `pnpm install` points git at `.githooks/pre-push` (the `prepare` script), which runs
   `check` before every push. There is no CI yet, so
   this hook is the gate; `git push --no-verify` skips it.
