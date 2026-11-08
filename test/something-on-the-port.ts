@@ -24,6 +24,12 @@ interface PortOptions {
   build?: string;
 }
 
+/** One scripted answer to a stream request, and whether the port goes down once it is served. */
+interface ScriptedStream {
+  body: string;
+  thenDown: boolean;
+}
+
 interface Request {
   url: string;
   headers: Headers;
@@ -37,7 +43,7 @@ interface Request {
 export class SomethingOnThePort {
   readonly requests: Request[] = [];
   /** What each stream request gets, in order: an event to send, then the stream ends. */
-  private readonly streams: string[] = [];
+  private readonly streams: ScriptedStream[] = [];
   private down = false;
 
   constructor(private readonly options: PortOptions) {
@@ -46,7 +52,7 @@ export class SomethingOnThePort {
 
   /** The next stream sends this event, then ends. */
   willStream(event: string, data: unknown): this {
-    this.streams.push(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    this.streams.push({ body: `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`, thenDown: false });
     return this;
   }
 
@@ -54,8 +60,16 @@ export class SomethingOnThePort {
     return this.willStream(STREAM_EVENT.goodbye, { reason });
   }
 
-  goesDown(): void {
-    this.down = true;
+  /**
+   * The port goes down the moment the stream queued last is served, before the page can
+   * retry, so no test races the page's reconnect to take it down.
+   */
+  thenGoesDown(): this {
+    const last = this.streams.at(-1);
+    if (last !== undefined) {
+      last.thenDown = true;
+    }
+    return this;
   }
 
   comesBack(): void {
@@ -78,7 +92,11 @@ export class SomethingOnThePort {
       return this.hello(new URL(url, 'http://page').searchParams.get('nonce') ?? '');
     }
     if (url.startsWith('/api/stream')) {
-      return new Response(this.streams.shift() ?? '');
+      const next = this.streams.shift();
+      if (next?.thenDown === true) {
+        this.down = true;
+      }
+      return new Response(next?.body ?? '');
     }
     return new Response(JSON.stringify({ runs: [] }));
   }

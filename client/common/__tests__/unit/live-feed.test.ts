@@ -36,11 +36,11 @@ describe('following the session', () => {
   it('after a goodbye and a server gone for a while, the page reconnects by itself when it comes back', async () => {
     const port = new SomethingOnThePort({ answering: 'the real server' })
       .willSayGoodbye('session ended')
+      .thenGoesDown()
       .willStream(STREAM_EVENT.state, { state: aRun({ version: 9 }), claudeListening: true, claudeActiveAt: 1 });
     const page = followAndRecord(new HttpHidalgoServer(SESSION, QUICK_RETRIES));
 
     await until(() => page.connections.includes('ended'));
-    port.goesDown();
     await until(() => page.connections.length > 3);
 
     expect(page.connections.slice(0, 2)).toEqual(['live', 'ended']);
