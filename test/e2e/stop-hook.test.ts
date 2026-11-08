@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-const hook = resolve(__dirname, '..', 'dist', 'stop-hook.mjs');
+const hook = resolve(__dirname, '..', '..', 'dist', 'stop-hook.mjs');
 const dirs: string[] = [];
 afterEach(() => {
   for (const dir of dirs.splice(0)) {

@@ -13,8 +13,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { registerTools } from '@server/app/tools.ts';
 import { Hidalgo } from '@server/app/hidalgo.ts';
-import { card, question, until } from './fixtures.ts';
-import { readToolResult } from './tool-result.ts';
+import { card, question, until } from '@test/fixtures.ts';
+import { readToolResult } from '@test/tool-result.ts';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {

@@ -21,8 +21,8 @@
       "@server/*": ["./server/*"],
       "@client/*": ["./client/*"],
       "@shared/*": ["./shared/*"],
-      "@test/*": ["./test/*"]
+      "@test/*": ["./test/support/*"]
     }
   },
-  "include": ["server", "client", "shared", "test", "browser", "config", "scripts/*.d.ts"]
+  "include": ["server", "client", "shared", "test", "config", "scripts/*.d.ts"]
 }

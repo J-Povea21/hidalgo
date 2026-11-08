@@ -11,8 +11,8 @@ machine can.
 | **Unit**        | `<module>/__tests__/unit/`           | `pnpm test` (vitest)                 | A rule in `common/domain/` or `shared/`, a use case built by `useCases(fakes)` over in-memory fakes (through its mapper when the test is about what the tool returns: `delivered(cases)`, `ItemMapper.toAsked(…)`), a pure client function (reducer, selector). |
 | **Component**   | `<module>/__tests__/unit/*.test.tsx` | `pnpm test` (vitest + happy-dom)     | One component's behaviour from the outside: what it renders for a given item, what it calls back with.                                                                                                                                                          |
 | **Integration** | `<module>/__tests__/integration/`    | `pnpm test`                          | An adapter against the real thing it wraps: the event log and the live index on a temporary folder.                                                                                                                                                             |
-| **End to end**  | `test/e2e.test.ts`                   | `pnpm test`                          | The real server over MCP and real HTTP, without a browser: tokens, origins, exactly-once delivery, crash and resume.                                                                                                                                            |
-| **Browser**     | `browser/*.spec.ts`                  | `pnpm run test:browser` (Playwright) | What only a browser shows: the page against the real bundled server, connection states, keyboard use, accessibility, layout, the Content-Security-Policy.                                                                                                       |
+| **End to end**  | `test/e2e/`                          | `pnpm test`                          | The real server over MCP and real HTTP, without a browser: tokens, origins, exactly-once delivery, crash and resume.                                                                                                                                            |
+| **Browser**     | `test/browser/*.spec.ts`             | `pnpm run test:browser` (Playwright) | What only a browser shows: the page against the real bundled server, connection states, keyboard use, accessibility, layout, the Content-Security-Policy.                                                                                                       |
 
 Pick the cheapest kind that can prove the behaviour. A rule about verdicts is a unit
 test, not a browser test. A browser test that only checks a string a selector builds
@@ -33,7 +33,7 @@ should say what broke without opening the code.
 - **One behaviour per test.** Several `expect`s are fine when they check one outcome
   from different sides. Two behaviours are two tests.
 - **The data says only what the test is about.** Build it with the builders in
-  `test/builders.ts` (`anItem`, `aRun`, `anOpenQuestion`, `approvedAt`…) and override
+  `test/support/builders.ts` (`anItem`, `aRun`, `anOpenQuestion`, `approvedAt`…) and override
   only what matters: `anItem({ rev: 2, verdict: approvedAt(1) })`.
 - **Every test follows Arrange–Act–Assert.** Three blocks, in that order, separated by
   a blank line: set up what the test needs, do the one thing under test, check what it
@@ -61,7 +61,7 @@ should say what broke without opening the code.
 Where a test plays out a scene, its helpers are named for who acts in it, so the test
 reads as what happens:
 
-- **Browser tests** (`browser/support/`, imported through `browser/support/index.ts`):
+- **Browser tests** (`test/browser/support/`, imported through `test/browser/support/index.ts`):
   - `claude`, a Claude session driving a real server. `claude.opensRun()` returns the run,
     and what Claude does with it is on the run, one method per Hidalgo tool:
     `run.waitForTheUser()`, `run.say()`, `run.revise()`, `run.pause()`, `run.resume()`
@@ -72,7 +72,7 @@ reads as what happens:
     `user.thread.write()`, `user.status.banner('This run is paused')`,
     `user.drawers.openRun()` (`user/*.ts`).
 - **The page's connection tests** (`client/common/__tests__/unit/{server,identity,live-feed}.test.ts`) use `SomethingOnThePort`
-  (`test/something-on-the-port.ts`): whatever answers on the page's port, played as
+  (`test/support/something-on-the-port.ts`): whatever answers on the page's port, played as
   `'the real server'`, `'an impostor relaying the real proof'` or `'a stranger'`.
 
 ```ts
@@ -90,9 +90,9 @@ test('the answers reach Claude, and then Approve unlocks', async ({ claude, user
 ```
 
 **Adding to the support code.** A new Hidalgo tool is a new method on `OpenRun`. A new
-part of the page is a new file in `browser/support/user/`, added to `UserInPage`. A spec
+part of the page is a new file in `test/browser/support/user/`, added to `UserInPage`. A spec
 never reaches for raw selectors that a part could name; if it needs one, the part gets it.
-Timings, screens and colours live in `browser/support/constants.ts`, derived from the
+Timings, screens and colours live in `test/browser/support/constants.ts`, derived from the
 product's own constants where there are some. Find elements by role and accessible name
 first (`getByRole`, `getByLabel`): that also proves a screen reader can find them. Use
 `data-turn`, `data-connection` and `data-testid="toast"` to check state apart from its
@@ -107,7 +107,7 @@ A test that fails one run in fifty teaches everyone to ignore it. These rules ar
 keep the suite trustworthy.
 
 - **Never sleep.** Wait for the condition: `await expect(locator).toBeVisible()` in the
-  browser, `until(() => condition)` from `test/fixtures.ts` in vitest. A fixed delay is
+  browser, `until(() => condition)` from `test/support/fixtures.ts` in vitest. A fixed delay is
   either too short on a busy machine or wasted time on a fast one.
 - **When lag is the bug, say how much is too much.** The server's keep-alive is 15 s, so
   a state push that lagged would still pass a 15 s wait. Tests about promptness use an
@@ -120,25 +120,25 @@ keep the suite trustworthy.
   count of opened pages, not the absence of an error.
 - **A fixed bug comes with the test that would have caught it**, and that test is seen
   failing without the fix before it is trusted.
-- **Every page is guarded.** `browser/support/fixtures.ts` fails any browser test whose page
+- **Every page is guarded.** `test/browser/support/fixtures.ts` fails any browser test whose page
   throws or breaks its Content-Security-Policy, whatever the test checks.
 - **Accessibility is tested, not assumed.** Each state the page can be in is scanned
-  with axe in light and dark (`browser/accessibility.spec.ts`), and every action has a
+  with axe in light and dark (`test/browser/accessibility.spec.ts`), and every action has a
   keyboard-only test.
 
 ## Where the helpers live
 
-| File                            | What it holds                                                                                                                         |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/fixtures.ts`              | Valid card and question data, an id counter, `until()`.                                                                               |
-| `test/builders.ts`              | `anItem`, `aRun`, `anOpenQuestion`, `approvedAt`… for unit and component tests.                                                       |
-| `test/fakes.ts`                 | In-memory fakes of every port, `world()`, `seededWorld()`, `useCases(fakes)`, and `delivered`/`waited` (events as Claude reads them). |
-| `test/something-on-the-port.ts` | Whatever answers on the page's port, for the page's connection tests.                                                                 |
-| `test/tool-result.ts`           | A tool result from the MCP client, checked with zod.                                                                                  |
-| `browser/support/index.ts`      | The one import for specs: `from './support'`.                                                                                         |
-| `browser/support/types.ts`      | What the tests pass around, and the typings for what they leave on `window`.                                                          |
-| `browser/support/claude/`       | The Claude session (`session.ts`) and an open run with its tools (`run.ts`).                                                          |
-| `browser/support/user/`         | The page object, one file per part of the page.                                                                                       |
-| `browser/support/fixtures.ts`   | The fixtures and the page guard.                                                                                                      |
-| `browser/support/constants.ts`  | Timings, screens, colours and accessibility rules.                                                                                    |
-| `browser/support/data.ts`       | Cards, questions and diagrams for browser tests.                                                                                      |
+| File                                    | What it holds                                                                                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/support/fixtures.ts`              | Valid card and question data, an id counter, `until()`.                                                                               |
+| `test/support/builders.ts`              | `anItem`, `aRun`, `anOpenQuestion`, `approvedAt`… for unit and component tests.                                                       |
+| `test/support/fakes.ts`                 | In-memory fakes of every port, `world()`, `seededWorld()`, `useCases(fakes)`, and `delivered`/`waited` (events as Claude reads them). |
+| `test/support/something-on-the-port.ts` | Whatever answers on the page's port, for the page's connection tests.                                                                 |
+| `test/support/tool-result.ts`           | A tool result from the MCP client, checked with zod.                                                                                  |
+| `test/browser/support/index.ts`         | The one import for specs: `from './support'`.                                                                                         |
+| `test/browser/support/types.ts`         | What the tests pass around, and the typings for what they leave on `window`.                                                          |
+| `test/browser/support/claude/`          | The Claude session (`session.ts`) and an open run with its tools (`run.ts`).                                                          |
+| `test/browser/support/user/`            | The page object, one file per part of the page.                                                                                       |
+| `test/browser/support/fixtures.ts`      | The fixtures and the page guard.                                                                                                      |
+| `test/browser/support/constants.ts`     | Timings, screens, colours and accessibility rules.                                                                                    |
+| `test/browser/support/data.ts`          | Cards, questions and diagrams for browser tests.                                                                                      |

@@ -11,7 +11,9 @@ export default defineConfig(
       parser: tseslint.parser,
       // Type-aware: some rules below need to know what a value is, not just how it's written.
       parserOptions: {
-        projectService: { allowDefaultProject: ['*.mjs', 'scripts/*.mjs', 'config/*.mjs', 'browser/support/*.mjs'] },
+        projectService: {
+          allowDefaultProject: ['*.mjs', 'scripts/*.mjs', 'config/*.mjs', 'test/browser/support/*.mjs'],
+        },
       },
     },
     plugins: { '@typescript-eslint': tseslint.plugin },

@@ -9,9 +9,9 @@ import { card } from '../data.ts';
 import type { ItemOnPage, RunOptions } from '../types.ts';
 import { OpenRun } from './run.ts';
 
-export const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+export const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const SERVER = join(packageRoot, 'dist', 'server.mjs');
-const LAUNCH_APART = join(packageRoot, 'browser', 'support', 'launch-apart.mjs');
+const LAUNCH_APART = join(packageRoot, 'test', 'browser', 'support', 'launch-apart.mjs');
 /** With HIDALGO_OPEN=0 the server prints the page it would open instead of opening it. */
 const OPENED_PAGE = /hidalgo page: (\S+)/g;
 
