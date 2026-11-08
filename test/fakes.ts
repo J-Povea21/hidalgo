@@ -147,7 +147,7 @@ export async function waited(cases: Modules, runId = 'r1') {
 export async function seededWorld() {
   const fakes = world();
   const nextId = counterIds();
-  let run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'v', now: T0, threadId: nextId('t') });
+  let run = newRun({ id: 'r1', skill: 'card', project: 'Storefront', subject: 'v', now: T0, threadId: nextId('t') });
   run = addItems(run, [{ kind: 'card', fields: card() }], nextId).run;
   run = ask(run, 'i1', [question()], nextId).run;
   await fakes.store.save(run);

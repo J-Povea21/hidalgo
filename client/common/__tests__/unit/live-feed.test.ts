@@ -4,7 +4,7 @@ import { aRun } from '@test/builders.ts';
 import { until } from '@test/fixtures.ts';
 import { pageOpenedOnItsPort, SESSION, SomethingOnThePort } from '@test/something-on-the-port.ts';
 import type { ConnectionKind } from '@client/common/domain/state.ts';
-import { HttpWorkbenchServer } from '@client/common/infrastructure/server.ts';
+import { HttpHidalgoServer } from '@client/common/infrastructure/server.ts';
 
 /** Retries a few milliseconds apart, so the story plays out quickly. */
 const QUICK_RETRIES = { firstGapMs: 2, longestGapMs: 10 };
@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 /** Follows the session and records what the page would show: the connection states and the run versions. */
-function followAndRecord(server: HttpWorkbenchServer) {
+function followAndRecord(server: HttpHidalgoServer) {
   const connections: ConnectionKind[] = [];
   const versions: number[] = [];
   running.push(
@@ -37,7 +37,7 @@ describe('following the session', () => {
     const port = new SomethingOnThePort({ answering: 'the real server' })
       .willSayGoodbye('session ended')
       .willStream(STREAM_EVENT.state, { state: aRun({ version: 9 }), claudeListening: true, claudeActiveAt: 1 });
-    const page = followAndRecord(new HttpWorkbenchServer(SESSION, QUICK_RETRIES));
+    const page = followAndRecord(new HttpHidalgoServer(SESSION, QUICK_RETRIES));
 
     await until(() => page.connections.includes('ended'));
     port.goesDown();
@@ -57,7 +57,7 @@ describe('following the session', () => {
     new SomethingOnThePort({ answering: 'the real server' }).willSayGoodbye('bye for now');
     const reasons: string[] = [];
     running.push(
-      new HttpWorkbenchServer(SESSION, QUICK_RETRIES).follow({
+      new HttpHidalgoServer(SESSION, QUICK_RETRIES).follow({
         state: () => {},
         claudeActivity: () => {},
         connection: (connection) => {

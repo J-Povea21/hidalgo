@@ -1,5 +1,5 @@
 /** A rule the caller broke. Carried back to Claude as the tool's error, never shown as a crash. */
-export class WorkbenchError extends Error {
+export class HidalgoError extends Error {
   constructor(
     readonly code:
       | 'not-found'
@@ -14,6 +14,6 @@ export class WorkbenchError extends Error {
     readonly details?: unknown,
   ) {
     super(message);
-    this.name = 'WorkbenchError';
+    this.name = 'HidalgoError';
   }
 }

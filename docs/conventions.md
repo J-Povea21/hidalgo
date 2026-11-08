@@ -1,6 +1,6 @@
-# Workbench conventions
+# Hidalgo conventions
 
-How workbench is built, and the rules a change to it follows. What a machine can
+How Hidalgo is built, and the rules a change to it follows. What a machine can
 check, `pnpm run check` checks; the rest is for whoever writes and reviews the change.
 How tests are written is in [`testing.md`](testing.md).
 
@@ -15,12 +15,12 @@ How tests are written is in [`testing.md`](testing.md).
 - **Nothing the user does is lost.** Every page event is written to the run's log before
   it is applied, and handed to Claude exactly once.
 - **One fixed format: the hello proof.** The page proves the server holds the run's token
-  with `HMAC(token, "workbench-hello|<nonce>|<port>|<build>")`. Old pages must be able to
+  with `HMAC(token, "hidalgo-hello|<nonce>|<port>|<build>")`. Old pages must be able to
   verify new servers, so this string never changes.
 
 ## Architecture: modules by area, each in layers
 
-The server and the page are both organised like Mi Plan v2's backend: a `common/` that
+The server and the page are both organised the same way: a `common/` that
 every module shares, one module per area of the product, and an `app/` that wires them.
 Inside each, the same four layers.
 
@@ -48,7 +48,7 @@ Inside a module (and inside `common/`):
 | `application/`    | use cases: one class per file (`*.use-case.ts`), with only `execute`; mappers (`mappers/*.mapper.ts`) | `domain/`, ports, `common/application`    |
 | `infrastructure/` | what implements the ports: disk, HTTP, processes, the browser                                         | `domain/`, ports, `common/infrastructure` |
 | `interface/`      | how the outside reaches the use cases: MCP tools and the Stop hook; page views                        | `application/`, `domain/`                 |
-| `__tests__/`      | `unit/` and `integration/`, as in Mi Plan                                                             | anything                                  |
+| `__tests__/`      | `unit/` and `integration/`                                                                            | anything                                  |
 
 Each server module has a `<area>.module.ts` that builds its use cases with `new`, from
 the adapters it is given (`runsModule`, `itemsModule`…); `server/app/modules.ts` builds
@@ -64,7 +64,7 @@ string token: a constructor parameter's type is the port it needs.
 | `server/items/`        | adding, updating, asking about and marking items done                                                                                                                                                                                                                                    |
 | `server/conversation/` | Claude's messages and the diagrams they embed (with the Mermaid writer)                                                                                                                                                                                                                  |
 | `server/page-events/`  | the mailbox: recording what the page sends, taking and waiting for it; images                                                                                                                                                                                                            |
-| `server/app/`          | the composition root (`Workbench`), the MCP host the tools run in, `main.ts`                                                                                                                                                                                                             |
+| `server/app/`          | the composition root (`Hidalgo`), the MCP host the tools run in, `main.ts`                                                                                                                                                                                                               |
 | `client/common/`       | the page's state and selectors, its ports, the server and browser adapters, the shared UI parts and styles, sending a page event, following the session                                                                                                                                  |
 | `client/run/`          | progress, the connection banner, the tab, the other open reviews                                                                                                                                                                                                                         |
 | `client/items/`        | the item panel, questions, the verdict, and one view per item kind (`interface/kinds/`)                                                                                                                                                                                                  |
@@ -139,7 +139,7 @@ it, so where it lives follows who uses it:
   `interface/` (`ToolHost` in `common/interface/mcp`, `RunPages` for `open_session`,
   `WaitHost` for `wait_for_events`); `server/app/tools.ts` implements them.
 - **Used by nothing but the app:** it isn't a port. It stays a plain method on the
-  composition root (the page address, `Workbench.pageUrl`).
+  composition root (the page address, `Hidalgo.pageUrl`).
 
 The errors a port can fail with live beside it.
 
@@ -252,8 +252,8 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
 - Markdown from Claude is rendered with raw HTML shown as text, then sanitized with
   DOMPurify. Diagrams enter only through `create_diagram`, which writes and escapes the
   Mermaid itself.
-- Run data lives in the plugin's data folder (`$CLAUDE_PLUGIN_DATA/workbench`), never
-  inside a repository.
+- Run data lives in `$CLAUDE_PLUGIN_DATA/hidalgo` when a plugin starts the server, and in
+  `~/.hidalgo` otherwise, never inside a repository.
 - **Accepted risks:**
   - If another program takes over a page's port and the user reloads the old address,
     that program can read the token from the fragment. The page still refuses to talk
@@ -270,10 +270,11 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
   or the environment). npm and a pnpm older than 10 would run them, so `engines` with
   `engine-strict` makes both refuse to install. The package's own
   `prepare` script still runs, which is what wires the hook below.
-- **`dist/` is committed.** It's unusual for a library, but it's what a plugin needs:
-  - Claude Code installs the plugin as a plain copy of the repository and starts the
-    server from `.claude-plugin/plugin.json` when the session opens, before any skill runs. A skill's
-    preflight step would come too late: the server would already have failed to start.
+- **`dist/` is committed.** It's unusual for a library, but it lets Hidalgo run straight from a
+  checkout:
+  - Claude Code starts an MCP server when the session opens, before any skill runs, and a
+    plugin is installed as a plain copy of its repository. A build step on first use would
+    come too late: the server would already have failed to start.
   - Building on each machine would mean every developer installs the development
     toolchain (TypeScript, esbuild, Mermaid, Playwright).
   - The bundle has no runtime dependencies; only Node is needed.
@@ -287,7 +288,7 @@ see, marked _(lint)_ below. Both run in `pnpm run check`. The rest is for review
 - `pnpm run check` is the single definition of every check: dependency rules, types,
   format, lint, tests, audit, a reproducible bundle, and the size budget.
 - `pnpm install` points git at `.githooks/pre-push` (the `prepare` script), which runs
-  `check` before any push that touches `servers/workbench/`. There is no CI yet, so
+  `check` before every push. There is no CI yet, so
   this hook is the gate; `git push --no-verify` skips it.
 - **Every script is Node, never shell**, so it runs the same on macOS, Linux and Windows.
   The hook itself is one line of `sh` that hands over to `scripts/pre-push.mjs`; Git runs

@@ -1,20 +1,20 @@
 /** Shared test data: a valid card and question, and a deterministic id generator. */
 export const T0 = '2026-10-24T22:00:00.000Z';
 
-export function card(title = 'Formulación - OfficesExist validator returns 500 on a non-array') {
+export function card(title = 'Checkout - CouponExists validator returns 500 on a non-array') {
   return {
     title,
     tags: ['backend', 'bug'],
     proposal: { priority: 'high', shape: 'one card', status: 'ready for work', related: 'none' },
     body: {
-      what: '`officeIds` sent as anything other than an array returns a 500 instead of a 400.',
-      where: ['`src/common/decorators/validators/offices-exist.decorator.ts:12`'],
+      what: '`couponIds` sent as anything other than an array returns a 500 instead of a 400.',
+      where: ['`src/common/decorators/validators/coupon-exists.decorator.ts:12`'],
     },
     criteria: [
       { mode: 'code' as const, text: 'The validator guards its own input' },
       { mode: 'test' as const, text: 'A unit test covers each non-array input type' },
     ],
-    manualQa: ['Submitting the activity form with valid offices still saves, in development'],
+    manualQa: ['Submitting the order form with valid coupons still saves, in development'],
     assuming: [],
     provenance: 'investigator: high confidence',
   };

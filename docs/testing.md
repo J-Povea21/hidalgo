@@ -1,4 +1,4 @@
-# Testing workbench
+# Testing Hidalgo
 
 How the tests are organised, how a test should read, and how robust it has to be.
 The rules here are the ones a reviewer applies; `pnpm run check` enforces what a
@@ -63,7 +63,7 @@ reads as what happens:
 
 - **Browser tests** (`browser/support/`, imported through `browser/support/index.ts`):
   - `claude`, a Claude session driving a real server. `claude.opensRun()` returns the run,
-    and what Claude does with it is on the run, one method per workbench tool:
+    and what Claude does with it is on the run, one method per Hidalgo tool:
     `run.waitForTheUser()`, `run.say()`, `run.revise()`, `run.pause()`, `run.resume()`
     (`claude/run.ts`). `claude.ends()`, `crashes()` and `restarts()` act on the server
     itself (`claude/session.ts`).
@@ -89,7 +89,7 @@ test('the answers reach Claude, and then Approve unlocks', async ({ claude, user
 });
 ```
 
-**Adding to the support code.** A new workbench tool is a new method on `OpenRun`. A new
+**Adding to the support code.** A new Hidalgo tool is a new method on `OpenRun`. A new
 part of the page is a new file in `browser/support/user/`, added to `UserInPage`. A spec
 never reaches for raw selectors that a part could name; if it needs one, the part gets it.
 Timings, screens and colours live in `browser/support/constants.ts`, derived from the

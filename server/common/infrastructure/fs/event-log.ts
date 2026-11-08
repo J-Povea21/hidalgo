@@ -43,7 +43,7 @@ export class FsEventLog implements EventLog {
         const event: RecordedEvent = JSON.parse(line);
         return [event];
       } catch {
-        console.error(`workbench: events.log of run ${runId}, line ${index + 1} is not valid JSON; skipped`);
+        console.error(`hidalgo: events.log of run ${runId}, line ${index + 1} is not valid JSON; skipped`);
         return [];
       }
     });

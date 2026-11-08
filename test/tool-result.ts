@@ -6,7 +6,7 @@ const ToolResult = z.object({
 });
 
 /**
- * A workbench tool's result as the MCP client hands it back, checked rather than assumed:
+ * A Hidalgo tool's result as the MCP client hands it back, checked rather than assumed:
  * the tool's own answer (its JSON body), and whether the tool reported an error.
  */
 export function readToolResult(result: unknown): { body: string; isError: boolean } {

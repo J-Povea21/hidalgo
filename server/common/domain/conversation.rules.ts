@@ -4,7 +4,7 @@
  * (page-events/) post messages, and modules can't import each other.
  */
 import type { Diagram, Message, RunState } from '@shared/contract.ts';
-import { WorkbenchError } from './errors.ts';
+import { HidalgoError } from './errors.ts';
 import { assertOpen, clone, findItem, touch } from './run.rules.ts';
 
 /**
@@ -27,10 +27,10 @@ export function addMessage(
   if (message.replyTo !== undefined) {
     const fromEvent = run.eventThreads[message.replyTo];
     if (!fromEvent) {
-      throw new WorkbenchError('not-found', `no recorded event #${message.replyTo} in run ${run.id}`);
+      throw new HidalgoError('not-found', `no recorded event #${message.replyTo} in run ${run.id}`);
     }
     if (threadId !== undefined && threadId !== fromEvent) {
-      throw new WorkbenchError(
+      throw new HidalgoError(
         'thread-mismatch',
         `event #${message.replyTo} came from thread ${fromEvent}, not ${threadId}; nothing was posted`,
       );
@@ -39,10 +39,10 @@ export function addMessage(
   }
   assertOpen(run);
   if (threadId === undefined) {
-    throw new WorkbenchError('invalid', 'a message needs replyTo or threadId');
+    throw new HidalgoError('invalid', 'a message needs replyTo or threadId');
   }
   if (!run.threads.some((thread) => thread.id === threadId)) {
-    throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
+    throw new HidalgoError('not-found', `no thread ${threadId} in run ${run.id}`);
   }
   const posted: Message = {
     id: message.id,
@@ -65,7 +65,7 @@ export function threadOfItem(run: RunState, itemId: string): string {
 
 export function rememberEventThread(run: RunState, seq: number, threadId: string): RunState {
   if (!run.threads.some((thread) => thread.id === threadId)) {
-    throw new WorkbenchError('not-found', `no thread ${threadId} in run ${run.id}`);
+    throw new HidalgoError('not-found', `no thread ${threadId} in run ${run.id}`);
   }
   return { ...run, eventThreads: { ...run.eventThreads, [seq]: threadId } };
 }

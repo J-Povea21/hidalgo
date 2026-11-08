@@ -13,11 +13,11 @@ export function registerRunsTools(server: McpServer, runs: RunsModule, host: Too
     'open_session',
     {
       description:
-        "Start a workbench run (or resume one) and open its page in the browser. Returns the run id and the whole-run thread id (for send_message). Resuming replays anything the user did while no server was running; if the run's page is already open, that tab is told instead of opening another (opened:false, alreadyOpen).",
+        "Start a Hidalgo run (or resume one) and open its page in the browser. Returns the run id and the whole-run thread id (for send_message). Resuming replays anything the user did while no server was running; if the run's page is already open, that tab is told instead of opening another (opened:false, alreadyOpen).",
       inputSchema: {
         skill: z.string().describe('The skill using the page, e.g. "card".'),
-        project: z.string().describe('Project name from references/projects.json, e.g. "MiPlan".'),
-        subject: z.string().max(60).describe('Short subject for the tab title, e.g. "OfficesExist validator".'),
+        project: z.string().describe('Project the run belongs to, e.g. "Storefront".'),
+        subject: z.string().max(60).describe('Short subject for the tab title, e.g. "CouponExists validator".'),
         resume: z.string().optional().describe('Id of an unfinished run to resume (see list_runs).'),
       },
     },

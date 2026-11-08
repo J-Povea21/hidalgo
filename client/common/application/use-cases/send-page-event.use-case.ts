@@ -1,6 +1,6 @@
 import type { PageEvent } from '@shared/contract.ts';
 import { ApiError } from '@client/common/domain/errors.ts';
-import type { WorkbenchServer } from '@client/common/ports/workbench-server.port.ts';
+import type { HidalgoServer } from '@client/common/ports/hidalgo-server.port.ts';
 
 export interface SendPageEventInput {
   event: PageEvent;
@@ -14,7 +14,7 @@ export type SendOutcome =
 
 /** Sends what the user did to Claude. Never throws: every way it can go is an outcome. */
 export class SendPageEventUseCase {
-  constructor(private readonly server: WorkbenchServer) {}
+  constructor(private readonly server: HidalgoServer) {}
 
   async execute(input: SendPageEventInput): Promise<SendOutcome> {
     try {

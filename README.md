@@ -1,11 +1,12 @@
-# workbench
+# Hidalgo
 
-The interactive page where a developer and Claude work through a skill together.
+A local page where a developer and an AI agent work through a task together: the agent
+shows its work, asks its questions, and waits for your verdict.
 
-A skill's work is mostly decisions, and walls of text are a poor way to make them.
-Workbench turns that work into something to act on:
+An agent's work is mostly decisions, and walls of text are a poor way to make them.
+Hidalgo turns that work into something to act on:
 
-- Claude's questions come as small choices you select, one at a time.
+- The agent's questions come as small choices you select, one at a time.
 - Each card or finding has its own conversation, so a discussion stays with the thing it
   is about.
 - The work itself takes shape where you can see it: the card being written, a review's
@@ -13,21 +14,46 @@ Workbench turns that work into something to act on:
 
 You spend your attention on thinking and deciding, not on reading.
 
-Under the page is a local MCP server, shipped inside this plugin. Claude drives the page
-through its tools, and everything you do there comes back to Claude as events. The rules
-that matter are enforced by the server itself:
+Under the page is a local MCP server. The agent drives the page through its tools, and
+everything you do there comes back to the agent as events. The rules that matter are
+enforced by the server itself:
 
 - Approve stays blocked while a question is open.
 - A verdict counts only for the revision on screen.
 - A run doesn't close until every item has an outcome.
 
-## Using it
+## Using it with Claude Code
 
-Nothing to install. The plugin declares the server in `.claude-plugin/plugin.json`
-(`mcpServers`), and Claude Code starts it with the session. `dist/` is committed, so it runs straight from the plugin with only
-Node.
+`dist/` is committed, so a checkout runs with only Node 20 or later.
 
-Data lives in `${CLAUDE_PLUGIN_DATA}/workbench/`:
+```bash
+git clone git@github.com:J-Povea21/hidalgo.git
+claude mcp add hidalgo --scope user -- node "$PWD/hidalgo/dist/server.mjs"
+```
+
+Then add the Stop hook to `~/.claude/settings.json`. It stops a turn from ending while a
+run's page is waiting on an agent that isn't listening:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "node /path/to/hidalgo/dist/stop-hook.mjs", "timeout": 5 }]
+      }
+    ]
+  }
+}
+```
+
+The tools are `open_session`, `add_items`, `ask`, `update_item`, `send_message`,
+`create_diagram`, `wait_for_events`, `set_status`, `mark_done`, `list_runs` and
+`close_session`. A skill calls `open_session` first, shows its work with `add_items` and
+`ask`, calls `wait_for_events` whenever it is the user's turn, and `close_session` at the
+end.
+
+Data lives in `~/.hidalgo/`, or in `${CLAUDE_PLUGIN_DATA}/hidalgo/` when a Claude Code
+plugin starts the server:
 
 - `runs/<project>/<run id>/` holds each run's state, event log and images;
 - `live/` lists the pages open right now.
@@ -37,7 +63,6 @@ Closed runs are removed after 7 days; unfinished runs are kept until you decide.
 ## Developing it
 
 ```bash
-cd servers/workbench
 pnpm install --frozen-lockfile  # also turns on the pre-push check; no dependency runs code
 pnpm run check                  # every check: what the pre-push hook runs
 pnpm test                       # unit, component and end-to-end tests

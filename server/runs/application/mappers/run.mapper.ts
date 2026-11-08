@@ -16,7 +16,7 @@ export interface RunSummaryResponse {
   subject: string;
   status: RunState['status'];
   startedAt: string;
-  /** Whether a workbench server is serving it right now (another session, maybe). */
+  /** Whether a Hidalgo server is serving it right now (another session, maybe). */
   live: boolean;
   /** Open questions plus items ready for a verdict. */
   pendingForUser: number;

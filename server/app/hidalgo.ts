@@ -36,7 +36,7 @@ const BROWSER_OPENER: Partial<Record<NodeJS.Platform, (url: string) => [string, 
   win32: (url) => ['cmd', ['/c', 'start', '', url]],
 };
 
-export interface WorkbenchConfig {
+export interface HidalgoConfig {
   dataRoot: string;
   clientDir: string;
   limits: Limits;
@@ -64,7 +64,7 @@ export function openInBrowser(url: string): void {
  * The composition root: builds every adapter, hands them to the modules, and
  * owns the process-level jobs (the HTTP port, heartbeats, cleanup, shutdown).
  */
-export class Workbench {
+export class Hidalgo {
   readonly clock = new SystemClock();
   /** When this server started: a page last seen before it may still be retrying to reach it. */
   private readonly bornAt = Date.parse(this.clock.now());
@@ -92,7 +92,7 @@ export class Workbench {
   private port = 0;
   private heartbeat?: NodeJS.Timeout;
 
-  constructor(private readonly config: WorkbenchConfig) {
+  constructor(private readonly config: HidalgoConfig) {
     this.limits = config.limits;
     this.ownerPid = config.ownerPid ?? process.ppid;
     this.store = new FsRunStore(config.dataRoot);
@@ -268,7 +268,7 @@ export class Workbench {
   }
 
   /**
-   * After a /mcp reconnect, Claude Code starts a new workbench under the same
+   * After a /mcp reconnect, Claude Code starts a new Hidalgo server under the same
    * process: serve again the runs that process had open, so their tabs come
    * back by themselves. Only one port can be reclaimed per server; other tabs
    * say the run moved and get a fresh page on resume.

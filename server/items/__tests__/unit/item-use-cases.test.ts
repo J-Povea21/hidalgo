@@ -13,7 +13,7 @@ import { applyVerdict } from '@server/common/domain/item.rules.ts';
 async function setup() {
   const fakes = world();
   const cases = useCases(fakes);
-  const { run } = await cases.runs.openSession.execute({ skill: 'card', project: 'MiPlan', subject: 'v' });
+  const { run } = await cases.runs.openSession.execute({ skill: 'card', project: 'Storefront', subject: 'v' });
   const [item] = await cases.items.addItems.execute({
     runId: run.id,
     items: [{ kind: 'card', fields: card() }],
@@ -67,14 +67,14 @@ describe("the use cases that change a run from Claude's side", () => {
 
   it('mark-done needs an approval of the current revision, and then close works', async () => {
     const { fakes, cases, runId, itemId } = await setup();
-    await expect(cases.items.markDone.execute({ runId, itemId, note: 'created 86e3' })).rejects.toMatchObject({
+    await expect(cases.items.markDone.execute({ runId, itemId, note: 'created ABC-142' })).rejects.toMatchObject({
       code: 'invalid',
     });
     await fakes.store.save(applyVerdict((await fakes.store.load(runId))!, itemId, 1, 'approved', 'now'));
     await expect(cases.runs.closeSession.execute({ runId, status: 'closed', outcome: 'x' })).rejects.toMatchObject({
       code: 'open-items',
     });
-    await cases.items.markDone.execute({ runId, itemId, note: 'created 86e3' });
+    await cases.items.markDone.execute({ runId, itemId, note: 'created ABC-142' });
     const closed = await cases.runs.closeSession.execute({ runId, status: 'closed', outcome: 'created 1' });
     expect(RunMapper.toClosed(closed)).toEqual({ status: 'closed' });
     expect(fakes.page.last!.status).toBe('closed');

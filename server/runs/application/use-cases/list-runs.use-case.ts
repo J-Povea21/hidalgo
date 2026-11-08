@@ -10,7 +10,7 @@ export interface ListRunsInput {
 
 export interface ListedRuns {
   runs: RunState[];
-  /** The runs a workbench server is serving right now (another session's, maybe). */
+  /** The runs a Hidalgo server is serving right now (another session's, maybe). */
   liveRunIds: Set<string>;
 }
 

@@ -22,7 +22,7 @@ interface Fixtures {
 /**
  * The fixtures every browser test gets:
  *
- * - `claude`: a Claude session driving a real workbench server (claude/session.ts);
+ * - `claude`: a Claude session driving a real Hidalgo server (claude/session.ts);
  * - `user`: the user in the page (user/user.ts);
  * - `anotherClaude()`: a second session on the same machine, for tests about two;
  * - `net`: which requests carried the run's token, to prove it never went somewhere.

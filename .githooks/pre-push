@@ -1,4 +1,4 @@
 #!/bin/sh
 # Git runs hooks with sh on every OS (Git for Windows bundles one), so this file
 # stays a one-line hand-off: the gate itself is scripts/pre-push.mjs, in Node.
-exec node "$(git rev-parse --show-toplevel)/servers/workbench/scripts/pre-push.mjs"
+exec node "$(git rev-parse --show-toplevel)/scripts/pre-push.mjs"

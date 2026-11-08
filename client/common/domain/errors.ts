@@ -1,5 +1,5 @@
 /**
- * What the WorkbenchServer port can fail with (workbench-server.port.ts): a request the
+ * What the HidalgoServer port can fail with (hidalgo-server.port.ts): a request the
  * server refused, or one the page wouldn't send. `message` is fit to show the user.
  */
 export class ApiError extends Error {

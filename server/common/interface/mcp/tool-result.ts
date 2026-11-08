@@ -1,6 +1,6 @@
 /** What every tool returns: compact JSON, and a known error's code and message instead of a stack. */
 import { z } from 'zod';
-import { WorkbenchError } from '@server/common/domain/errors.ts';
+import { HidalgoError } from '@server/common/domain/errors.ts';
 
 export const RunId = z.string().describe('The run id open_session returned.');
 
@@ -11,7 +11,7 @@ export function ok(body: unknown): ToolResult {
 }
 
 export function err(error: unknown): ToolResult {
-  const known = error instanceof WorkbenchError ? error : undefined;
+  const known = error instanceof HidalgoError ? error : undefined;
   const body = known
     ? { error: known.code, message: known.message, ...(known.details ? { details: known.details } : {}) }
     : { error: 'internal', message: error instanceof Error ? error.message : String(error) };

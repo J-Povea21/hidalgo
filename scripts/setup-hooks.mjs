@@ -24,7 +24,7 @@ try {
   } else if (resolve(top, current) !== hooksDir) {
     // Someone already chose their own hooks; never silently replace them.
     console.warn(
-      `workbench: core.hooksPath is "${current}", so the pre-push check in ${want} is not active. ` +
+      `hidalgo: core.hooksPath is "${current}", so the pre-push check in ${want} is not active. ` +
         `Call ${want}/pre-push from your own hook to enable it.`,
     );
   }

@@ -16,7 +16,7 @@ export function openQuestions(item: Item): Question[] {
   return item.questions.filter((question) => !question.answer);
 }
 
-/** Final: rejected, or approved and done outside the workbench. Only then may a run close. */
+/** Final: rejected, or approved and done outside the hidalgo. Only then may a run close. */
 export function isFinal(item: Item): boolean {
   const verdict = currentVerdict(item);
   return verdict === VERDICT.rejected || (verdict === VERDICT.approved && !!item.done);

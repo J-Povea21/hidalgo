@@ -48,11 +48,11 @@ export function registerItemsTools(server: McpServer, items: ItemsModule, host: 
     'mark_done',
     {
       description:
-        'Record that an approved item now exists outside the workbench (e.g. the ClickUp card was created). Only an item approved at its current revision qualifies.',
+        'Record that an approved item now exists outside Hidalgo (e.g. the card was created in the tracker). Only an item approved at its current revision qualifies.',
       inputSchema: {
         runId: RunId,
         itemId: z.string(),
-        note: z.string().min(1).max(300).describe('e.g. "created 86e3abc12"'),
+        note: z.string().min(1).max(300).describe('e.g. "created ABC-142"'),
       },
     },
     (input) => host.onRun(input.runId, async () => ItemMapper.toDone(await items.markDone.execute(input))),

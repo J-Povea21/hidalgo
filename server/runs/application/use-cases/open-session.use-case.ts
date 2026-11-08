@@ -1,5 +1,5 @@
 import type { RunState } from '@shared/contract.ts';
-import { WorkbenchError } from '@server/common/domain/errors.ts';
+import { HidalgoError } from '@server/common/domain/errors.ts';
 import { replay } from '@server/common/domain/page-event.rules.ts';
 import { newRun, reopen } from '@server/common/domain/run.rules.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
@@ -42,10 +42,10 @@ export class OpenSessionUseCase {
   private async resumed(runId: string): Promise<RunState> {
     const saved = await this.store.load(runId);
     if (!saved) {
-      throw new WorkbenchError('not-found', `no run ${runId} to resume; list_runs shows the project's runs`);
+      throw new HidalgoError('not-found', `no run ${runId} to resume; list_runs shows the project's runs`);
     }
     if (saved.status === RUN_STATUS.closed) {
-      throw new WorkbenchError('closed', `run ${runId} is closed and can't be resumed`);
+      throw new HidalgoError('closed', `run ${runId} is closed and can't be resumed`);
     }
     return reopen(replay(saved, await this.log.after(saved.id, saved.appliedSeq)));
   }

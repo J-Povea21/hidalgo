@@ -6,7 +6,7 @@ interface OpenReviewsProps {
   load: () => Promise<LiveEntry[]>;
 }
 
-/** Other workbench pages open right now on this machine, any session or project. */
+/** Other Hidalgo pages open right now on this machine, any session or project. */
 export function OpenReviews(props: OpenReviewsProps) {
   /** undefined while loading. */
   const [others, setOthers] = useState<LiveEntry[]>();

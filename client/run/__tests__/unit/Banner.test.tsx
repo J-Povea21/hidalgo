@@ -26,7 +26,7 @@ describe('ConnectionBanner', () => {
 
   it('a stale page says it must be reloaded, and offers to', () => {
     render(<ConnectionBanner connection={{ kind: 'stale' }} listening={false} idle={false} runStatus="open" />);
-    expect(screen.getByRole('alert').textContent).toContain('older version of workbench');
+    expect(screen.getByRole('alert').textContent).toContain('older version of Hidalgo');
     expect(screen.getByRole('button', { name: 'Reload the page' })).toBeTruthy();
   });
 

@@ -54,7 +54,7 @@ export async function removeTree(path: string): Promise<void> {
   await rm(path, { recursive: true, force: true });
 }
 
-/** A folder-safe version of a project name ("Mi Titulo" → "mi-titulo"). */
+/** A folder-safe version of a project name ("Back Office" → "back-office"). */
 export function slug(text: string): string {
   return (
     text

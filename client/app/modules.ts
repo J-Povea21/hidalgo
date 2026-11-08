@@ -1,13 +1,13 @@
 import { FollowSessionUseCase } from '@client/common/application/use-cases/follow-session.use-case.ts';
 import { SendPageEventUseCase } from '@client/common/application/use-cases/send-page-event.use-case.ts';
-import type { WorkbenchServer } from '@client/common/ports/workbench-server.port.ts';
+import type { HidalgoServer } from '@client/common/ports/hidalgo-server.port.ts';
 import { conversationModule, type ConversationModule } from '@client/conversation/conversation.module.ts';
 import type { ImageShrinker } from '@client/conversation/domain/ports/image-shrinker.port.ts';
 import { runModule, type RunModule } from '@client/run/run.module.ts';
 
 /** The adapters the page's use cases run over; main.tsx builds the browser's. */
 export interface PageAdapters {
-  server: WorkbenchServer;
+  server: HidalgoServer;
   shrinker: ImageShrinker;
 }
 

@@ -9,7 +9,7 @@ const FORGED_PROOF = 'f'.repeat(64);
 
 /** The proof only the server holding the token can make, for this nonce, port and build. */
 export function realProof(nonce: string, port = PAGE_PORT, build = 'dev'): string {
-  return createHmac('sha256', SESSION.token).update(`workbench-hello|${nonce}|${port}|${build}`).digest('hex');
+  return createHmac('sha256', SESSION.token).update(`hidalgo-hello|${nonce}|${port}|${build}`).digest('hex');
 }
 
 /** Puts the page at its address, as the browser would. */
@@ -90,6 +90,6 @@ export class SomethingOnThePort {
       'an impostor relaying the real proof': realProof(nonce, OTHER_PORT, build),
       'a stranger': FORGED_PROOF,
     }[this.options.answering];
-    return new Response(JSON.stringify({ server: 'workbench', run: SESSION.runId, build, proof }));
+    return new Response(JSON.stringify({ server: 'hidalgo', run: SESSION.runId, build, proof }));
   }
 }

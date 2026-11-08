@@ -1,6 +1,6 @@
 import { TOKEN_HEADER } from '@shared/constants.ts';
 import type { LiveEntry, PageEvent } from '@shared/contract.ts';
-import type { FeedListener, SentEvent, WorkbenchServer } from '@client/common/ports/workbench-server.port.ts';
+import type { FeedListener, SentEvent, HidalgoServer } from '@client/common/ports/hidalgo-server.port.ts';
 import { ApiError, NotConnectedError } from '@client/common/domain/errors.ts';
 import { IDENTITY, type Identity, proveServer } from './identity.ts';
 import { LiveFeed, RETRY, type ProvableServer, type RetryPolicy } from './live-feed.ts';
@@ -10,7 +10,7 @@ import type { Session } from './session.ts';
  * The page's only door to Claude's session. The token goes in a header, and only to a
  * server that proved, on this connection, that it holds it (identity.ts).
  */
-export class HttpWorkbenchServer implements WorkbenchServer, ProvableServer {
+export class HttpHidalgoServer implements HidalgoServer, ProvableServer {
   private proven = false;
   /** Image names are content hashes, so one blob URL per name serves every view for the tab's life. */
   private readonly blobs = new Map<string, Promise<string>>();

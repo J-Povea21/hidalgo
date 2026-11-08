@@ -1,6 +1,6 @@
 import { STREAM_EVENT } from '@shared/constants.ts';
 import type { RunState } from '@shared/contract.ts';
-import type { FeedListener } from '@client/common/ports/workbench-server.port.ts';
+import type { FeedListener } from '@client/common/ports/hidalgo-server.port.ts';
 import { CONNECTION, type Connection, LOST_AFTER_MS, type ClaudeActivity } from '@client/common/domain/state.ts';
 import { IDENTITY, type Identity } from './identity.ts';
 import { readSse } from './sse.ts';

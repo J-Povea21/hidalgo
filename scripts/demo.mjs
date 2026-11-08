@@ -1,7 +1,7 @@
 // Runs the real bundled server over stdio with a demo run, for trying the page
 // by hand or driving it headless. Prints each page event and answers it.
 //   pnpm run demo            opens the page in your browser
-//   WORKBENCH_OPEN=0 pnpm run demo   prints the address instead
+//   HIDALGO_OPEN=0 pnpm run demo   prints the address instead
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -10,14 +10,14 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
-const data = mkdtempSync(join(tmpdir(), 'workbench-demo-'));
+const data = mkdtempSync(join(tmpdir(), 'hidalgo-demo-'));
 const transport = new StdioClientTransport({
   command: process.execPath,
   args: [join(root, 'dist', 'server.mjs')],
   env: { ...process.env, CLAUDE_PLUGIN_DATA: data },
   stderr: 'inherit',
 });
-const client = new Client({ name: 'workbench-demo', version: '1' });
+const client = new Client({ name: 'hidalgo-demo', version: '1' });
 await client.connect(transport);
 
 const call = async (name, args) => {
@@ -40,7 +40,7 @@ const card = (title, what) => ({
   },
   body: {
     what,
-    where: ['`src/common/decorators/validators/offices-exist.decorator.ts:12`, throws instead of returning `false`'],
+    where: ['`src/common/decorators/validators/coupon-exists.decorator.ts:12`, throws instead of returning `false`'],
     why: 'class-validator runs custom constraints without a try/catch.',
   },
   criteria: [
@@ -50,28 +50,32 @@ const card = (title, what) => ({
     },
     { mode: 'test', text: 'A unit test covers each non-array input type alongside a valid array' },
   ],
-  manualQa: ['Submitting the activity form with a valid set of offices still saves, in development'],
+  manualQa: ['Submitting the order form with a valid set of coupons still saves, in development'],
   assuming: ['No client relies on the 500 to detect a bad payload'],
   provenance: 'Demo data: nothing here is created anywhere.',
 });
 
-const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 'OfficesExist validator' });
+const { runId } = await call('open_session', {
+  skill: 'card',
+  project: 'Storefront',
+  subject: 'CouponExists validator',
+});
 const { added } = await call('add_items', {
   runId,
   items: [
     {
       kind: 'card',
       fields: card(
-        'Formulación - OfficesExist validator returns 500 on a non-array',
-        '`officeIds` sent as anything other than an array returns a 500 instead of a 400.',
+        'Checkout - CouponExists validator returns 500 on a non-array',
+        '`couponIds` sent as anything other than an array returns a 500 instead of a 400.',
       ),
     },
     {
       kind: 'card',
       fields: {
         ...card(
-          'Formulación - Activity form shows the validation message for offices',
-          'The form shows a generic error instead of saying what is wrong with the offices.',
+          'Checkout - Order form shows the validation message for coupons',
+          'The form shows a generic error instead of saying what is wrong with the coupons.',
         ),
         tags: ['frontend'],
       },
@@ -86,7 +90,7 @@ await call('ask', {
       text: 'Four other validators follow the same pattern. Fix them here or card them separately?',
       evidence: [
         { kind: 'verified', text: '4 matches under `src/common/decorators/validators/`' },
-        { kind: 'judgement', text: 'Only `OfficesExist` has a reported failure' },
+        { kind: 'judgement', text: 'Only `CouponExists` has a reported failure' },
       ],
       options: [
         { label: 'Card them separately', detail: 'Keeps this PR to one file.' },
@@ -102,7 +106,7 @@ const { embed } = await call('create_diagram', {
     type: 'sequence',
     participants: [
       { id: 'P', label: 'Page' },
-      { id: 'S', label: 'Workbench (Item(kind): "rules")' },
+      { id: 'S', label: 'Hidalgo (Item(kind): "rules")' },
       { id: 'C', label: 'Claude' },
     ],
     steps: [

@@ -1,7 +1,7 @@
 import { DiagramSpec, type Diagram } from '@shared/contract.ts';
 import type { RunChanges } from '@server/common/application/run-changes.ts';
 import { addDiagram } from '@server/common/domain/conversation.rules.ts';
-import { WorkbenchError } from '@server/common/domain/errors.ts';
+import { HidalgoError } from '@server/common/domain/errors.ts';
 import type { Ids } from '@server/common/ports/ids.port.ts';
 import { toMermaid, toOutline } from '@server/conversation/domain/mermaid.ts';
 
@@ -24,7 +24,7 @@ export class CreateDiagramUseCase {
   async execute(input: CreateDiagramInput): Promise<Diagram> {
     const parsed = DiagramSpec.safeParse(input.spec);
     if (!parsed.success) {
-      throw new WorkbenchError('invalid', 'diagram spec is not valid', parsed.error.issues);
+      throw new HidalgoError('invalid', 'diagram spec is not valid', parsed.error.issues);
     }
     const mermaid = toMermaid(parsed.data);
     const outline = toOutline(parsed.data);

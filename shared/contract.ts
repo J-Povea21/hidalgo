@@ -1,5 +1,5 @@
 /**
- * The contract between the workbench server and its page. Both import this
+ * The contract between the Hidalgo server and its page. Both import this
  * file; it imports nothing of ours. A field renamed here breaks both sides
  * at compile time.
  */
@@ -37,7 +37,7 @@ export const CardFields = z.object({
 export type CardFields = z.infer<typeof CardFields>;
 
 /**
- * Every kind the workbench can show. pr-review and review-queue add theirs here.
+ * Every kind Hidalgo can show. A new kind adds its schema here and its view in client/items/interface/kinds.
  * Every kind has a `title`: the tab, the progress bar and list_runs show it.
  */
 export const ITEM_KINDS = ['card'] as const;
@@ -101,7 +101,7 @@ interface ItemBase {
   questions: Question[];
   threadId: string;
   verdict?: Verdict;
-  /** Set by the skill once an approved item exists in the outside world (e.g. the ClickUp card). */
+  /** Set by the skill once an approved item exists in the outside world (e.g. the card in the tracker). */
   done?: { at: string; note: string };
   /** Criterion edits made by the user since the last revision, by field path. */
   edits?: Record<string, string>;

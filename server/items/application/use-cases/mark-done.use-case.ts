@@ -10,8 +10,8 @@ export interface MarkDoneInput {
 }
 
 /**
- * Records that an approved item now exists outside the workbench (the ClickUp
- * card was created). Only an item approved at its current revision qualifies.
+ * Records that an approved item now exists outside Hidalgo (the card was
+ * created in the tracker). Only an item approved at its current revision qualifies.
  */
 export class MarkDoneUseCase {
   constructor(

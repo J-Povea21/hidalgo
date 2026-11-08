@@ -1,7 +1,7 @@
 {
-  "name": "workbench",
+  "name": "@j-povea21/hidalgo",
   "private": true,
-  "description": "Local MCP server and page every planeacion-tools skill uses to work with the developer in the browser.",
+  "description": "A local MCP server and page where a developer reviews, questions and approves an AI agent's work.",
   "type": "module",
   "packageManager": "pnpm@10.32.1",
   "engines": {

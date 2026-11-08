@@ -24,10 +24,10 @@ function asOwner(entry: { status: string; claudeListening: boolean; owner: 'self
   const parent = `
     const { mkdirSync, writeFileSync } = require('node:fs');
     const { execFileSync } = require('node:child_process');
-    const live = ${JSON.stringify(join(data, 'workbench', 'live'))};
+    const live = ${JSON.stringify(join(data, 'hidalgo', 'live'))};
     mkdirSync(live, { recursive: true });
     writeFileSync(live + '/r1.json', JSON.stringify({
-      runId: 'r1', project: 'MiPlan', skill: 'card', subject: 'validator', port: 1, pid: process.pid,
+      runId: 'r1', project: 'Storefront', skill: 'card', subject: 'validator', port: 1, pid: process.pid,
       processStartedAt: '', heartbeat: new Date().toISOString(), pendingForUser: 1, url: '',
       status: ${JSON.stringify(entry.status)}, claudeListening: ${entry.claudeListening},
       ownerPid: ${entry.owner === 'self' ? 'process.pid' : '1'},

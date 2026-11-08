@@ -9,7 +9,7 @@ describe('open-session', () => {
     const cases = useCases(fakes);
     const { run, resumed } = await cases.runs.openSession.execute({
       skill: 'card',
-      project: 'MiPlan',
+      project: 'Storefront',
       subject: 'validator',
     });
     expect(resumed).toBe(false);
@@ -20,7 +20,7 @@ describe('open-session', () => {
   it('resumes a run and replays page events the saved state had not absorbed', async () => {
     const fakes = world();
     const cases = useCases(fakes);
-    const { run } = await cases.runs.openSession.execute({ skill: 'card', project: 'MiPlan', subject: 'v' });
+    const { run } = await cases.runs.openSession.execute({ skill: 'card', project: 'Storefront', subject: 'v' });
     const withItem = addItems(run, [{ kind: 'card', fields: card() }], (prefix) => fakes.ids.next(prefix)).run;
     await fakes.store.save(withItem);
     // The event reached the log, then the server died before saving the applied state.
@@ -34,7 +34,7 @@ describe('open-session', () => {
 
     const resumed = await cases.runs.openSession.execute({
       skill: 'card',
-      project: 'MiPlan',
+      project: 'Storefront',
       subject: 'v',
       resume: run.id,
     });
@@ -47,25 +47,25 @@ describe('open-session', () => {
     const fakes = world();
     const cases = useCases(fakes);
     await expect(
-      cases.runs.openSession.execute({ skill: 'card', project: 'MiPlan', subject: 'v', resume: 'nope' }),
+      cases.runs.openSession.execute({ skill: 'card', project: 'Storefront', subject: 'v', resume: 'nope' }),
     ).rejects.toMatchObject({ code: 'not-found' });
-    const { run } = await cases.runs.openSession.execute({ skill: 'card', project: 'MiPlan', subject: 'v' });
+    const { run } = await cases.runs.openSession.execute({ skill: 'card', project: 'Storefront', subject: 'v' });
     await fakes.store.save({ ...run, status: 'closed' });
     await expect(
-      cases.runs.openSession.execute({ skill: 'card', project: 'MiPlan', subject: 'v', resume: run.id }),
+      cases.runs.openSession.execute({ skill: 'card', project: 'Storefront', subject: 'v', resume: run.id }),
     ).rejects.toMatchObject({ code: 'closed' });
   });
 
   it('resuming a paused run reopens it', async () => {
     const fakes = world();
     const cases = useCases(fakes);
-    const { run } = await cases.runs.openSession.execute({ skill: 'card', project: 'MiPlan', subject: 'v' });
+    const { run } = await cases.runs.openSession.execute({ skill: 'card', project: 'Storefront', subject: 'v' });
     await fakes.store.save({ ...run, status: 'paused' });
     expect(
       (
         await cases.runs.openSession.execute({
           skill: 'card',
-          project: 'MiPlan',
+          project: 'Storefront',
           subject: 'v',
           resume: run.id,
         })

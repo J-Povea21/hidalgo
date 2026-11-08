@@ -12,11 +12,11 @@ import { OpenRun } from './run.ts';
 export const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const SERVER = join(packageRoot, 'dist', 'server.mjs');
 const LAUNCH_APART = join(packageRoot, 'browser', 'support', 'launch-apart.mjs');
-/** With WORKBENCH_OPEN=0 the server prints the page it would open instead of opening it. */
-const OPENED_PAGE = /workbench page: (\S+)/g;
+/** With HIDALGO_OPEN=0 the server prints the page it would open instead of opening it. */
+const OPENED_PAGE = /hidalgo page: (\S+)/g;
 
 /**
- * Claude's side of a browser test: the real bundled workbench server over stdio, driven
+ * Claude's side of a browser test: the real bundled Hidalgo server over stdio, driven
  * with the same MCP tool calls Claude makes. The session starts, ends, crashes and restarts
  * the server; what Claude does with a run is on the run (run.ts).
  */
@@ -40,7 +40,7 @@ export class ClaudeSession {
     this.transport = new StdioClientTransport({
       command: process.execPath,
       args: this.apart ? [LAUNCH_APART, SERVER] : [SERVER],
-      env: { ...definedEnvironment(), CLAUDE_PLUGIN_DATA: this.dataFolder, WORKBENCH_OPEN: '0' },
+      env: { ...definedEnvironment(), CLAUDE_PLUGIN_DATA: this.dataFolder, HIDALGO_OPEN: '0' },
       stderr: 'pipe',
     });
     this.transport.stderr?.on('data', (chunk: Buffer) => {
@@ -58,7 +58,7 @@ export class ClaudeSession {
   async opensRun(options: RunOptions = {}): Promise<OpenRun> {
     const { runId, threadId } = await this.call('open_session', {
       skill: 'card',
-      project: options.project ?? 'MiPlan',
+      project: options.project ?? 'Storefront',
       subject: options.subject ?? 's',
     });
     const cards = options.cards ?? [{}];
@@ -96,7 +96,7 @@ export class ClaudeSession {
    */
   pageOf(runId: string): string {
     const entry: { url: string } = JSON.parse(
-      readFileSync(join(this.dataFolder, 'workbench', 'live', `${runId}.json`), 'utf8'),
+      readFileSync(join(this.dataFolder, 'hidalgo', 'live', `${runId}.json`), 'utf8'),
     );
     return entry.url;
   }

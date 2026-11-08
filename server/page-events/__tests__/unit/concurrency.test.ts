@@ -32,7 +32,7 @@ class SlowLog extends MemoryLog {
 async function seeded() {
   const fakes = { ...world(), store: new SlowStore(), log: new SlowLog() };
   const ids = counterIds();
-  let run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'v', now: T0, threadId: ids('t') });
+  let run = newRun({ id: 'r1', skill: 'card', project: 'Storefront', subject: 'v', now: T0, threadId: ids('t') });
   run = addItems(run, [{ kind: 'card', fields: card() }], ids).run;
   run = ask(run, 'i1', [question()], ids).run;
   await fakes.store.save(run);

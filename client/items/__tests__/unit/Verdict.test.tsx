@@ -54,12 +54,12 @@ describe('Verdict', () => {
   it('shows a done item with its note, and no buttons', () => {
     render(
       <Verdict
-        item={item({ verdict: { value: 'approved', rev: 3, at: '' }, done: { at: '', note: 'created 86e3' } })}
+        item={item({ verdict: { value: 'approved', rev: 3, at: '' }, done: { at: '', note: 'created ABC-142' } })}
         disabled={false}
         onVerdict={() => {}}
       />,
     );
-    expect(screen.getByText('created 86e3')).toBeTruthy();
+    expect(screen.getByText('created ABC-142')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
   });
 });

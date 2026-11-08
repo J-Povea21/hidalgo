@@ -1,12 +1,12 @@
 /**
- * Claude Code's Stop hook for workbench: while this session has an open run
+ * Claude Code's Stop hook for hidalgo: while this session has an open run
  * and nobody is waiting on it, ending the turn is blocked with the reason.
  *
  * "This session" is found without any session id: the hook (exec form) and
- * the workbench MCP server are both direct children of the same Claude Code
+ * the Hidalgo MCP server are both direct children of the same Claude Code
  * process, so a live entry belongs to us when its ownerPid is our parent.
  *
- * It blocks at most MAX_BLOCKS times in a row, so a session whose workbench
+ * It blocks at most MAX_BLOCKS times in a row, so a session whose Hidalgo server
  * can't be reached is never trapped.
  */
 import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -62,7 +62,7 @@ export function openRunsNobodyWaitsOn(liveDir: string, ownerPid: number): LiveEn
 function main(): void {
   readStdin();
   const owner = process.ppid;
-  const counter = join(tmpdir(), `workbench-stop-${owner}.json`);
+  const counter = join(tmpdir(), `hidalgo-stop-${owner}.json`);
   const open = openRunsNobodyWaitsOn(join(dataRoot(), 'live'), owner);
 
   if (!open.length) {
@@ -86,7 +86,7 @@ function main(): void {
     JSON.stringify({
       decision: 'block',
       reason:
-        `A workbench run is open and nobody is listening to its page: ${runs}. ` +
+        `A Hidalgo run is open and nobody is listening to its page: ${runs}. ` +
         'Call wait_for_events for it so the user\'s next action reaches you, or close_session (status "paused" if items are left pending).',
     }),
   );

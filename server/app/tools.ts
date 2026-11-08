@@ -9,10 +9,10 @@ import { PageEventMapper } from '@server/page-events/application/mappers/page-ev
 import type { WaitHost } from '@server/page-events/interface/mcp/wait-host.port.ts';
 import type { RunPages } from '@server/runs/interface/mcp/run-pages.port.ts';
 import { registerRunsTools } from '@server/runs/interface/mcp/runs.tools.ts';
-import type { Workbench } from './workbench.ts';
+import type { Hidalgo } from './hidalgo.ts';
 
-class WorkbenchHost implements ToolHost, WaitHost, RunPages {
-  constructor(private readonly wb: Workbench) {}
+class HidalgoHost implements ToolHost, WaitHost, RunPages {
+  constructor(private readonly wb: Hidalgo) {}
 
   async onRun(runId: string, act: () => Promise<object>): Promise<ToolResult> {
     try {
@@ -60,13 +60,13 @@ class WorkbenchHost implements ToolHost, WaitHost, RunPages {
 }
 
 /**
- * The workbench as MCP tools: each module registers its own, and this host gives
+ * Hidalgo as MCP tools: each module registers its own, and this host gives
  * them what only the running server has. Every tool that acts on a run also
  * hands back any page events not yet delivered, so input reaches Claude mid-run
  * without a wait.
  */
-export function registerTools(server: McpServer, wb: Workbench): void {
-  const host = new WorkbenchHost(wb);
+export function registerTools(server: McpServer, wb: Hidalgo): void {
+  const host = new HidalgoHost(wb);
   registerRunsTools(server, wb.modules.runs, host, host);
   registerItemsTools(server, wb.modules.items, host);
   registerConversationTools(server, wb.modules.conversation, host);

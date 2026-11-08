@@ -16,7 +16,7 @@ import {
 import { currentVerdict, openQuestions } from '@shared/rules.ts';
 import { VERDICT } from '@shared/values.ts';
 import type { z } from 'zod';
-import { WorkbenchError } from './errors.ts';
+import { HidalgoError } from './errors.ts';
 import { assertOpen, clone, findItem, touch, type IdGen } from './run.rules.ts';
 
 /** What Claude asks for when it adds an item; its fields are checked against its kind's schema. */
@@ -32,7 +32,7 @@ export function addItems(run: RunState, inputs: NewItem[], ids: IdGen): { run: R
   const added: Item[] = [];
   for (const input of inputs) {
     if (!isItemKind(input.kind)) {
-      throw new WorkbenchError(
+      throw new HidalgoError(
         'invalid',
         `unknown item kind "${input.kind}"; known kinds: ${Object.keys(ItemKinds).join(', ')}`,
       );
@@ -71,7 +71,7 @@ export function ask(
 ): { run: RunState; item: Item; asked: Question[] } {
   assertOpen(run);
   if (specs.length === 0) {
-    throw new WorkbenchError('invalid', 'ask needs at least one question');
+    throw new HidalgoError('invalid', 'ask needs at least one question');
   }
   const next = clone(run);
   const item = findItem(next, itemId);
@@ -93,10 +93,10 @@ export function applyAnswers(
   for (const [qid, answer] of Object.entries(answers)) {
     const question = item.questions.find((candidate) => candidate.id === qid);
     if (!question) {
-      throw new WorkbenchError('not-found', `no question ${qid} on item ${itemId}`);
+      throw new HidalgoError('not-found', `no question ${qid} on item ${itemId}`);
     }
     if (answer.choice < 0 || answer.choice >= question.options.length) {
-      throw new WorkbenchError('invalid', `question ${qid} has no option ${answer.choice}`);
+      throw new HidalgoError('invalid', `question ${qid} has no option ${answer.choice}`);
     }
     question.answer = { choice: answer.choice, at: now, ...(answer.note ? { note: answer.note } : {}) };
   }
@@ -112,13 +112,10 @@ export function applyVerdict(run: RunState, itemId: string, rev: number, value: 
   const next = clone(run);
   const item = findItem(next, itemId);
   if (rev !== item.rev) {
-    throw new WorkbenchError('stale-revision', `verdict names rev ${rev}, but item ${itemId} is at rev ${item.rev}`);
+    throw new HidalgoError('stale-revision', `verdict names rev ${rev}, but item ${itemId} is at rev ${item.rev}`);
   }
   if (value === VERDICT.approved && openQuestions(item).length > 0) {
-    throw new WorkbenchError(
-      'open-questions',
-      `item ${itemId} still has ${openQuestions(item).length} open question(s)`,
-    );
+    throw new HidalgoError('open-questions', `item ${itemId} still has ${openQuestions(item).length} open question(s)`);
   }
   item.verdict = { value, rev, at: now };
   return touch(next);
@@ -136,7 +133,7 @@ export function applyEdit(run: RunState, itemId: string, path: string, text: str
   }
   const last = parts.at(-1)!;
   if (!isRecord(target) || typeof target[last] !== 'string') {
-    throw new WorkbenchError('invalid', `item ${itemId} has no text field at "${path}"`);
+    throw new HidalgoError('invalid', `item ${itemId} has no text field at "${path}"`);
   }
   target[last] = text;
   setFields(item, item.fields);
@@ -150,7 +147,7 @@ export function markDone(run: RunState, itemId: string, note: string, now: strin
   const next = clone(run);
   const item = findItem(next, itemId);
   if (currentVerdict(item) !== VERDICT.approved) {
-    throw new WorkbenchError(
+    throw new HidalgoError(
       'invalid',
       `item ${itemId} is not approved at its current revision, so it can't be marked done`,
     );
@@ -180,7 +177,7 @@ function parseFields<K extends ItemKind>(kind: K, fields: unknown): ItemOf<K>['f
 function parseWith<S extends z.ZodType>(schema: S, kind: string, fields: unknown): z.output<S> {
   const parsed = schema.safeParse(fields);
   if (!parsed.success) {
-    throw new WorkbenchError('invalid', `fields do not match the "${kind}" schema`, parsed.error.issues);
+    throw new HidalgoError('invalid', `fields do not match the "${kind}" schema`, parsed.error.issues);
   }
   return parsed.data;
 }
@@ -189,7 +186,7 @@ function buildQuestions(specs: unknown[], ids: IdGen): Question[] {
   return specs.map((raw) => {
     const spec = QuestionSpec.parse(raw);
     if (spec.recommended >= spec.options.length) {
-      throw new WorkbenchError(
+      throw new HidalgoError(
         'invalid',
         `question "${spec.text}" recommends option ${spec.recommended}, which does not exist`,
       );

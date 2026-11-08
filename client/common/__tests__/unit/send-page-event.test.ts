@@ -3,13 +3,13 @@ import type { LiveEntry, PageEvent } from '@shared/contract.ts';
 import { PageEventMapper } from '@client/common/application/mappers/page-event.mapper.ts';
 import { SendPageEventUseCase } from '@client/common/application/use-cases/send-page-event.use-case.ts';
 import { ApiError } from '@client/common/domain/errors.ts';
-import type { SentEvent, WorkbenchServer } from '@client/common/ports/workbench-server.port.ts';
+import type { SentEvent, HidalgoServer } from '@client/common/ports/hidalgo-server.port.ts';
 
 const SENT = 'Sent to Claude';
 const MESSAGE: PageEvent = { type: 'message', threadId: 't1', text: 'hello', images: [] };
 
 /** A server whose answer to sendEvent the test decides. */
-class ServerAnswering implements WorkbenchServer {
+class ServerAnswering implements HidalgoServer {
   constructor(private readonly answer: () => Promise<SentEvent>) {}
   sendEvent(): Promise<SentEvent> {
     return this.answer();

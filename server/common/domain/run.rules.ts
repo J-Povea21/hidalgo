@@ -6,7 +6,7 @@
 import type { Item, RunState, RunStatus } from '@shared/contract.ts';
 import { isFinal } from '@shared/rules.ts';
 import { PARTY, RUN_STATUS } from '@shared/values.ts';
-import { WorkbenchError } from './errors.ts';
+import { HidalgoError } from './errors.ts';
 
 /** Makes ids for what a rule creates, each starting with its prefix. */
 export type IdGen = (prefix: string) => string;
@@ -49,7 +49,7 @@ export function newRun(init: {
 export function runThreadId(run: RunState): string {
   const thread = run.threads.find((candidate) => candidate.owner.type === 'run');
   if (!thread) {
-    throw new WorkbenchError('invalid', 'run has no run thread');
+    throw new HidalgoError('invalid', 'run has no run thread');
   }
   return thread.id;
 }
@@ -57,14 +57,14 @@ export function runThreadId(run: RunState): string {
 /** A closed run is final: every change to it is refused. A paused run still takes changes and stays resumable. */
 export function assertOpen(run: RunState): void {
   if (run.status === RUN_STATUS.closed) {
-    throw new WorkbenchError('closed', `run ${run.id} is closed`);
+    throw new HidalgoError('closed', `run ${run.id} is closed`);
   }
 }
 
 export function findItem(run: RunState, itemId: string): Item {
   const item = run.items.find((candidate) => candidate.id === itemId);
   if (!item) {
-    throw new WorkbenchError('not-found', `no item ${itemId} in run ${run.id}`);
+    throw new HidalgoError('not-found', `no item ${itemId} in run ${run.id}`);
   }
   return item;
 }
@@ -79,7 +79,7 @@ export function close(run: RunState, status: Exclude<RunStatus, 'open'>, outcome
   assertOpen(run);
   const open = run.items.filter((item) => !isFinal(item));
   if (status === RUN_STATUS.closed && open.length) {
-    throw new WorkbenchError(
+    throw new HidalgoError(
       'open-items',
       `${open.length} item(s) aren't rejected, or approved and done: pause the run instead`,
       open.map((item) => ({ id: item.id, rev: item.rev })),

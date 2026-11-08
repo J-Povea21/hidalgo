@@ -9,12 +9,12 @@ test("Open reviews lists another session's run and opens it; what happens in one
 }) => {
   const runA = await claude.opensRun({ subject: 'run A' });
   const otherClaude = await anotherClaude();
-  const runB = await otherClaude.opensRun({ project: 'Mi Titulo', subject: 'run B', cards: [plainCard('B card')] });
+  const runB = await otherClaude.opensRun({ project: 'Back Office', subject: 'run B', cards: [plainCard('B card')] });
   await user.opens(runA);
 
   await user.drawers.openReviews();
 
-  const link = user.page.getByRole('link', { name: /Mi Titulo · card · run B/ });
+  const link = user.page.getByRole('link', { name: /Back Office · card · run B/ });
   await expect(link).toBeVisible();
   await expect(link).toContainText('Claude is working');
 

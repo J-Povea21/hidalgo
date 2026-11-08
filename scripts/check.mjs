@@ -125,7 +125,7 @@ run('audit', 'pnpm audit --audit-level high', [], { shell: true });
 
 // 7. The committed bundle is exactly what the lockfile and sources produce.
 process.stdout.write('• bundle reproducible… ');
-const out = mkdtempSync(join(tmpdir(), 'workbench-build-'));
+const out = mkdtempSync(join(tmpdir(), 'hidalgo-build-'));
 try {
   execFileSync('node', [join(root, 'scripts', 'build.mjs'), '--out', out], { cwd: root, stdio: 'pipe' });
   const list = (dir) =>
@@ -183,4 +183,4 @@ try {
   rmSync(out, { recursive: true, force: true });
 }
 
-console.log(`\nworkbench: all checks passed (${relative(process.cwd(), root) || '.'})`);
+console.log(`\nhidalgo: all checks passed (${relative(process.cwd(), root) || '.'})`);

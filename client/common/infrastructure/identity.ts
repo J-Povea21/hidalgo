@@ -23,7 +23,7 @@ interface HelloAnswer {
 /**
  * Proving that the server answering on this port holds the run's token, without sending
  * it: the page sends a random nonce, and only the real server can answer with
- * HMAC(token, "workbench-hello|nonce|port|build"). A proof relayed from another port fails,
+ * HMAC(token, "hidalgo-hello|nonce|port|build"). A proof relayed from another port fails,
  * and a claim of a newer build counts only when proven.
  */
 export async function proveServer(session: Session): Promise<Identity> {
@@ -34,8 +34,8 @@ export async function proveServer(session: Session): Promise<Identity> {
       return IDENTITY.unproven;
     }
     const answer: HelloAnswer = await response.json();
-    const isWorkbenchForThisRun = answer.server === 'workbench' && answer.run === session.runId;
-    if (!isWorkbenchForThisRun || !answer.build || !answer.proof) {
+    const isHidalgoForThisRun = answer.server === 'hidalgo' && answer.run === session.runId;
+    if (!isHidalgoForThisRun || !answer.build || !answer.proof) {
       return IDENTITY.unproven;
     }
     // Nothing in the answer is trusted until the proof, which covers the build, checks out.
@@ -62,7 +62,7 @@ export async function proofFor(token: string, nonce: string, port: string, build
  * Mirrors server/common/infrastructure/http/app.ts.
  */
 function proofMessage(nonce: string, port: string, build: string) {
-  return `workbench-hello|${nonce}|${port}|${build}`;
+  return `hidalgo-hello|${nonce}|${port}|${build}`;
 }
 
 /** The port this page is talking to: the address bar's, or the scheme's default when it shows none. */

@@ -8,7 +8,7 @@ import { CLASS, classes } from '@client/common/interface/ui/classes.ts';
 const FLASH_MS = 1700;
 
 /**
- * A ClickUp card as it will be created. Criteria can be edited in place; an
+ * A card as it will be created in the tracker. Criteria can be edited in place; an
  * edit is a change, so it bumps the revision and the adversary re-probes it.
  */
 export function CardView(props: KindViewProps<'card'>) {

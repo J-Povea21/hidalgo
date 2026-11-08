@@ -1,5 +1,5 @@
 import { actions, type PageAction } from '@client/common/domain/state.ts';
-import type { WorkbenchServer } from '@client/common/ports/workbench-server.port.ts';
+import type { HidalgoServer } from '@client/common/ports/hidalgo-server.port.ts';
 
 export interface FollowSessionInput {
   dispatch: (action: PageAction) => void;
@@ -9,7 +9,7 @@ export interface FollowSessionInput {
 
 /** Follows Claude's session and turns what the live feed reports into the page's actions. */
 export class FollowSessionUseCase {
-  constructor(private readonly server: WorkbenchServer) {}
+  constructor(private readonly server: HidalgoServer) {}
 
   /** Returns the function that stops following. */
   execute(input: FollowSessionInput): () => void {

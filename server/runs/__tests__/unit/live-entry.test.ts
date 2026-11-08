@@ -7,7 +7,7 @@ import { expired, isDead, liveEntry } from '@server/runs/domain/live-entry.rules
 function entry(heartbeat: string): LiveEntry {
   return {
     runId: 'r1',
-    project: 'MiPlan',
+    project: 'Storefront',
     skill: 'card',
     subject: 's',
     port: 1,
@@ -36,7 +36,14 @@ describe('live-index', () => {
   });
 
   it('the entry carries what the switcher shows', () => {
-    const run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'validator', now: T0, threadId: 't1' });
+    const run = newRun({
+      id: 'r1',
+      skill: 'card',
+      project: 'Storefront',
+      subject: 'validator',
+      now: T0,
+      threadId: 't1',
+    });
     expect(
       liveEntry(run, { port: 51234, pid: 9, processStartedAt: T0, url: 'u', ownerPid: 7, claudeListening: true }, T0),
     ).toMatchObject({
@@ -51,7 +58,7 @@ describe('live-index', () => {
   });
 
   it('only closed runs past retention expire; unfinished runs are kept', () => {
-    const base = newRun({ id: 'r', skill: 'card', project: 'MiPlan', subject: 's', now: T0, threadId: 't' });
+    const base = newRun({ id: 'r', skill: 'card', project: 'Storefront', subject: 's', now: T0, threadId: 't' });
     const runs = [
       { ...base, id: 'old-closed', status: 'closed' as const, closedAt: T0 },
       { ...base, id: 'new-closed', status: 'closed' as const, closedAt: later(6 * 86_400_000) },

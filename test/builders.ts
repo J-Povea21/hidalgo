@@ -22,8 +22,8 @@ export function aRun(overrides: Partial<RunState> = {}): RunState {
   return {
     id: 'r1',
     skill: 'card',
-    project: 'MiPlan',
-    subject: 'OfficesExist validator',
+    project: 'Storefront',
+    subject: 'CouponExists validator',
     status: RUN_STATUS.open,
     startedAt: '',
     items: [anItem()],

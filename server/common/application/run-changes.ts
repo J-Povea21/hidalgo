@@ -1,5 +1,5 @@
 import type { RunState } from '@shared/contract.ts';
-import { WorkbenchError } from '@server/common/domain/errors.ts';
+import { HidalgoError } from '@server/common/domain/errors.ts';
 import type { PagePublisher } from '@server/common/ports/page-publisher.port.ts';
 import type { RunLock } from '@server/common/ports/run-lock.port.ts';
 import type { RunStore } from '@server/common/ports/run-store.port.ts';
@@ -20,7 +20,7 @@ export class RunChanges {
   async load(runId: string): Promise<RunState> {
     const run = await this.store.load(runId);
     if (!run) {
-      throw new WorkbenchError('not-found', `no run ${runId}`);
+      throw new HidalgoError('not-found', `no run ${runId}`);
     }
     return run;
   }

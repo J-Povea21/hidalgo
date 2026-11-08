@@ -59,7 +59,7 @@ export function turnView(state: PageState, now: number): TurnView {
 /** `<turn> <project> · <skill> · <subject>`, at most 60 characters. */
 export function tabTitle(state: PageState, now: number): string {
   if (!state.run) {
-    return 'Workbench';
+    return 'Hidalgo';
   }
   const title = `${PREFIX[turnView(state, now)](state.run)}${state.run.project} · ${state.run.skill} · ${state.run.subject}`;
   return title.length > TITLE_MAX ? `${title.slice(0, TITLE_MAX - 1)}…` : title;

@@ -1,5 +1,5 @@
 import type { DiagramSpec } from '@shared/contract.ts';
-import { WorkbenchError } from '@server/common/domain/errors.ts';
+import { HidalgoError } from '@server/common/domain/errors.ts';
 
 /** Mermaid's entity codes for characters that are syntax somewhere in a diagram. */
 const ENTITIES: Record<string, string> = {
@@ -32,17 +32,17 @@ function validate(spec: DiagramSpec): void {
     const groups = spec.groups.map((group) => group.id);
     const repeated = dupes([...nodes, ...groups]);
     if (repeated.length) {
-      throw new WorkbenchError('invalid', `diagram ids must be unique: ${[...new Set(repeated)].join(', ')}`);
+      throw new HidalgoError('invalid', `diagram ids must be unique: ${[...new Set(repeated)].join(', ')}`);
     }
     for (const node of spec.nodes) {
       if (node.group && !groups.includes(node.group)) {
-        throw new WorkbenchError('invalid', `node ${node.id} is in unknown group ${node.group}`);
+        throw new HidalgoError('invalid', `node ${node.id} is in unknown group ${node.group}`);
       }
     }
     for (const edge of spec.edges) {
       for (const end of [edge.from, edge.to]) {
         if (!nodes.includes(end) && !groups.includes(end)) {
-          throw new WorkbenchError('invalid', `edge ${edge.from} -> ${edge.to} names unknown node ${end}`);
+          throw new HidalgoError('invalid', `edge ${edge.from} -> ${edge.to} names unknown node ${end}`);
         }
       }
     }
@@ -50,13 +50,13 @@ function validate(spec: DiagramSpec): void {
     const ids = spec.participants.map((participant) => participant.id);
     const repeated = dupes(ids);
     if (repeated.length) {
-      throw new WorkbenchError('invalid', `participant ids must be unique: ${[...new Set(repeated)].join(', ')}`);
+      throw new HidalgoError('invalid', `participant ids must be unique: ${[...new Set(repeated)].join(', ')}`);
     }
     for (const step of spec.steps) {
       const used = 'note' in step ? step.over : [step.from, step.to];
       for (const id of used) {
         if (!ids.includes(id)) {
-          throw new WorkbenchError('invalid', `step names unknown participant ${id}`);
+          throw new HidalgoError('invalid', `step names unknown participant ${id}`);
         }
       }
     }

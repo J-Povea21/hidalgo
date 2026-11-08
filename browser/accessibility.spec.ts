@@ -44,8 +44,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await user.verdict.approve();
       await expect(user.page.getByText('Approved · rev 1')).toBeVisible();
 
-      await run.markDone(run.items[0]!.id, 'created 86e3');
-      await expect(user.page.getByText('created 86e3')).toBeVisible();
+      await run.markDone(run.items[0]!.id, 'created ABC-142');
+      await expect(user.page.getByText('created ABC-142')).toBeVisible();
 
       await expectNoViolations(user.page, 'answered and done');
     });

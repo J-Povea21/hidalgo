@@ -25,13 +25,13 @@ test.describe('whose turn it is', () => {
     const run = await claude.opensRun({ subject: 'turns' });
     await user.opens(run);
 
-    await expect(user.page).toHaveTitle('… MiPlan · card · turns');
+    await expect(user.page).toHaveTitle('… Storefront · card · turns');
     await expect(user.status.turnLine).toHaveAttribute('data-turn', 'working');
     await expect.poll(() => user.status.favicon()).toBe(FAVICON.working);
 
     const message = run.waitForTheUser();
 
-    await expect(user.page).toHaveTitle('(1) MiPlan · card · turns', PROMPTLY);
+    await expect(user.page).toHaveTitle('(1) Storefront · card · turns', PROMPTLY);
     await expect(user.status.turnLine).toHaveText('Your turn');
     await expect.poll(() => user.status.favicon()).toBe(FAVICON.yours);
 
@@ -43,7 +43,7 @@ test.describe('whose turn it is', () => {
     await user.thread.write('over to you');
 
     expect(await message).toEqual([expect.objectContaining({ type: 'message', text: 'over to you' })]);
-    await expect(user.page).toHaveTitle('… MiPlan · card · turns', PROMPTLY);
+    await expect(user.page).toHaveTitle('… Storefront · card · turns', PROMPTLY);
     await expect.poll(() => user.status.favicon()).toBe(FAVICON.working);
   });
 
@@ -167,7 +167,7 @@ test.describe('pages that must not talk to the server', () => {
 
     await user.opens(run);
 
-    await expect(user.status.alert('older version of workbench')).toBeVisible();
+    await expect(user.status.alert('older version of Hidalgo')).toBeVisible();
     expect(await user.status.connection()).toBe('stale');
     await expect(user.page.getByText("Connecting to Claude's session…")).toHaveCount(0);
     expect(net.tokenRequests).toEqual([]);
@@ -205,7 +205,7 @@ test.describe('pages that must not talk to the server', () => {
     await user.opens(run);
 
     await expect(user.page.getByText("Connecting to Claude's session…")).toBeVisible();
-    await expect(user.page).toHaveTitle('Workbench');
+    await expect(user.page).toHaveTitle('Hidalgo');
     expect(await user.status.connection()).toBe('connecting');
   });
 });

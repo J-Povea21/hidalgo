@@ -83,7 +83,7 @@ function runBanner(props: ConnectionBannerProps): Banner | undefined {
 function StaleMessage() {
   return (
     <>
-      This page is from an older version of workbench, so it can't talk to Claude's session. Your work is saved.{' '}
+      This page is from an older version of Hidalgo, so it can't talk to Claude's session. Your work is saved.{' '}
       <button class="link" onClick={() => location.reload()}>
         Reload the page
       </button>
@@ -95,8 +95,8 @@ function LostMessage() {
   return (
     <>
       Can't reach Claude's session. Your work is saved. Ask Claude to resume this run: this tab reconnects by itself, or
-      Claude opens a new one. If Claude says workbench is disconnected, run <code>/mcp</code> there and reconnect{' '}
-      <b>workbench</b> first.
+      Claude opens a new one. If Claude says hidalgo is disconnected, run <code>/mcp</code> there and reconnect{' '}
+      <b>hidalgo</b> first.
     </>
   );
 }

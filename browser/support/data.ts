@@ -1,19 +1,19 @@
 /** What the tests put on the page: cards and questions with sensible defaults. */
 
-export function card(title = 'Formulación - OfficesExist validator returns 500 on a non-array') {
+export function card(title = 'Checkout - CouponExists validator returns 500 on a non-array') {
   return {
     title,
     tags: ['backend', 'bug'],
     proposal: { priority: 'high', shape: 'one card, one PR', status: 'ready for work', related: 'none' },
     body: {
-      what: '`officeIds` sent as anything other than an array returns a 500.',
-      where: ['`src/offices-exist.decorator.ts:12`'],
+      what: '`couponIds` sent as anything other than an array returns a 500.',
+      where: ['`src/coupon-exists.decorator.ts:12`'],
     },
     criteria: [
       { mode: 'code', text: 'The validator guards its own input' },
       { mode: 'test', text: 'A unit test covers each non-array input' },
     ],
-    manualQa: ['Submitting the activity form with valid offices still saves'],
+    manualQa: ['Submitting the order form with valid coupons still saves'],
     assuming: [],
     provenance: 'browser suite',
   };

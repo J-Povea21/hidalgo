@@ -12,7 +12,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { registerTools } from '@server/app/tools.ts';
-import { Workbench } from '@server/app/workbench.ts';
+import { Hidalgo } from '@server/app/hidalgo.ts';
 import { card, question, until } from './fixtures.ts';
 import { readToolResult } from './tool-result.ts';
 
@@ -28,7 +28,7 @@ async function boot(dataRoot?: string, ownerPid?: number, reattachWaitMs = 0) {
   const clientDir = mkdtempSync(join(tmpdir(), 'wb-client-'));
   writeFileSync(join(clientDir, 'index.html'), '<!doctype html><title>t</title>');
   const opened: string[] = [];
-  const wb = new Workbench({
+  const wb = new Hidalgo({
     dataRoot: root,
     clientDir,
     retentionDays: 7,
@@ -39,7 +39,7 @@ async function boot(dataRoot?: string, ownerPid?: number, reattachWaitMs = 0) {
     openBrowser: (url) => opened.push(url),
     ...(ownerPid ? { ownerPid } : {}),
   });
-  const server = new McpServer({ name: 'workbench', version: 'test' });
+  const server = new McpServer({ name: 'hidalgo', version: 'test' });
   registerTools(server, wb);
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test', version: '1' });
@@ -74,7 +74,7 @@ function http(
     const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
     const headers: Record<string, string> = { host: opts.host ?? `127.0.0.1:${port}` };
     if (opts.token) {
-      headers['x-workbench-token'] = opts.token;
+      headers['x-hidalgo-token'] = opts.token;
     }
     if (opts.origin !== null) {
       headers['origin'] = opts.origin ?? `http://127.0.0.1:${port}`;
@@ -102,10 +102,10 @@ function portOf(url: string) {
   return Number(new URL(url).port);
 }
 
-describe('workbench end to end', () => {
+describe('hidalgo end to end', () => {
   it('open a run, post a page event over HTTP, and wait_for_events returns it', async () => {
     const { call, opened, wb } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 'validator' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 'validator' });
     expect(opened).toHaveLength(1);
     const url = opened[0]!;
     const [port, token] = [portOf(url), tokenOf(url)];
@@ -134,7 +134,7 @@ describe('workbench end to end', () => {
 
   it("the live stream tells the page it's the user's turn as soon as a wait starts", async () => {
     const { call, opened } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
     const pushed: { claudeListening: boolean }[] = [];
     const req = request(
@@ -142,7 +142,7 @@ describe('workbench end to end', () => {
         host: '127.0.0.1',
         port,
         path: `/api/stream?run=${runId}`,
-        headers: { host: `127.0.0.1:${port}`, 'x-workbench-token': token },
+        headers: { host: `127.0.0.1:${port}`, 'x-hidalgo-token': token },
       },
       (res) => {
         let buf = '';
@@ -167,7 +167,7 @@ describe('workbench end to end', () => {
 
   it('events ride along on the next tool result, exactly once', async () => {
     const { call, opened } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
     const { added } = await call('add_items', { runId, items: [{ kind: 'card', fields: card() }] });
     const state = (await http(port, `/api/state?run=${runId}`, { token })).json.state;
@@ -190,7 +190,7 @@ describe('workbench end to end', () => {
 
   it('the same image pasted twice is one file on disk and one path for Claude', async () => {
     const { call, opened, root } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
     const thread = (await http(port, `/api/state?run=${runId}`, { token })).json.state.threads[0].id;
     const png = `data:image/png;base64,${Buffer.from('same image bytes').toString('base64')}`;
@@ -201,12 +201,12 @@ describe('workbench end to end', () => {
     });
     const { events } = await call('wait_for_events', { runId });
     expect(events[0].images).toHaveLength(1);
-    expect(readdirSync(join(root, 'runs', 'miplan', runId, 'images'))).toHaveLength(1);
+    expect(readdirSync(join(root, 'runs', 'storefront', runId, 'images'))).toHaveLength(1);
   });
 
   it('the approval gate holds over HTTP: stale revisions and open questions are refused', async () => {
     const { call, opened } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
     const { added } = await call('add_items', {
       runId,
@@ -231,7 +231,7 @@ describe('workbench end to end', () => {
 
   it('close_session refuses while an item has no outcome', async () => {
     const { call } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     await call('add_items', { runId, items: [{ kind: 'card', fields: card() }] });
     const result = await call('close_session', { runId, status: 'closed', outcome: 'done' });
     expect(result).toMatchObject({ isError: true, error: 'open-items' });
@@ -244,12 +244,12 @@ describe('workbench end to end', () => {
 
   it('a tool call with a bad card names the reason and adds nothing', async () => {
     const { call } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     // The tool's input schema is the card schema itself, so the MCP layer refuses it before any use case runs.
     await expect(
       call('add_items', { runId, items: [{ kind: 'card', fields: { ...card(), title: '' } }] }),
     ).rejects.toThrow(/title/);
-    const list = await call('list_runs', { project: 'MiPlan' });
+    const list = await call('list_runs', { project: 'Storefront' });
     expect(list.runs[0].items).toEqual([]);
   });
 });
@@ -257,7 +257,7 @@ describe('workbench end to end', () => {
 describe('HTTP security', () => {
   it('rejects a wrong token, a missing or foreign Origin on writes, and a foreign Host', async () => {
     const { call, opened } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
     const ev = { type: 'message', threadId: 'x', text: 'hi' };
     expect((await http(port, `/api/state?run=${runId}`, { token: 'nope' })).status).toBe(401);
@@ -275,13 +275,13 @@ describe('HTTP security', () => {
 
   it('hello proves the server holds the token without the page ever sending it', async () => {
     const { call, opened } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
     const nonce = 'ab'.repeat(16);
     const answer = await http(port, `/api/hello?run=${runId}&nonce=${nonce}`);
     expect(answer.status).toBe(200);
     expect(answer.json.proof).toBe(
-      createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|dev`).digest('hex'),
+      createHmac('sha256', token).update(`hidalgo-hello|${nonce}|${port}|dev`).digest('hex'),
     );
     expect(JSON.stringify(answer.json)).not.toContain(token);
     expect((await http(port, `/api/hello?run=nope&nonce=${nonce}`)).status).toBe(404);
@@ -290,8 +290,8 @@ describe('HTTP security', () => {
 
   it('a token for one run does not open another', async () => {
     const { call, opened } = await boot();
-    const runA = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 'a' });
-    const runB = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 'b' });
+    const runA = await call('open_session', { skill: 'card', project: 'Storefront', subject: 'a' });
+    const runB = await call('open_session', { skill: 'card', project: 'Storefront', subject: 'b' });
     const port = portOf(opened[0]!);
     expect((await http(port, `/api/state?run=${runB.runId}`, { token: tokenOf(opened[0]!) })).status).toBe(401);
     expect((await http(port, `/api/state?run=${runA.runId}`, { token: tokenOf(opened[0]!) })).status).toBe(200);
@@ -301,10 +301,10 @@ describe('HTTP security', () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-two-'));
     cleanups.push(() => rmSync(root, { recursive: true, force: true }));
     const serverA = await boot(root);
-    const { runId } = await serverA.call('open_session', { skill: 'card', project: 'MiPlan', subject: 'a' });
+    const { runId } = await serverA.call('open_session', { skill: 'card', project: 'Storefront', subject: 'a' });
     const token = tokenOf(serverA.opened[0]!);
     const serverB = await boot(root);
-    await serverB.call('open_session', { skill: 'card', project: 'MiPlan', subject: 'b' });
+    await serverB.call('open_session', { skill: 'card', project: 'Storefront', subject: 'b' });
     const portB = portOf(serverB.opened[0]!);
     expect((await http(portB, `/api/hello?run=${runId}&nonce=${'ab'.repeat(16)}`)).status).toBe(404);
     expect((await http(portB, `/api/state?run=${runId}`, { token })).status).toBe(401);
@@ -312,7 +312,7 @@ describe('HTTP security', () => {
 
   it('never serves files outside the page folder', async () => {
     const { call, opened } = await boot();
-    await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const port = portOf(opened[0]!);
     expect((await http(port, '/../../../etc/passwd')).status).toBe(404);
     expect((await http(port, '/%2e%2e/%2e%2e/etc/passwd')).status).toBe(404);
@@ -324,8 +324,8 @@ describe('serving', () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-serve-'));
     cleanups.push(() => rmSync(root, { recursive: true, force: true }));
     const before = await boot(root);
-    const runA = (await before.call('open_session', { skill: 'card', project: 'MiPlan', subject: 'a' })).runId;
-    const runB = (await before.call('open_session', { skill: 'card', project: 'MiPlan', subject: 'b' })).runId;
+    const runA = (await before.call('open_session', { skill: 'card', project: 'Storefront', subject: 'a' })).runId;
+    const runB = (await before.call('open_session', { skill: 'card', project: 'Storefront', subject: 'b' })).runId;
     await before.wb.shutdown('restart');
 
     const after = await boot(root);
@@ -342,7 +342,7 @@ describe('serving', () => {
 describe('one tab per run', () => {
   it('resuming a run whose page is connected tells that page instead of opening another', async () => {
     const { call, opened } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     await call('close_session', { runId, status: 'paused', outcome: 'later' });
     const [port, token] = [portOf(opened[0]!), tokenOf(opened[0]!)];
     const events: string[] = [];
@@ -351,7 +351,7 @@ describe('one tab per run', () => {
         host: '127.0.0.1',
         port,
         path: `/api/stream?run=${runId}`,
-        headers: { host: `127.0.0.1:${port}`, 'x-workbench-token': token },
+        headers: { host: `127.0.0.1:${port}`, 'x-hidalgo-token': token },
       },
       (res) => {
         res.on('data', (chunk) => {
@@ -367,7 +367,7 @@ describe('one tab per run', () => {
     });
     await until(() => events.includes('state'));
 
-    const resumed = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId });
+    const resumed = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's', resume: runId });
     expect(resumed).toMatchObject({ resumed: true, opened: false, alreadyOpen: 1 });
     expect(opened).toHaveLength(1);
     await until(() => events.includes('nudge'));
@@ -375,11 +375,11 @@ describe('one tab per run', () => {
 
   it('resuming with no page connected opens one', async () => {
     const { call, opened } = await boot();
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     await call('close_session', { runId, status: 'paused', outcome: 'later' });
-    expect(await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId })).toMatchObject(
-      { opened: true },
-    );
+    expect(
+      await call('open_session', { skill: 'card', project: 'Storefront', subject: 's', resume: runId }),
+    ).toMatchObject({ opened: true });
     expect(opened).toHaveLength(2);
   });
 });
@@ -389,7 +389,7 @@ describe('recovering an open page', () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-reconnect-'));
     cleanups.push(() => rmSync(root, { recursive: true, force: true }));
     const before = await boot(root, 4242);
-    const { runId } = await before.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await before.call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const [port, token] = [portOf(before.opened[0]!), tokenOf(before.opened[0]!)];
     await before.wb.shutdown('reconnecting');
 
@@ -399,16 +399,16 @@ describe('recovering an open page', () => {
     const nonce = 'cd'.repeat(16);
     const hello = await http(port, `/api/hello?run=${runId}&nonce=${nonce}`);
     expect(hello.json.proof).toBe(
-      createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|dev`).digest('hex'),
+      createHmac('sha256', token).update(`hidalgo-hello|${nonce}|${port}|dev`).digest('hex'),
     );
     expect(after.opened).toEqual([]);
   });
 
-  it("another session's workbench does not take the run back", async () => {
+  it("another session's Hidalgo server does not take the run back", async () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-reconnect-'));
     cleanups.push(() => rmSync(root, { recursive: true, force: true }));
     const mine = await boot(root, 4242);
-    await mine.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    await mine.call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     await mine.wb.shutdown('x');
     const theirs = await boot(root, 5353);
     expect(await theirs.wb.reserveOwnRuns()).toEqual([]);
@@ -418,7 +418,7 @@ describe('recovering an open page', () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-reconnect-'));
     cleanups.push(() => rmSync(root, { recursive: true, force: true }));
     const before = await boot(root, 4242);
-    const { runId } = await before.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await before.call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     await before.call('add_items', { runId, items: [{ kind: 'card', fields: card() }] });
     const [port, token] = [portOf(before.opened[0]!), tokenOf(before.opened[0]!)];
     await before.wb.shutdown('restart');
@@ -437,7 +437,7 @@ describe('durability', () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-durable-'));
     cleanups.push(() => rmSync(root, { recursive: true, force: true }));
     const first = await boot(root);
-    const { runId } = await first.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await first.call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const { added } = await first.call('add_items', { runId, items: [{ kind: 'card', fields: card() }] });
     const token = tokenOf(first.opened[0]!);
     // Simulate a crash after the event hit the log but before the state was saved.
@@ -453,14 +453,14 @@ describe('durability', () => {
     const second = await boot(root);
     const resumed = await second.call('open_session', {
       skill: 'card',
-      project: 'MiPlan',
+      project: 'Storefront',
       subject: 's',
       resume: runId,
     });
     expect(resumed.resumed).toBe(true);
     expect(tokenOf(second.opened[0]!)).toBe(token);
     expect(resumed.events.map((event: any) => event.verdict)).toEqual(['rejected']);
-    const list = await second.call('list_runs', { project: 'MiPlan' });
+    const list = await second.call('list_runs', { project: 'Storefront' });
     expect(list.runs[0].items[0].verdict).toBe('rejected');
   });
 });
@@ -475,7 +475,7 @@ describe('resume after a restart', () => {
             host: '127.0.0.1',
             port,
             path: `/api/stream?run=${runId}`,
-            headers: { host: `127.0.0.1:${port}`, 'x-workbench-token': token },
+            headers: { host: `127.0.0.1:${port}`, 'x-hidalgo-token': token },
           },
           (res) => {
             if (res.statusCode === 200) {
@@ -496,7 +496,7 @@ describe('resume after a restart', () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-reattach-'));
     cleanups.push(() => rmSync(root, { recursive: true, force: true }));
     const first = await boot(root, 5151);
-    const { runId } = await first.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await first.call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const [port, token] = [portOf(first.opened[0]!), tokenOf(first.opened[0]!)];
     const drop = await connect(port, runId, token);
     await until(async () => !!(await first.wb.store.lastViewer(runId)));
@@ -504,7 +504,7 @@ describe('resume after a restart', () => {
     await first.wb.shutdown('restart');
 
     const second = await boot(root, 5151, 5_000);
-    const resuming = second.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId });
+    const resuming = second.call('open_session', { skill: 'card', project: 'Storefront', subject: 's', resume: runId });
     // The old tab, between retries, comes back a moment later.
     const back = await connect(port, runId, token);
     cleanups.push(back);
@@ -516,7 +516,11 @@ describe('resume after a restart', () => {
     const root = mkdtempSync(join(tmpdir(), 'wb-reattach-'));
     cleanups.push(() => rmSync(root, { recursive: true, force: true }));
     const first = await boot(root, 5252);
-    const { runId, threadId } = await first.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId, threadId } = await first.call('open_session', {
+      skill: 'card',
+      project: 'Storefront',
+      subject: 's',
+    });
     expect(threadId).toMatch(/^t/);
     const drop = await connect(portOf(first.opened[0]!), runId, tokenOf(first.opened[0]!));
     await until(async () => !!(await first.wb.store.lastViewer(runId)));
@@ -525,28 +529,28 @@ describe('resume after a restart', () => {
 
     const second = await boot(root, 5252, 200);
     expect(
-      await second.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId }),
+      await second.call('open_session', { skill: 'card', project: 'Storefront', subject: 's', resume: runId }),
     ).toMatchObject({ resumed: true, opened: true });
     expect(second.opened).toHaveLength(1);
   });
 
   it('does not wait for a page that left this same server: that tab was closed', async () => {
     const { call, opened, wb } = await boot(undefined, undefined, 5_000);
-    const { runId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const drop = await connect(portOf(opened[0]!), runId, tokenOf(opened[0]!));
     await until(async () => !!(await wb.store.lastViewer(runId)));
     drop();
     await until(() => wb.hub.viewers(runId) === 0);
     const started = Date.now();
-    expect(await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: runId })).toMatchObject(
-      { opened: true },
-    );
+    expect(
+      await call('open_session', { skill: 'card', project: 'Storefront', subject: 's', resume: runId }),
+    ).toMatchObject({ opened: true });
     expect(Date.now() - started).toBeLessThan(1_000);
   });
 
   it('Claude can start a conversation in the run thread and in an item thread', async () => {
     const { call } = await boot();
-    const { runId, threadId } = await call('open_session', { skill: 'card', project: 'MiPlan', subject: 's' });
+    const { runId, threadId } = await call('open_session', { skill: 'card', project: 'Storefront', subject: 's' });
     const { added } = await call('add_items', { runId, items: [{ kind: 'card', fields: card() }] });
     expect(await call('send_message', { runId, threadId, text: 'Starting.' })).not.toMatchObject({ isError: true });
     expect(

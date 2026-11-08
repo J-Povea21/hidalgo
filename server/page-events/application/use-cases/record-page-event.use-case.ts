@@ -1,6 +1,6 @@
 import { PageEvent, type UnsequencedEvent } from '@shared/contract.ts';
 import type { RunChanges } from '@server/common/application/run-changes.ts';
-import { WorkbenchError } from '@server/common/domain/errors.ts';
+import { HidalgoError } from '@server/common/domain/errors.ts';
 import { applyEvent, sequenced } from '@server/common/domain/page-event.rules.ts';
 import type { Clock } from '@server/common/ports/clock.port.ts';
 import type { EventLog } from '@server/common/ports/event-log.port.ts';
@@ -48,7 +48,7 @@ export class RecordPageEventUseCase {
   async execute(input: RecordPageEventInput): Promise<RecordedPageEvent> {
     const parsed = PageEvent.safeParse(input.event);
     if (!parsed.success) {
-      throw new WorkbenchError('invalid', 'event is not valid', parsed.error.issues);
+      throw new HidalgoError('invalid', 'event is not valid', parsed.error.issues);
     }
     const event = parsed.data;
     const { runId } = input;
@@ -81,11 +81,11 @@ export class RecordPageEventUseCase {
       return { names: [], nearLimit: false };
     }
     if (urls.some((url) => !/^data:image\/(webp|png|jpeg|gif);base64,/.test(url))) {
-      throw new WorkbenchError('invalid', 'images must be WebP, PNG, JPEG or GIF data URLs');
+      throw new HidalgoError('invalid', 'images must be WebP, PNG, JPEG or GIF data URLs');
     }
     const total = (await this.images.usedBytes(runId)) + urls.reduce((sum, url) => sum + dataUrlBytes(url), 0);
     if (total > this.limits.imageBytesPerRun) {
-      throw new WorkbenchError(
+      throw new HidalgoError(
         'limit',
         `these images would take this run to ${formatBytes(total)}; the limit is ${formatBytes(this.limits.imageBytesPerRun)}`,
       );

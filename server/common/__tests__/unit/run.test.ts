@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { card, counterIds, question, T0 } from '@test/fixtures.ts';
-import { WorkbenchError } from '@server/common/domain/errors.ts';
+import { HidalgoError } from '@server/common/domain/errors.ts';
 import {
   addItems,
   applyAnswers,
@@ -16,14 +16,21 @@ import { isFinal, pendingForUser } from '@shared/rules.ts';
 
 function start() {
   const ids = counterIds();
-  const run = newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 'validator', now: T0, threadId: ids('t') });
+  const run = newRun({
+    id: 'r1',
+    skill: 'card',
+    project: 'Storefront',
+    subject: 'validator',
+    now: T0,
+    threadId: ids('t'),
+  });
   return { ids, run };
 }
 function code(fn: () => unknown) {
   try {
     fn();
   } catch (error) {
-    return error instanceof WorkbenchError ? error.code : 'not a WorkbenchError';
+    return error instanceof HidalgoError ? error.code : 'not a HidalgoError';
   }
   return 'no error';
 }
@@ -191,7 +198,7 @@ describe('ending a run', () => {
 
   it('one approval never closes a run', () => {
     const run = applyVerdict(two(), 'i1', 1, 'approved', T0);
-    const done = markDone(run, 'i1', 'created 86e3', T0).run;
+    const done = markDone(run, 'i1', 'created ABC-142', T0).run;
     expect(done.items.filter((item) => !isFinal(item)).map((item) => item.id)).toEqual(['i2']);
     expect(code(() => close(done, 'closed', 'created', T0))).toBe('open-items');
   });

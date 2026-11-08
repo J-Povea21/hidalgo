@@ -25,7 +25,7 @@ export function sequenced(event: UnsequencedEvent, seq: number): RecordedEvent {
   return { ...event, seq };
 }
 
-/** Throws a WorkbenchError when the event can't apply (stale revision, open questions, unknown thread). */
+/** Throws a HidalgoError when the event can't apply (stale revision, open questions, unknown thread). */
 export function applyEvent(run: RunState, ev: RecordedEvent): RunState {
   let next: RunState;
   switch (ev.type) {

@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { BUILD, STREAM_EVENT } from '@shared/constants.ts';
 import { TOKEN_HEADER, type LiveEntry } from '@shared/contract.ts';
-import { WorkbenchError } from '@server/common/domain/errors.ts';
+import { HidalgoError } from '@server/common/domain/errors.ts';
 import type { PageHub } from './hub.ts';
 
 const TYPES: Record<string, string> = {
@@ -29,7 +29,7 @@ const HTTP_STATUS = {
   'open-items': 409,
   'thread-mismatch': 409,
   closed: 409,
-} as const satisfies Record<WorkbenchError['code'], number>;
+} as const satisfies Record<HidalgoError['code'], number>;
 
 export interface HttpDeps {
   port: () => number;
@@ -78,7 +78,7 @@ export function createApp(deps: HttpDeps): Hono {
   });
 
   // Identity check the page runs on every (re)connect, BEFORE it sends its token anywhere:
-  // the page sends a random nonce, we answer HMAC(token, "workbench-hello|nonce|our port"),
+  // the page sends a random nonce, we answer HMAC(token, "hidalgo-hello|nonce|our port"),
   // and it checks that against the port it is actually talking to. A server that isn't ours
   // can't answer, and can't relay our answer either: it would carry our port, not its own.
   app.get('/api/hello', async (context) => {
@@ -90,7 +90,7 @@ export function createApp(deps: HttpDeps): Hono {
     }
     // The build is inside the proof, so a page only believes "you're on an older build" from a server that holds the token.
     return context.json({
-      server: 'workbench',
+      server: 'hidalgo',
       build: BUILD,
       run: runId,
       proof: helloProof(token, nonce, deps.port(), BUILD),
@@ -154,7 +154,7 @@ export function createApp(deps: HttpDeps): Hono {
     try {
       return context.json(await deps.recordEvent(runId, body));
     } catch (error) {
-      if (error instanceof WorkbenchError) {
+      if (error instanceof HidalgoError) {
         return context.json({ error: error.message, code: error.code }, HTTP_STATUS[error.code]);
       }
       throw error;
@@ -205,7 +205,7 @@ export function createApp(deps: HttpDeps): Hono {
  * Mirrored in client/common/infrastructure/identity.ts.
  */
 export function helloProof(token: string, nonce: string, port: number, build: string): string {
-  return createHmac('sha256', token).update(`workbench-hello|${nonce}|${port}|${build}`).digest('hex');
+  return createHmac('sha256', token).update(`hidalgo-hello|${nonce}|${port}|${build}`).digest('hex');
 }
 
 function sameToken(given: string, expected: string): boolean {

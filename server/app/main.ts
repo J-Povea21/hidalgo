@@ -9,7 +9,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerTools } from './tools.ts';
 import { dataRoot } from '@server/common/infrastructure/paths.ts';
-import { DEFAULT_LIMITS, Workbench } from './workbench.ts';
+import { DEFAULT_LIMITS, Hidalgo } from './hidalgo.ts';
 
 const SESSION_ENDED = 'The Claude session ended. Your work is saved; run the skill again in this project to resume.';
 const SESSION_STOPPED = 'The Claude session was stopped. Your work is saved.';
@@ -17,23 +17,23 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 let ending = false;
 
-const wb = new Workbench({
+const wb = new Hidalgo({
   dataRoot: dataRoot(),
   clientDir: join(here, 'client'),
   limits: DEFAULT_LIMITS,
   retentionDays: 7,
   heartbeatMs: 30_000,
-  // WORKBENCH_OPEN=0 serves the page without opening a browser (smoke tests, headless checks).
-  ...(process.env['WORKBENCH_OPEN'] === '0'
-    ? { openBrowser: (url: string) => process.stderr.write(`workbench page: ${url}\n`) }
+  // HIDALGO_OPEN=0 serves the page without opening a browser (smoke tests, headless checks).
+  ...(process.env['HIDALGO_OPEN'] === '0'
+    ? { openBrowser: (url: string) => process.stderr.write(`hidalgo page: ${url}\n`) }
     : {}),
 });
 
 const server = new McpServer(
-  { name: 'workbench', version: '0.1.0' },
+  { name: 'hidalgo', version: '0.1.0' },
   {
     instructions:
-      "Workbench shows a skill's work to the user in a local page and carries their answers, messages and verdicts back. " +
+      "Hidalgo shows a skill's work to the user in a local page and carries their answers, messages and verdicts back. " +
       "open_session first; add_items and ask to show work; wait_for_events whenever it's the user's turn; mark_done after acting on an approval; close_session at the end.",
   },
 );

@@ -1,4 +1,4 @@
-// Starts the workbench server as a child of this process, sharing its stdio, so the
+// Starts the Hidalgo server as a child of this process, sharing its stdio, so the
 // server's parent (the "Claude Code" that owns its runs) is this launcher and not the
 // test worker. A second session in the same worker needs that, on any OS.
 import { spawn } from 'node:child_process';

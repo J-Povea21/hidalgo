@@ -10,7 +10,7 @@ interface RunIds {
 }
 
 /**
- * A run Claude has open, and what Claude does with it: one method per workbench tool, named
+ * A run Claude has open, and what Claude does with it: one method per Hidalgo tool, named
  * for what Claude does. A new tool is a new method here.
  */
 export class OpenRun implements RunIds {
@@ -56,7 +56,7 @@ export class OpenRun implements RunIds {
     return diagramId;
   }
 
-  markDone(itemId: string, note = 'created 86e3') {
+  markDone(itemId: string, note = 'created ABC-142') {
     return this.call('mark_done', { itemId, note });
   }
 
@@ -73,7 +73,7 @@ export class OpenRun implements RunIds {
   }
 
   resume() {
-    return this.claude.call('open_session', { skill: 'card', project: 'MiPlan', subject: 's', resume: this.runId });
+    return this.claude.call('open_session', { skill: 'card', project: 'Storefront', subject: 's', resume: this.runId });
   }
 
   private call(tool: string, args: Record<string, unknown> = {}) {

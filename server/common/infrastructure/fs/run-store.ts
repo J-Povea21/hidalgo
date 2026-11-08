@@ -143,7 +143,7 @@ export class FsRunStore implements RunStore {
     return dir ? (await readJson<{ at: string }>(join(dir, 'viewer.json')))?.at : undefined;
   }
 
-  /** Runs not closed that this Claude Code process was serving before its workbench restarted. */
+  /** Runs not closed that this Claude Code process was serving before its Hidalgo server restarted. */
   async ownedBy(ownerPid: number): Promise<string[]> {
     const ids: string[] = [];
     for (const project of await readdir(join(this.root, 'runs')).catch((): string[] => [])) {

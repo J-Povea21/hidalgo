@@ -131,7 +131,7 @@ test.describe('editing the card', () => {
     await expect(user.items.heading('A card with every field')).toBeVisible();
     await expect(user.page.locator('.chip')).toHaveText(['backend', 'bug']);
     await expect(user.page.getByText('The validator guards its own input')).toBeVisible();
-    await expect(user.page.locator('code').filter({ hasText: 'officeIds' })).toBeVisible();
+    await expect(user.page.locator('code').filter({ hasText: 'couponIds' })).toBeVisible();
   });
 });
 

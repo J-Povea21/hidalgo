@@ -34,7 +34,7 @@ const common = {
   logLevel: 'warning',
   absWorkingDir: root,
   charset: 'utf8',
-  define: { __WORKBENCH_BUILD__: JSON.stringify(BUILD) },
+  define: { __HIDALGO_BUILD__: JSON.stringify(BUILD) },
 };
 
 // Node targets: one self-contained file each, no node_modules needed at runtime.

@@ -13,20 +13,20 @@ describe('list-runs', () => {
     const mine = newRun({
       id: 'r1',
       skill: 'card',
-      project: 'MiPlan',
+      project: 'Storefront',
       subject: 'validator',
       now: T0,
       threadId: ids('t'),
     });
     const theirs = addItems(
-      newRun({ id: 'r2', skill: 'card', project: 'MiPlan', subject: 'export', now: T0, threadId: ids('t') }),
-      [{ kind: 'card', fields: card('Formulación - Export activities to Excel') }],
+      newRun({ id: 'r2', skill: 'card', project: 'Storefront', subject: 'export', now: T0, threadId: ids('t') }),
+      [{ kind: 'card', fields: card('Reports - Export orders to Excel') }],
       ids,
     ).run;
     const elsewhere = newRun({
       id: 'r3',
       skill: 'card',
-      project: 'Mi Titulo',
+      project: 'Back Office',
       subject: 'x',
       now: T0,
       threadId: ids('t'),
@@ -36,7 +36,7 @@ describe('list-runs', () => {
     }
     await fakes.live.write({
       runId: 'r2',
-      project: 'MiPlan',
+      project: 'Storefront',
       skill: 'card',
       subject: 'export',
       port: 1,
@@ -50,11 +50,11 @@ describe('list-runs', () => {
       claudeListening: false,
     });
 
-    const list = RunMapper.toList(await cases.runs.listRuns.execute({ project: 'MiPlan' })).runs;
+    const list = RunMapper.toList(await cases.runs.listRuns.execute({ project: 'Storefront' })).runs;
     expect(list.map((summary) => summary.id).sort()).toEqual(['r1', 'r2']);
     const other = list.find((summary) => summary.id === 'r2')!;
     expect(other.live).toBe(true);
-    expect(other.items[0]!.title).toBe('Formulación - Export activities to Excel');
+    expect(other.items[0]!.title).toBe('Reports - Export orders to Excel');
     expect(await fakes.store.load('r2')).toEqual(theirs);
   });
 
@@ -62,10 +62,10 @@ describe('list-runs', () => {
     const fakes = world();
     const cases = useCases(fakes);
     await fakes.store.save({
-      ...newRun({ id: 'r1', skill: 'card', project: 'MiPlan', subject: 's', now: T0, threadId: 't1' }),
+      ...newRun({ id: 'r1', skill: 'card', project: 'Storefront', subject: 's', now: T0, threadId: 't1' }),
       status: 'closed',
     });
-    expect((await cases.runs.listRuns.execute({ project: 'MiPlan' })).runs).toHaveLength(0);
-    expect((await cases.runs.listRuns.execute({ project: 'MiPlan', includeClosed: true })).runs).toHaveLength(1);
+    expect((await cases.runs.listRuns.execute({ project: 'Storefront' })).runs).toHaveLength(0);
+    expect((await cases.runs.listRuns.execute({ project: 'Storefront', includeClosed: true })).runs).toHaveLength(1);
   });
 });

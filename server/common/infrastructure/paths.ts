@@ -1,10 +1,17 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-/** Where workbench keeps its data: the plugin's data folder when Claude Code provides one. */
+const PLUGIN_DATA_FOLDER = 'hidalgo';
+const HOME_DATA_FOLDER = '.hidalgo';
+
+/**
+ * Where Hidalgo keeps its data: inside the plugin's data folder when a Claude Code
+ * plugin starts it, otherwise in the user's home.
+ */
 export function dataRoot(): string {
-  return join(
-    process.env['CLAUDE_PLUGIN_DATA'] ?? join(homedir(), '.claude', 'plugins', 'data', 'planeacion-tools'),
-    'workbench',
-  );
+  const pluginData = process.env['CLAUDE_PLUGIN_DATA'];
+  if (pluginData === undefined) {
+    return join(homedir(), HOME_DATA_FOLDER);
+  }
+  return join(pluginData, PLUGIN_DATA_FOLDER);
 }

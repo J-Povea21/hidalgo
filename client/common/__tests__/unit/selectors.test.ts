@@ -84,7 +84,7 @@ describe('whose turn the page shows', () => {
 });
 
 describe('the tab title', () => {
-  const SUFFIX = 'MiPlan · card · OfficesExist validator';
+  const SUFFIX = 'Storefront · card · CouponExists validator';
 
   it('leads with what waits on the user, or with how Claude is', () => {
     expect(tabTitle(aLivePage(CLAUDE.listening), NOW)).toBe(`(1) ${SUFFIX}`);

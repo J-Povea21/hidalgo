@@ -16,7 +16,7 @@ export interface SentEvent {
 }
 
 /** Claude's session, as the page talks to it. client/common/infrastructure implements it; tests stand in their own. */
-export abstract class WorkbenchServer {
+export abstract class HidalgoServer {
   abstract sendEvent(event: PageEvent): Promise<SentEvent>;
   abstract liveRuns(): Promise<LiveEntry[]>;
   /** A stored image as a blob URL (an <img> can't send the token header). */
