@@ -2,6 +2,7 @@
   "name": "@j-povea21/hidalgo",
   "private": true,
   "description": "A local MCP server and page where a developer reviews, questions and approves an AI agent's work.",
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.32.1",
   "engines": {
